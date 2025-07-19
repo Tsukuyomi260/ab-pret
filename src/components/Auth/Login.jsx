@@ -4,6 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import Button from '../UI/Button';
 import Input from '../UI/Input';
 import Logo from '../UI/Logo';
+import BlurText from '../UI/BlurText';
+import StarBorder from '../UI/StarBorder';
 import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
 
 const Login = () => {
@@ -53,7 +55,7 @@ const Login = () => {
         <div className="bg-white rounded-2xl shadow-large p-8 border border-accent-200">
           {/* Header */}
           <div className="text-center mb-8">
-            {/* Logo CAMPUS FINANCE */}
+            {/* Logo CAMPUS FINANCE animé */}
             <div className="flex justify-center mb-6">
               <Logo size="xl" showText={true} />
             </div>
@@ -106,13 +108,20 @@ const Login = () => {
               </button>
             </div>
 
-            <Button
-              type="submit"
-              loading={loading}
-              className="w-full bg-primary-500 hover:bg-primary-600 text-white font-montserrat"
+            <StarBorder
+              color="#FF6B35"
+              speed="2s"
+              thickness={3}
+              className="w-full"
             >
-              {loading ? 'Connexion...' : 'Se connecter'}
-            </Button>
+              <Button
+                type="submit"
+                loading={loading}
+                className="w-full bg-primary-500 hover:bg-primary-600 text-white font-montserrat"
+              >
+                {loading ? 'Connexion...' : 'Se connecter'}
+              </Button>
+            </StarBorder>
           </form>
 
           {/* Liens */}

@@ -208,7 +208,15 @@ const AdminDashboard = () => {
         <div className="p-6 h-full flex flex-col">
           {/* Header mobile avec bouton fermer */}
           <div className="flex items-center justify-between mb-8 lg:hidden">
-            <Logo size="sm" showText={true} />
+            <button 
+              onClick={() => {
+                navigate('/admin');
+                setSidebarOpen(false);
+              }}
+              className="flex items-center space-x-3"
+            >
+              <Logo size="sm" showText={true} />
+            </button>
             <button
               onClick={() => setSidebarOpen(false)}
               className="p-2 text-neutral-400 hover:text-neutral-600"
@@ -219,7 +227,12 @@ const AdminDashboard = () => {
 
           {/* Logo CAMPUS FINANCE (desktop) */}
           <div className="hidden lg:block mb-8">
-            <Logo size="md" showText={true} />
+            <button 
+              onClick={() => navigate('/admin')}
+              className="flex items-center space-x-3 hover:opacity-80 transition-opacity duration-200"
+            >
+              <Logo size="md" showText={true} />
+            </button>
             <div className="mt-2">
               <div className="inline-block bg-accent-100 text-accent-700 text-xs px-2 py-1 rounded-full font-montserrat">
                 Admin
@@ -305,8 +318,8 @@ const AdminDashboard = () => {
       {/* Contenu principal */}
       <div className="flex-1 w-full overflow-x-hidden">
         {/* Header */}
-        <header className="bg-white shadow-soft border-b border-accent-200 px-4 lg:px-8 py-4 w-full">
-          <div className="flex items-center justify-between w-full">
+        <header className="bg-white shadow-soft border-b border-accent-200 w-full">
+          <div className="flex items-center justify-between w-full px-4 lg:px-8 py-4">
             <div className="flex items-center space-x-4">
               {/* Bouton menu burger pour mobile */}
               <button 
@@ -352,186 +365,198 @@ const AdminDashboard = () => {
               <button className="p-2 text-neutral-400 hover:text-neutral-600">
                 <MoreHorizontal size={20} />
               </button>
-              <div className="w-8 h-8 bg-accent-100 rounded-full flex items-center justify-center">
-                <Monitor size={16} className="text-secondary-900" />
-              </div>
+              <button className="p-2 text-neutral-400 hover:text-neutral-600">
+                <Monitor size={20} />
+              </button>
             </div>
           </div>
         </header>
 
         {/* Contenu du dashboard */}
-        <main className="p-4 lg:p-8 w-full overflow-x-hidden">
+        <main className="w-full overflow-x-hidden">
           {/* Message de bienvenue */}
-          <div className="mb-6 lg:mb-8">
+          <div className="mb-6 lg:mb-8 px-4 lg:px-8 pt-4 lg:pt-8">
             <h1 className="text-2xl lg:text-3xl font-bold text-secondary-900 font-montserrat mb-2">
               {getGreeting()} Abel ! ☀️
             </h1>
             <p className="text-base lg:text-lg text-neutral-600 font-montserrat">
-              Gérez vos prêts et accompagnez vos clients vers le succès. ☀️
+              Gérez vos clients et supervisez les prêts de Campus Finance. ☀️
             </p>
           </div>
 
           {/* Actions rapides */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6 lg:mb-8">
-            <Button
-              variant="outline"
-              className="p-4 h-auto flex-col space-y-2 bg-white"
-            >
-              <Users size={24} className="text-primary-500" />
-              <span className="font-medium text-secondary-900">Gérer les utilisateurs</span>
-            </Button>
-            
-            <Button
-              variant="outline"
-              className="p-4 h-auto flex-col space-y-2 bg-white"
-            >
-              <CreditCard size={24} className="text-primary-500" />
-              <span className="font-medium text-secondary-900">Approuver des demandes</span>
-            </Button>
-            
-            <Button
-              variant="outline"
-              className="p-4 h-auto flex-col space-y-2 bg-white"
-            >
-              <BarChart3 size={24} className="text-primary-500" />
-              <span className="font-medium text-secondary-900">Voir les rapports</span>
-            </Button>
+          <div className="mb-6 lg:mb-8 px-4 lg:px-8">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <Button
+                variant="outline"
+                className="p-4 h-auto flex-col space-y-2 bg-white"
+                onClick={() => navigate('/admin/users')}
+              >
+                <Users size={24} className="text-primary-500" />
+                <span className="font-medium text-secondary-900">Gérer les utilisateurs</span>
+                <span className="text-xs text-neutral-600">Voir tous les clients</span>
+              </Button>
+              
+              <Button
+                variant="outline"
+                className="p-4 h-auto flex-col space-y-2 bg-white"
+                onClick={() => navigate('/admin/loan-requests')}
+              >
+                <CreditCard size={24} className="text-primary-500" />
+                <span className="font-medium text-secondary-900">Approuver des demandes</span>
+                <span className="text-xs text-neutral-600">{stats.pendingRequests} en attente</span>
+              </Button>
+              
+              <Button
+                variant="outline"
+                className="p-4 h-auto flex-col space-y-2 bg-white"
+                onClick={() => navigate('/admin/reports')}
+              >
+                <BarChart3 size={24} className="text-primary-500" />
+                <span className="font-medium text-secondary-900">Voir les rapports</span>
+                <span className="text-xs text-neutral-600">Analyses et statistiques</span>
+              </Button>
+            </div>
           </div>
 
           {/* Statistiques */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-6 lg:mb-8">
-            <Card className="bg-white">
-              <div className="flex items-start justify-between">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-neutral-600 font-montserrat mb-1">Prêts totaux accordés</p>
-                  <p className="text-lg lg:text-xl font-bold text-secondary-900 font-montserrat truncate">
-                    {formatCurrency(stats.totalAmount)}
-                  </p>
+          <div className="mb-6 lg:mb-8 px-4 lg:px-8">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6">
+              <Card className="bg-white">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-neutral-600 font-montserrat mb-1">Prêts totaux accordés</p>
+                    <p className="text-lg lg:text-xl font-bold text-secondary-900 font-montserrat truncate">
+                      {formatCurrency(stats.totalAmount)}
+                    </p>
+                  </div>
+                  <div className="p-2 bg-primary-100 rounded-full ml-3 flex-shrink-0 mt-0.5">
+                    <CreditCard size={16} className="text-primary-600" />
+                  </div>
                 </div>
-                <div className="p-2 bg-primary-100 rounded-full ml-3 flex-shrink-0 mt-0.5">
-                  <CreditCard size={16} className="text-primary-600" />
-                </div>
-              </div>
-            </Card>
+              </Card>
 
-            <Card className="bg-white">
-              <div className="flex items-start justify-between">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-neutral-600 font-montserrat mb-1">Prêts ce mois</p>
-                  <p className="text-lg lg:text-xl font-bold text-secondary-900 font-montserrat truncate">
-                    {formatCurrency(stats.totalAmount * 0.3)}
-                  </p>
+              <Card className="bg-white">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-neutral-600 font-montserrat mb-1">Prêts ce mois</p>
+                    <p className="text-lg lg:text-xl font-bold text-secondary-900 font-montserrat truncate">
+                      {formatCurrency(stats.totalAmount * 0.3)}
+                    </p>
+                  </div>
+                  <div className="p-2 bg-primary-100 rounded-full ml-3 flex-shrink-0 mt-0.5">
+                    <TrendingUp size={16} className="text-primary-600" />
+                  </div>
                 </div>
-                <div className="p-2 bg-primary-100 rounded-full ml-3 flex-shrink-0 mt-0.5">
-                  <TrendingUp size={16} className="text-primary-600" />
-                </div>
-              </div>
-            </Card>
+              </Card>
 
-            <Card className="bg-white">
-              <div className="flex items-start justify-between">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-neutral-600 font-montserrat mb-1">Utilisateurs actifs</p>
-                  <p className="text-lg lg:text-xl font-bold text-secondary-900 font-montserrat truncate">
-                    {stats.totalUsers}
-                  </p>
+              <Card className="bg-white">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-neutral-600 font-montserrat mb-1">Clients au total</p>
+                    <p className="text-lg lg:text-xl font-bold text-secondary-900 font-montserrat truncate">
+                      {stats.totalUsers}
+                    </p>
+                  </div>
+                  <div className="p-2 bg-primary-100 rounded-full ml-3 flex-shrink-0 mt-0.5">
+                    <Users size={16} className="text-primary-600" />
+                  </div>
                 </div>
-                <div className="p-2 bg-primary-100 rounded-full ml-3 flex-shrink-0 mt-0.5">
-                  <Users size={16} className="text-primary-600" />
-                </div>
-              </div>
-            </Card>
+              </Card>
 
-            <Card className="bg-white">
-              <div className="flex items-start justify-between">
-                <div className="flex-1 min-w-0">
-                  <p className="text-sm font-medium text-neutral-600 font-montserrat mb-1">Demandes en attente</p>
-                  <p className="text-lg lg:text-xl font-bold text-secondary-900 font-montserrat truncate">
-                    {stats.pendingRequests}
-                  </p>
+              <Card className="bg-white">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-neutral-600 font-montserrat mb-1">Demandes en attente</p>
+                    <p className="text-lg lg:text-xl font-bold text-secondary-900 font-montserrat truncate">
+                      {stats.pendingRequests}
+                    </p>
+                  </div>
+                  <div className="p-2 bg-primary-100 rounded-full ml-3 flex-shrink-0 mt-0.5">
+                    <Clock size={16} className="text-primary-600" />
+                  </div>
                 </div>
-                <div className="p-2 bg-primary-100 rounded-full ml-3 flex-shrink-0 mt-0.5">
-                  <Clock size={16} className="text-primary-600" />
-                </div>
-              </div>
-            </Card>
+              </Card>
+            </div>
           </div>
 
           {/* Demandes récentes */}
-          <Card title="Demandes récentes" className="bg-white">
-            {recentRequests.length > 0 ? (
-              <div className="space-y-4">
-                {recentRequests.map((request) => (
-                  <div 
-                    key={request.id}
-                    className="flex flex-col lg:flex-row lg:items-start lg:justify-between p-4 border border-accent-200 rounded-xl hover:shadow-soft transition-shadow duration-200"
-                  >
-                    <div className="flex-1 mb-4 lg:mb-0">
-                      <div className="flex flex-col lg:flex-row lg:items-start space-y-2 lg:space-y-0 lg:space-x-3 mb-2">
-                        <div className="flex items-center space-x-2">
-                          <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center space-x-1 ${getStatusColor(request.status)}`}>
-                            {getStatusIcon(request.status)}
-                            <span>{getStatusText(request.status)}</span>
-                          </span>
+          <div className="px-4 lg:px-8">
+            <Card title="Demandes récentes" className="bg-white">
+              {recentRequests.length > 0 ? (
+                <div className="space-y-4">
+                  {recentRequests.map((request) => (
+                    <div 
+                      key={request.id}
+                      className="flex flex-col lg:flex-row lg:items-start lg:justify-between p-4 border border-accent-200 rounded-xl hover:shadow-soft transition-shadow duration-200"
+                    >
+                      <div className="flex-1 mb-4 lg:mb-0">
+                        <div className="flex flex-col lg:flex-row lg:items-start space-y-2 lg:space-y-0 lg:space-x-3 mb-2">
+                          <div className="flex items-center space-x-2">
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center space-x-1 ${getStatusColor(request.status)}`}>
+                              {getStatusIcon(request.status)}
+                              <span>{getStatusText(request.status)}</span>
+                            </span>
+                          </div>
+                          <p className="font-medium text-secondary-900 font-montserrat">
+                            {request.user.firstName} {request.user.lastName}
+                          </p>
                         </div>
-                        <p className="font-medium text-secondary-900 font-montserrat">
-                          {request.user.firstName} {request.user.lastName}
-                        </p>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
+                          <div>
+                            <span className="text-neutral-600 font-montserrat">Montant:</span>
+                            <p className="font-medium text-secondary-900 font-montserrat">{formatCurrency(request.amount)}</p>
+                          </div>
+                          <div>
+                            <span className="text-neutral-600 font-montserrat">Date:</span>
+                            <p className="font-medium text-secondary-900 font-montserrat">{new Date(request.requestDate).toLocaleDateString('fr-FR')}</p>
+                          </div>
+                          <div>
+                            <span className="text-neutral-600 font-montserrat">Objet:</span>
+                            <p className="font-medium text-secondary-900 font-montserrat truncate">{request.purpose}</p>
+                          </div>
+                        </div>
                       </div>
                       
-                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 text-sm">
-                        <div>
-                          <span className="text-neutral-600 font-montserrat">Montant:</span>
-                          <p className="font-medium text-secondary-900 font-montserrat">{formatCurrency(request.amount)}</p>
-                        </div>
-                        <div>
-                          <span className="text-neutral-600 font-montserrat">Date:</span>
-                          <p className="font-medium text-secondary-900 font-montserrat">{new Date(request.requestDate).toLocaleDateString('fr-FR')}</p>
-                        </div>
-                        <div>
-                          <span className="text-neutral-600 font-montserrat">Objet:</span>
-                          <p className="font-medium text-secondary-900 font-montserrat truncate">{request.purpose}</p>
-                        </div>
+                      <div className="flex space-x-2 lg:flex-shrink-0">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => navigate(`/admin/loan-request/${request.id}`)}
+                        >
+                          <Eye size={16} />
+                        </Button>
+                        
+                        {request.status === 'pending' && (
+                          <>
+                            <Button
+                              size="sm"
+                              className="bg-green-600 hover:bg-green-700"
+                              onClick={() => handleApprove(request.id)}
+                            >
+                              <UserCheck size={16} />
+                            </Button>
+                            <Button
+                              variant="danger"
+                              size="sm"
+                              onClick={() => handleReject(request.id)}
+                            >
+                              <UserX size={16} />
+                            </Button>
+                          </>
+                        )}
                       </div>
                     </div>
-                    
-                    <div className="flex space-x-2 lg:flex-shrink-0">
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        onClick={() => navigate(`/admin/loan-request/${request.id}`)}
-                      >
-                        <Eye size={16} />
-                      </Button>
-                      
-                      {request.status === 'pending' && (
-                        <>
-                          <Button
-                            size="sm"
-                            className="bg-green-600 hover:bg-green-700"
-                            onClick={() => handleApprove(request.id)}
-                          >
-                            <UserCheck size={16} />
-                          </Button>
-                          <Button
-                            variant="danger"
-                            size="sm"
-                            onClick={() => handleReject(request.id)}
-                          >
-                            <UserX size={16} />
-                          </Button>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="text-center py-8">
-                <p className="text-neutral-500 font-montserrat">Aucune demande récente</p>
-              </div>
-            )}
-          </Card>
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center py-8">
+                  <p className="text-neutral-500 font-montserrat">Aucune demande récente</p>
+                </div>
+              )}
+            </Card>
+          </div>
         </main>
       </div>
 

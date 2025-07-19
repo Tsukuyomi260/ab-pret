@@ -1,4 +1,5 @@
 import React from 'react';
+import BlurText from './BlurText';
 
 const Logo = ({ className = '', size = 'md', showText = true }) => {
   const sizes = {
@@ -15,6 +16,10 @@ const Logo = ({ className = '', size = 'md', showText = true }) => {
     xl: 'text-lg'
   };
 
+  const handleAnimationComplete = () => {
+    console.log('CAMPUS FINANCE animation completed!');
+  };
+
   return (
     <div className={`flex items-center space-x-3 ${className}`}>
       {/* Logo CAMPUS FINANCE avec image PNG */}
@@ -28,9 +33,14 @@ const Logo = ({ className = '', size = 'md', showText = true }) => {
       
       {showText && (
         <div className="flex flex-col">
-          <h1 className={`font-semibold text-secondary-900 font-montserrat ${textSizes[size]}`}>
-            CAMPUS FINANCE
-          </h1>
+          <BlurText
+            text="CAMPUS FINANCE"
+            delay={150}
+            className={`font-semibold text-secondary-900 font-montserrat ${textSizes[size]}`}
+            animateBy="letters"
+            direction="top"
+            onAnimationComplete={handleAnimationComplete}
+          />
           <p className="text-xs text-neutral-600 font-montserrat">
             Votre succès, notre mission
           </p>

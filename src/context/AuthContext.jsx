@@ -24,8 +24,8 @@ const mockUsers = [
   },
   {
     id: 2,
-    firstName: 'Admin',
-    lastName: 'Test',
+    firstName: 'Abel',
+    lastName: 'Viakinnou',
     email: 'admin@test.com',
     role: 'admin',
     phone: '+229 90 00 00 01'

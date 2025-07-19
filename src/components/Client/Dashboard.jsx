@@ -86,7 +86,7 @@ const ClientDashboard = () => {
   };
 
   return (
-    <div className="space-y-6 lg:space-y-8">
+    <div className="space-y-6 lg:space-y-8 px-4 lg:px-8">
       {/* Header */}
       <div className="flex flex-col lg:flex-row lg:justify-between lg:items-center space-y-4 lg:space-y-0">
         <div>
@@ -203,8 +203,17 @@ const ClientDashboard = () => {
                     size="sm"
                     onClick={() => navigate(`/loan-history/${loan.id}`)}
                   >
-                    Voir détails
+                    <History size={16} />
                   </Button>
+                  
+                  {loan.status === 'active' && (
+                    <Button
+                      size="sm"
+                      onClick={() => navigate('/repayment')}
+                    >
+                      <Wallet size={16} />
+                    </Button>
+                  )}
                 </div>
               </div>
             ))}
