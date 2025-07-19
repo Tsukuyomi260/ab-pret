@@ -1,0 +1,76 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Montserrat:wght@100;200;300;400;500;600;700;800;900&display=swap');
+
+/* Empêcher le scroll horizontal */
+html, body {
+  overflow-x: hidden;
+  width: 100%;
+}
+
+#root {
+  width: 100%;
+  overflow-x: hidden;
+}
+
+/* Styles personnalisés CAMPUS FINANCE */
+.campus-card {
+  @apply bg-white rounded-xl shadow-soft p-6 border border-accent-200;
+}
+
+.campus-button {
+  @apply bg-primary-500 text-white px-6 py-3 rounded-xl font-medium hover:bg-primary-600 transition-colors duration-200;
+}
+
+.campus-input {
+  @apply w-full px-4 py-3 border border-accent-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-colors duration-200;
+}
+
+/* Logo styles */
+.logo-text {
+  @apply font-montserrat font-semibold text-secondary-900;
+}
+
+.logo-slogan {
+  @apply font-montserrat text-sm text-neutral-600;
+}
+
+/* Typography */
+.heading-primary {
+  @apply font-montserrat font-semibold text-secondary-900;
+}
+
+.heading-secondary {
+  @apply font-montserrat font-medium text-neutral-700;
+}
+
+.body-text {
+  @apply font-montserrat text-neutral-600;
+}
+
+/* Color utilities */
+.bg-primary-gradient {
+  @apply bg-gradient-to-r from-primary-500 to-primary-600;
+}
+
+.bg-secondary-gradient {
+  @apply bg-gradient-to-r from-secondary-900 to-secondary-800;
+}
+
+/* Custom animations */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.6s ease-out;
+}
