@@ -15,7 +15,7 @@ html, body {
   overflow-x: hidden;
 }
 
-/* Styles personnalisés CAMPUS FINANCE */
+/* Styles personnalisés AB PRET */
 .campus-card {
   @apply bg-white rounded-xl shadow-soft p-6 border border-accent-200;
 }

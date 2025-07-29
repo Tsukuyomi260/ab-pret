@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
-import { useAuth } from '../../context/AuthContext';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
+import { useNotification } from '../../context/NotificationContext';
 import { LogOut, User, Bell, Menu, X } from 'lucide-react';
 import Logo from '../UI/Logo';
 
@@ -8,7 +9,38 @@ const Header = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const { showInfo } = useNotification();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [notificationCount, setNotificationCount] = useState(0);
+
+  // Vérifier les nouvelles notifications pour l'admin
+  useEffect(() => {
+    if (user?.role === 'admin') {
+      const checkNotifications = () => {
+        const adminNotifications = JSON.parse(localStorage.getItem('adminNotifications') || '[]');
+        const unreadNotifications = adminNotifications.filter(notification => 
+          !notification.read && 
+          new Date(notification.timestamp) > new Date(Date.now() - 5 * 60 * 1000) // 5 dernières minutes
+        );
+        
+        if (unreadNotifications.length > 0) {
+          setNotificationCount(unreadNotifications.length);
+          
+          // Afficher une notification toast pour la première nouvelle inscription
+          const latestNotification = unreadNotifications[0];
+          if (latestNotification.type === 'new_registration') {
+            showInfo(`Nouvelle inscription : ${latestNotification.user.firstName} ${latestNotification.user.lastName}`);
+          }
+        }
+      };
+
+      // Vérifier toutes les 30 secondes
+      const interval = setInterval(checkNotifications, 30000);
+      checkNotifications(); // Vérifier immédiatement
+
+      return () => clearInterval(interval);
+    }
+  }, [user?.role, showInfo]);
 
   const handleLogout = () => {
     logout();
@@ -40,7 +72,7 @@ const Header = () => {
     <header className="bg-white shadow-soft border-b border-accent-200 w-full overflow-x-hidden">
       <div className="w-full">
         <div className="flex justify-between items-center py-4 w-full px-4 lg:px-8">
-          {/* Logo CAMPUS FINANCE */}
+          {/* Logo AB PRET */}
           <button 
             onClick={handleLogoClick}
             className="flex items-center space-x-3 hover:opacity-80 transition-opacity duration-200"
@@ -58,10 +90,10 @@ const Header = () => {
                 <a href="/admin/loan-requests" className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-colors duration-200">
                   Demandes de prêt
                 </a>
-                <a href="/admin/users" className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-colors duration-200">
+                <a href="/admin/user-management" className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-colors duration-200">
                   Gestion utilisateur
                 </a>
-                <a href="/admin/reports" className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-colors duration-200">
+                <a href="/admin/analytics" className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-colors duration-200">
                   Analytiques
                 </a>
               </>
@@ -82,9 +114,14 @@ const Header = () => {
 
           {/* Actions utilisateur desktop */}
           <div className="hidden lg:flex items-center space-x-4">
-            <button className="p-2 text-neutral-400 hover:text-neutral-600 transition-colors duration-200">
-              <Bell size={20} />
-            </button>
+            {user?.role === 'admin' && notificationCount > 0 && (
+              <button className="relative p-2 text-neutral-400 hover:text-neutral-600 transition-colors duration-200">
+                <Bell size={20} />
+                <span className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full w-5 h-5 flex items-center justify-center">
+                  {notificationCount}
+                </span>
+              </button>
+            )}
             
             <div className="flex items-center space-x-3">
               <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
@@ -113,7 +150,7 @@ const Header = () => {
             className="lg:hidden p-2 text-neutral-400 hover:text-neutral-600"
           >
             {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-          </button>
+            </button>
         </div>
 
         {/* Menu mobile */}
@@ -139,7 +176,7 @@ const Header = () => {
                     <span>Demandes de prêt</span>
                   </a>
                   <a 
-                    href="/admin/users" 
+                    href="/admin/user-management" 
                     className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-colors duration-200 px-4 py-2 rounded-lg hover:bg-accent-50 flex items-start space-x-3"
                     onClick={() => setMobileMenuOpen(false)}
                   >
@@ -147,7 +184,7 @@ const Header = () => {
                     <span>Gestion utilisateur</span>
                   </a>
                   <a 
-                    href="/admin/reports" 
+                    href="/admin/analytics" 
                     className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-colors duration-200 px-4 py-2 rounded-lg hover:bg-accent-50 flex items-start space-x-3"
                     onClick={() => setMobileMenuOpen(false)}
                   >
@@ -200,20 +237,20 @@ const Header = () => {
                     </span>
                     <span className="text-xs text-neutral-600 font-montserrat">
                       {user?.role === 'admin' ? 'Administrateur' : 'Client'}
-                    </span>
-                  </div>
+              </span>
+            </div>
                 </div>
-                <button
+            <button
                   onClick={() => {
                     handleLogout();
                     setMobileMenuOpen(false);
                   }}
                   className="p-2 text-neutral-400 hover:text-neutral-600 transition-colors duration-200"
-                >
-                  <LogOut size={20} />
-                </button>
-              </div>
-            </div>
+            >
+              <LogOut size={20} />
+            </button>
+          </div>
+        </div>
           </div>
         )}
       </div>

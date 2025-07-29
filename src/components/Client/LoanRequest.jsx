@@ -1,25 +1,28 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+
+import { useNotification } from '../../context/NotificationContext';
 import Card from '../UI/Card';
 import Button from '../UI/Button';
 import Input from '../UI/Input';
-import { ArrowLeft, Calculator, AlertCircle } from 'lucide-react';
-import { calculateLoanInterest } from '../../utils/helpers';
+import LoanCalculator from '../UI/LoanCalculator';
+import { ArrowLeft, AlertCircle } from 'lucide-react';
+import { LOAN_CONFIG } from '../../utils/loanConfig';
 
 const LoanRequest = () => {
-  const { user } = useAuth();
+
+  const { showSuccess, showError } = useNotification();
   const navigate = useNavigate();
   const [formData, setFormData] = useState({
     amount: '',
-    duration: '12',
+    duration: 1, // 1 semaine par défaut
     purpose: '',
     monthlyIncome: '',
     employmentStatus: 'employed'
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
-  const [calculation, setCalculation] = useState(null);
+
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -39,35 +42,42 @@ const LoanRequest = () => {
     // Calculer automatiquement si montant et durée sont remplis
     if (name === 'amount' || name === 'duration') {
       if (formData.amount && formData.duration) {
-        calculateLoan();
+        // La calculatrice se met à jour automatiquement
       }
     }
   };
 
-  const calculateLoan = () => {
-    const amount = parseFloat(formData.amount);
-    const duration = parseInt(formData.duration);
-    
-    if (amount && duration) {
-      // Taux d'intérêt annuel de 12% (1% par mois)
-      const result = calculateLoanInterest(amount, 12, duration);
-      setCalculation(result);
-    }
+  const handleCalculation = (result) => {
+    setFormData(prev => ({
+      ...prev,
+      amount: result.principal.toString(),
+      duration: result.duration
+    }));
   };
 
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.amount || parseFloat(formData.amount) < 10000) {
-      newErrors.amount = 'Le montant minimum est de 10 000 FCFA';
+    if (!formData.amount || parseFloat(formData.amount) < LOAN_CONFIG.amounts.min) {
+      newErrors.amount = `Le montant minimum est de ${LOAN_CONFIG.amounts.min.toLocaleString()} FCFA`;
+    }
+
+    if (parseFloat(formData.amount) > LOAN_CONFIG.amounts.max) {
+      newErrors.amount = `Le montant maximum est de ${LOAN_CONFIG.amounts.max.toLocaleString()} FCFA`;
     }
 
     if (!formData.purpose.trim()) {
       newErrors.purpose = 'Veuillez préciser l\'objet du prêt';
     }
 
-    if (!formData.monthlyIncome || parseFloat(formData.monthlyIncome) < 50000) {
-      newErrors.monthlyIncome = 'Le revenu mensuel minimum est de 50 000 FCFA';
+    if (!formData.monthlyIncome) {
+      newErrors.monthlyIncome = 'Le revenu mensuel est requis';
+    } else {
+      const income = parseFloat(formData.monthlyIncome);
+      const incomeValidation = LOAN_CONFIG.validateMonthlyIncome(income);
+      if (!incomeValidation.isValid) {
+        newErrors.monthlyIncome = incomeValidation.errors[0];
+      }
     }
 
     setErrors(newErrors);
@@ -85,41 +95,37 @@ const LoanRequest = () => {
       // Simulation d'appel API
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      // Redirection vers le dashboard avec un message de succès
-      navigate('/dashboard', { 
-        state: { message: 'Votre demande de prêt a été soumise avec succès' }
-      });
+      showSuccess('Demande de prêt soumise avec succès !');
+      navigate('/dashboard');
     } catch (error) {
-      setErrors({ general: 'Erreur lors de la soumission de la demande' });
+      showError('Erreur lors de la soumission de la demande');
     } finally {
       setLoading(false);
     }
   };
 
   return (
-    <div className="space-y-8">
-      {/* Header */}
-      <div className="flex items-center space-x-4">
-        <Button
-          variant="outline"
-          onClick={() => navigate('/dashboard')}
-          className="flex items-center space-x-2"
-        >
-          <ArrowLeft size={20} />
-          <span>Retour</span>
-        </Button>
-        
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">Demande de prêt</h1>
-          <p className="text-gray-600">Remplissez le formulaire pour demander un prêt</p>
+    <div className="min-h-screen bg-gray-50">
+      {/* Header centré style Apple */}
+      <div className="text-center py-8 px-4">
+        <div className="max-w-2xl mx-auto">
+          <h1 className="text-3xl font-bold text-gray-900 font-montserrat mb-3">
+            Demande de prêt
+          </h1>
+          <p className="text-lg text-gray-600 font-montserrat leading-relaxed">
+            Remplissez le formulaire ci-dessous pour demander votre prêt. 
+            Notre équipe traitera votre demande dans les plus brefs délais.
+          </p>
         </div>
       </div>
 
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+      {/* Contenu principal centré */}
+      <div className="max-w-6xl mx-auto px-4 pb-8">
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Formulaire */}
         <div className="lg:col-span-2">
-          <Card title="Informations du prêt">
-            <form onSubmit={handleSubmit} className="space-y-6">
+          <Card title="Informations du prêt" className="bg-white/90 backdrop-blur-sm border-white/20">
+            <div className="space-y-6">
               {errors.general && (
                 <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center space-x-2">
                   <AlertCircle size={20} />
@@ -134,13 +140,15 @@ const LoanRequest = () => {
                   name="amount"
                   value={formData.amount}
                   onChange={handleChange}
-                  placeholder="100000"
+                  placeholder="50000"
+                  min={LOAN_CONFIG.amounts.min}
+                  max={LOAN_CONFIG.amounts.max}
                   error={errors.amount}
                   required
                 />
 
                 <Input
-                  label="Durée (mois)"
+                  label="Durée du prêt"
                   type="select"
                   name="duration"
                   value={formData.duration}
@@ -148,11 +156,11 @@ const LoanRequest = () => {
                   error={errors.duration}
                   required
                 >
-                  <option value="6">6 mois</option>
-                  <option value="12">12 mois</option>
-                  <option value="18">18 mois</option>
-                  <option value="24">24 mois</option>
-                  <option value="36">36 mois</option>
+                  {LOAN_CONFIG.durations.map((option) => (
+                    <option key={option.value} value={option.weeks}>
+                      {option.label}
+                    </option>
+                  ))}
                 </Input>
               </div>
 
@@ -174,7 +182,9 @@ const LoanRequest = () => {
                   name="monthlyIncome"
                   value={formData.monthlyIncome}
                   onChange={handleChange}
-                  placeholder="150000"
+                  placeholder={`${LOAN_CONFIG.monthlyIncome.min.toLocaleString()} - ${LOAN_CONFIG.monthlyIncome.max.toLocaleString()}`}
+                  min={LOAN_CONFIG.monthlyIncome.min}
+                  max={LOAN_CONFIG.monthlyIncome.max}
                   error={errors.monthlyIncome}
                   required
                 />
@@ -193,81 +203,65 @@ const LoanRequest = () => {
                   <option value="student">Étudiant</option>
                 </Input>
               </div>
-
-              <Button
-                type="submit"
-                loading={loading}
-                className="w-full"
-              >
-                {loading ? 'Soumission...' : 'Soumettre la demande'}
-              </Button>
-            </form>
+            </div>
           </Card>
         </div>
 
         {/* Calculatrice */}
         <div className="space-y-6">
-          <Card title="Calculatrice de prêt">
-            <div className="space-y-4">
-              <div className="flex items-center space-x-2 text-primary-600">
-                <Calculator size={20} />
-                <span className="font-medium">Simulation</span>
-              </div>
-
-              {calculation ? (
-                <div className="space-y-3">
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Montant demandé:</span>
-                    <span className="font-medium">{new Intl.NumberFormat('fr-BJ', { style: 'currency', currency: 'XOF' }).format(parseFloat(formData.amount))}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Durée:</span>
-                    <span className="font-medium">{formData.duration} mois</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Mensualité:</span>
-                    <span className="font-medium">{new Intl.NumberFormat('fr-BJ', { style: 'currency', currency: 'XOF' }).format(calculation.monthlyPayment)}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-600">Intérêts totaux:</span>
-                    <span className="font-medium">{new Intl.NumberFormat('fr-BJ', { style: 'currency', currency: 'XOF' }).format(calculation.totalInterest)}</span>
-                  </div>
-                  <div className="flex justify-between border-t pt-2">
-                    <span className="text-gray-900 font-medium">Total à rembourser:</span>
-                    <span className="text-gray-900 font-bold">{new Intl.NumberFormat('fr-BJ', { style: 'currency', currency: 'XOF' }).format(calculation.totalAmount)}</span>
-                  </div>
-                </div>
-              ) : (
-                <div className="text-center py-8 text-gray-500">
-                  <Calculator size={48} className="mx-auto mb-4 text-gray-300" />
-                  <p>Remplissez le montant et la durée pour voir la simulation</p>
-                </div>
-              )}
-            </div>
-          </Card>
+          <LoanCalculator onCalculate={handleCalculation} />
 
           {/* Informations importantes */}
-          <Card title="Informations importantes">
-            <div className="space-y-3 text-sm text-gray-600">
-              <div className="flex items-start space-x-2">
-                <div className="w-2 h-2 bg-primary-600 rounded-full mt-2"></div>
-                <p>Le taux d'intérêt annuel est de 12%</p>
+          <Card title="Informations importantes" className="bg-white/90 backdrop-blur-sm border-white/20">
+            <div className="space-y-4 text-sm">
+              <div className="flex items-start space-x-3 p-3 bg-accent-50/50 rounded-xl">
+                <div className="w-2 h-2 bg-primary-600 rounded-full mt-2 flex-shrink-0"></div>
+                <p className="text-gray-700 font-medium">Taux d'intérêt: <span className="text-primary-600">10%</span> pour les prêts de 1-2 semaines, <span className="text-primary-600">35%</span> pour les prêts de plus d'un mois</p>
               </div>
-              <div className="flex items-start space-x-2">
-                <div className="w-2 h-2 bg-primary-600 rounded-full mt-2"></div>
-                <p>Le montant minimum est de 10 000 FCFA</p>
+              <div className="flex items-start space-x-3 p-3 bg-accent-50/50 rounded-xl">
+                <div className="w-2 h-2 bg-primary-600 rounded-full mt-2 flex-shrink-0"></div>
+                <p className="text-gray-700 font-medium">Montant minimum: <span className="text-primary-600">{LOAN_CONFIG.amounts.min.toLocaleString()} FCFA</span></p>
               </div>
-              <div className="flex items-start space-x-2">
-                <div className="w-2 h-2 bg-primary-600 rounded-full mt-2"></div>
-                <p>Le revenu mensuel minimum est de 50 000 FCFA</p>
+              <div className="flex items-start space-x-3 p-3 bg-accent-50/50 rounded-xl">
+                <div className="w-2 h-2 bg-primary-600 rounded-full mt-2 flex-shrink-0"></div>
+                <p className="text-gray-700 font-medium">Montant maximum: <span className="text-primary-600">{LOAN_CONFIG.amounts.max.toLocaleString()} FCFA</span></p>
               </div>
-              <div className="flex items-start space-x-2">
-                <div className="w-2 h-2 bg-primary-600 rounded-full mt-2"></div>
-                <p>La durée maximale est de 36 mois</p>
+              <div className="flex items-start space-x-3 p-3 bg-accent-50/50 rounded-xl">
+                <div className="w-2 h-2 bg-primary-600 rounded-full mt-2 flex-shrink-0"></div>
+                <p className="text-gray-700 font-medium">Durées disponibles: <span className="text-primary-600">1 semaine, 2 semaines, 1 mois</span></p>
+              </div>
+              <div className="flex items-start space-x-3 p-3 bg-accent-50/50 rounded-xl">
+                <div className="w-2 h-2 bg-primary-600 rounded-full mt-2 flex-shrink-0"></div>
+                <p className="text-gray-700 font-medium">Revenu mensuel: <span className="text-primary-600">{LOAN_CONFIG.monthlyIncome.min.toLocaleString()} - {LOAN_CONFIG.monthlyIncome.max.toLocaleString()} FCFA</span></p>
               </div>
             </div>
           </Card>
         </div>
+      </div>
+
+      {/* Section de soumission centrée */}
+      <div className="max-w-4xl mx-auto mt-8">
+        <Card title="Soumission de la demande" className="bg-white/90 backdrop-blur-sm">
+          <div className="text-center space-y-6">
+            <div className="bg-blue-50/80 border border-blue-200/50 rounded-2xl p-6">
+              <p className="text-blue-800 font-medium mb-3 text-lg">
+                📋 Vérifiez vos informations
+              </p>
+              <p className="text-blue-700 text-base leading-relaxed">
+                Assurez-vous que toutes les informations sont correctes et que vous avez bien vu les calculs de votre prêt avant de soumettre votre demande.
+              </p>
+            </div>
+            
+            <Button
+              onClick={handleSubmit}
+              loading={loading}
+              className="px-12 py-4 text-lg bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+            >
+              {loading ? 'Soumission...' : 'Soumettre la demande'}
+            </Button>
+          </div>
+        </Card>
+      </div>
       </div>
     </div>
   );

@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
+
+import { getUsers } from '../../utils/supabaseClient';
 import Card from '../UI/Card';
 import Button from '../UI/Button';
 import Logo from '../UI/Logo';
@@ -16,7 +18,6 @@ import {
   UserCheck,
   UserX,
   Home,
-  FileText,
   Settings,
   BarChart3,
   LogOut,
@@ -27,8 +28,6 @@ import {
   MoreHorizontal,
   Monitor,
   Plus,
-  Star,
-  Zap,
   MessageCircle,
   Info,
   Menu,
@@ -39,6 +38,7 @@ import { formatCurrency } from '../../utils/helpers';
 const AdminDashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [stats, setStats] = useState({
     totalUsers: 0,
@@ -47,60 +47,79 @@ const AdminDashboard = () => {
     pendingRequests: 0
   });
   const [recentRequests, setRecentRequests] = useState([]);
+  const [pendingRegistrations, setPendingRegistrations] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
-    // Simulation des données (à remplacer par des appels API)
-    setTimeout(() => {
-      setStats({
-        totalUsers: 132,
-        totalLoans: 890,
-        totalAmount: 824000,
-        pendingRequests: 15
-      });
-      
-      setRecentRequests([
-        {
-          id: 1,
-          user: {
-            firstName: 'Kossi',
-            lastName: 'Ablo',
-            email: 'kossi.ablo@email.com'
-          },
-          amount: 75000,
-          status: 'pending',
-          requestDate: '2025-08-15',
-          purpose: 'Achat de matériel informatique'
-        },
-        {
-          id: 2,
-          user: {
-            firstName: 'Fatou',
-            lastName: 'Diallo',
-            email: 'fatou.diallo@email.com'
-          },
-          amount: 120000,
-          status: 'approved',
-          requestDate: '2025-08-14',
-          purpose: 'Rénovation de boutique'
-        },
-        {
-          id: 3,
-          user: {
-            firstName: 'Moussa',
-            lastName: 'Traoré',
-            email: 'moussa.traore@email.com'
-          },
-          amount: 50000,
-          status: 'rejected',
-          requestDate: '2025-08-13',
-          purpose: 'Frais de scolarité'
+    const loadData = async () => {
+      try {
+        // Charger les utilisateurs depuis Supabase
+        const usersResult = await getUsers();
+        if (usersResult.success) {
+          const pendingUsers = usersResult.data.filter(user => user.status === 'pending');
+          setPendingRegistrations(pendingUsers);
+          setStats(prev => ({
+            ...prev,
+            totalUsers: usersResult.data.length,
+            pendingRequests: pendingUsers.length
+          }));
         }
-      ]);
-      
-      setLoading(false);
-    }, 1000);
+        
+        // Simulation des autres données pour l'instant
+        setRecentRequests([
+          {
+            id: 1,
+            user: {
+              firstName: 'Kossi',
+              lastName: 'Ablo',
+              email: 'kossi.ablo@email.com'
+            },
+            amount: 75000,
+            status: 'pending',
+            requestDate: '2025-08-15',
+            purpose: 'Achat de matériel informatique'
+          },
+          {
+            id: 2,
+            user: {
+              firstName: 'Fatou',
+              lastName: 'Diallo',
+              email: 'fatou.diallo@email.com'
+            },
+            amount: 120000,
+            status: 'approved',
+            requestDate: '2025-08-14',
+            purpose: 'Rénovation de boutique'
+          },
+          {
+            id: 3,
+            user: {
+              firstName: 'Moussa',
+              lastName: 'Traoré',
+              email: 'moussa.traore@email.com'
+            },
+            amount: 50000,
+            status: 'rejected',
+            requestDate: '2025-08-13',
+            purpose: 'Frais de scolarité'
+          }
+        ]);
+        
+        setStats(prev => ({
+          ...prev,
+          totalLoans: 890,
+          totalAmount: 824000
+        }));
+        
+      } catch (error) {
+        console.error('Erreur lors du chargement des données:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
   }, []);
 
   const handleApprove = async (requestId) => {
@@ -140,6 +159,46 @@ const AdminDashboard = () => {
       alert('Demande rejetée avec succès !');
     } catch (error) {
       alert('Erreur lors du rejet de la demande');
+    }
+  };
+
+  const handleApproveRegistration = async (userId) => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Simuler l'approbation
+      setPendingRegistrations(prev => 
+        prev.filter(user => user.id !== userId)
+      );
+      
+      // Supprimer de localStorage
+      const storedPendingUsers = JSON.parse(localStorage.getItem('pendingUsers') || '[]');
+      const updatedPendingUsers = storedPendingUsers.filter(user => user.id !== userId);
+      localStorage.setItem('pendingUsers', JSON.stringify(updatedPendingUsers));
+      
+      alert('Inscription approuvée avec succès !');
+    } catch (error) {
+      alert('Erreur lors de l\'approbation de l\'inscription');
+    }
+  };
+
+  const handleRejectRegistration = async (userId) => {
+    try {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Simuler le rejet
+      setPendingRegistrations(prev => 
+        prev.filter(user => user.id !== userId)
+      );
+      
+      // Supprimer de localStorage
+      const storedPendingUsers = JSON.parse(localStorage.getItem('pendingUsers') || '[]');
+      const updatedPendingUsers = storedPendingUsers.filter(user => user.id !== userId);
+      localStorage.setItem('pendingUsers', JSON.stringify(updatedPendingUsers));
+      
+      alert('Inscription rejetée avec succès !');
+    } catch (error) {
+      alert('Erreur lors du rejet de l\'inscription');
     }
   };
 
@@ -225,7 +284,7 @@ const AdminDashboard = () => {
             </button>
           </div>
 
-          {/* Logo CAMPUS FINANCE (desktop) */}
+          {/* Logo AB PRET (desktop) */}
           <div className="hidden lg:block mb-8">
             <button 
               onClick={() => navigate('/admin')}
@@ -268,7 +327,7 @@ const AdminDashboard = () => {
             
             <button
               onClick={() => {
-                navigate('/admin/users');
+                navigate('/admin/user-management');
                 setSidebarOpen(false);
               }}
               className="w-full flex items-start space-x-3 px-4 py-3 text-neutral-600 hover:text-secondary-900 hover:bg-accent-100 rounded-xl transition-colors duration-200 font-montserrat"
@@ -281,7 +340,7 @@ const AdminDashboard = () => {
             
             <button
               onClick={() => {
-                navigate('/admin/reports');
+                navigate('/admin/analytics');
                 setSidebarOpen(false);
               }}
               className="w-full flex items-start space-x-3 px-4 py-3 text-neutral-600 hover:text-secondary-900 hover:bg-accent-100 rounded-xl transition-colors duration-200 font-montserrat"
@@ -380,7 +439,7 @@ const AdminDashboard = () => {
               {getGreeting()} Abel ! ☀️
             </h1>
             <p className="text-base lg:text-lg text-neutral-600 font-montserrat">
-              Gérez vos clients et supervisez les prêts de Campus Finance. ☀️
+              Gérez vos clients et supervisez les prêts de AB PRET. ☀️
             </p>
           </div>
 
@@ -390,7 +449,7 @@ const AdminDashboard = () => {
               <Button
                 variant="outline"
                 className="p-4 h-auto flex-col space-y-2 bg-white"
-                onClick={() => navigate('/admin/users')}
+                onClick={() => navigate('/admin/user-management')}
               >
                 <Users size={24} className="text-primary-500" />
                 <span className="font-medium text-secondary-900">Gérer les utilisateurs</span>
@@ -403,14 +462,14 @@ const AdminDashboard = () => {
                 onClick={() => navigate('/admin/loan-requests')}
               >
                 <CreditCard size={24} className="text-primary-500" />
-                <span className="font-medium text-secondary-900">Approuver des demandes</span>
+                <span className="font-medium text-secondary-900">Demandes de prêt</span>
                 <span className="text-xs text-neutral-600">{stats.pendingRequests} en attente</span>
               </Button>
               
               <Button
                 variant="outline"
                 className="p-4 h-auto flex-col space-y-2 bg-white"
-                onClick={() => navigate('/admin/reports')}
+                onClick={() => navigate('/admin/analytics')}
               >
                 <BarChart3 size={24} className="text-primary-500" />
                 <span className="font-medium text-secondary-900">Voir les rapports</span>
@@ -557,6 +616,76 @@ const AdminDashboard = () => {
               )}
             </Card>
           </div>
+
+          {/* Demandes d'inscription en attente */}
+          {pendingRegistrations.length > 0 && (
+            <div className="px-4 lg:px-8 mt-6">
+              <Card title={`Demandes d'inscription en attente (${pendingRegistrations.length})`} className="bg-white">
+                <div className="space-y-4">
+                  {pendingRegistrations.map((user) => (
+                    <div 
+                      key={user.id}
+                      className="flex flex-col lg:flex-row lg:items-start lg:justify-between p-4 border border-accent-200 rounded-xl hover:shadow-soft transition-shadow duration-200"
+                    >
+                      <div className="flex-1 mb-4 lg:mb-0">
+                        <div className="flex flex-col lg:flex-row lg:items-start space-y-2 lg:space-y-0 lg:space-x-3 mb-2">
+                          <div className="flex items-center space-x-2">
+                            <span className="px-3 py-1 rounded-full text-xs font-medium flex items-center space-x-1 text-yellow-600 bg-yellow-100">
+                              <Clock size={16} />
+                              <span>En attente</span>
+                            </span>
+                          </div>
+                          <p className="font-medium text-secondary-900 font-montserrat">
+                            {user.firstName} {user.lastName}
+                          </p>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
+                          <div>
+                            <span className="text-neutral-600 font-montserrat">Filière:</span>
+                            <p className="font-medium text-secondary-900 font-montserrat">{user.filiere}</p>
+                          </div>
+                          <div>
+                            <span className="text-neutral-600 font-montserrat">Année:</span>
+                            <p className="font-medium text-secondary-900 font-montserrat">{user.anneeEtude}</p>
+                          </div>
+                          <div>
+                            <span className="text-neutral-600 font-montserrat">Entité:</span>
+                            <p className="font-medium text-secondary-900 font-montserrat">{user.entite}</p>
+                          </div>
+                          <div>
+                            <span className="text-neutral-600 font-montserrat">Email:</span>
+                            <p className="font-medium text-secondary-900 font-montserrat truncate">{user.email}</p>
+                          </div>
+                        </div>
+                        
+                        <div className="mt-2 text-xs text-neutral-500 font-montserrat">
+                          <span>Documents: {user.studentCardName}, {user.identityCardName}</span>
+                        </div>
+                      </div>
+                      
+                      <div className="flex space-x-2 lg:flex-shrink-0">
+                        <Button
+                          size="sm"
+                          className="bg-green-600 hover:bg-green-700"
+                          onClick={() => handleApproveRegistration(user.id)}
+                        >
+                          <UserCheck size={16} />
+                        </Button>
+                        <Button
+                          variant="danger"
+                          size="sm"
+                          onClick={() => handleRejectRegistration(user.id)}
+                        >
+                          <UserX size={16} />
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </Card>
+            </div>
+          )}
         </main>
       </div>
 

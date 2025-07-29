@@ -4,9 +4,8 @@ import { useAuth } from '../../context/AuthContext';
 import Button from '../UI/Button';
 import Input from '../UI/Input';
 import Logo from '../UI/Logo';
-import BlurText from '../UI/BlurText';
 import StarBorder from '../UI/StarBorder';
-import { Mail, Lock, Eye, EyeOff } from 'lucide-react';
+import { Mail, Eye, EyeOff } from 'lucide-react';
 
 const Login = () => {
   const [formData, setFormData] = useState({
@@ -55,7 +54,7 @@ const Login = () => {
         <div className="bg-white rounded-2xl shadow-large p-8 border border-accent-200">
           {/* Header */}
           <div className="text-center mb-8">
-            {/* Logo CAMPUS FINANCE animé */}
+            {/* Logo AB PRET animé */}
             <div className="flex justify-center mb-6">
               <Logo size="xl" showText={true} />
             </div>

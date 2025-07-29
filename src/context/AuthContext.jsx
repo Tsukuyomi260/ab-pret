@@ -1,6 +1,5 @@
 // ===== src/context/AuthContext.jsx =====
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import { api } from '../utils/api';
 
 const AuthContext = createContext();
 
@@ -38,6 +37,22 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem('ab_pret_token'));
 
   useEffect(() => {
+    const validateToken = async () => {
+      try {
+        // Simulation de validation de token
+        const storedUser = localStorage.getItem('ab_pret_user');
+        if (storedUser) {
+          setUser(JSON.parse(storedUser));
+        } else {
+          logout();
+        }
+      } catch (error) {
+        logout();
+      } finally {
+        setLoading(false);
+      }
+    };
+
     if (token) {
       // Vérifier la validité du token
       validateToken();
