@@ -289,6 +289,7 @@ const LoanRequests = () => {
                 <p className="text-sm text-neutral-600 font-montserrat">Total</p>
                 <p className="text-xl font-bold text-secondary-900 font-montserrat">{loanRequests.length}</p>
               </div>
+
             </div>
           </Card>
         </div>
