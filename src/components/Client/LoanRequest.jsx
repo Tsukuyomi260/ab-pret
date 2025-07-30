@@ -49,6 +49,7 @@ const LoanRequest = () => {
     documents: []
   });
   const [loading, setLoading] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState({});
   const [selectedCategory, setSelectedCategory] = useState('');
 
@@ -159,28 +160,28 @@ const LoanRequest = () => {
         }
         break;
       case 2:
-        if (!formData.amount || parseFloat(formData.amount) < LOAN_CONFIG.amounts.min) {
-          newErrors.amount = `Le montant minimum est de ${LOAN_CONFIG.amounts.min.toLocaleString()} FCFA`;
-        }
-        if (parseFloat(formData.amount) > LOAN_CONFIG.amounts.max) {
-          newErrors.amount = `Le montant maximum est de ${LOAN_CONFIG.amounts.max.toLocaleString()} FCFA`;
-        }
+    if (!formData.amount || parseFloat(formData.amount) < LOAN_CONFIG.amounts.min) {
+      newErrors.amount = `Le montant minimum est de ${LOAN_CONFIG.amounts.min.toLocaleString()} FCFA`;
+    }
+    if (parseFloat(formData.amount) > LOAN_CONFIG.amounts.max) {
+      newErrors.amount = `Le montant maximum est de ${LOAN_CONFIG.amounts.max.toLocaleString()} FCFA`;
+    }
         if (!formData.duration) {
           newErrors.duration = 'Veuillez sélectionner une durée';
         }
         break;
       case 3:
-        if (!formData.purpose.trim()) {
-          newErrors.purpose = 'Veuillez préciser l\'objet du prêt';
-        }
-        if (!formData.monthlyIncome) {
-          newErrors.monthlyIncome = 'Le revenu mensuel est requis';
-        } else {
-          const income = parseFloat(formData.monthlyIncome);
-          const incomeValidation = LOAN_CONFIG.validateMonthlyIncome(income);
-          if (!incomeValidation.isValid) {
-            newErrors.monthlyIncome = incomeValidation.errors[0];
-          }
+    if (!formData.purpose.trim()) {
+      newErrors.purpose = 'Veuillez préciser l\'objet du prêt';
+    }
+    if (!formData.monthlyIncome) {
+      newErrors.monthlyIncome = 'Le revenu mensuel est requis';
+    } else {
+      const income = parseFloat(formData.monthlyIncome);
+      const incomeValidation = LOAN_CONFIG.validateMonthlyIncome(income);
+      if (!incomeValidation.isValid) {
+        newErrors.monthlyIncome = incomeValidation.errors[0];
+      }
         }
         break;
     }
@@ -192,11 +193,21 @@ const LoanRequest = () => {
   const nextStep = () => {
     if (validateStep(currentStep)) {
       setCurrentStep(prev => Math.min(prev + 1, 4));
+      // Scroll vers le haut de la page avec animation fluide
+      window.scrollTo({
+        top: 0,
+        behavior: 'smooth'
+      });
     }
   };
 
   const prevStep = () => {
     setCurrentStep(prev => Math.max(prev - 1, 1));
+    // Scroll vers le haut de la page avec animation fluide
+    window.scrollTo({
+      top: 0,
+      behavior: 'smooth'
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -209,22 +220,27 @@ const LoanRequest = () => {
     try {
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      showSuccess('Demande de prêt soumise avec succès ! Notre équipe vous contactera dans les 24h.');
+      setSubmitted(true);
+      
+      // Attendre un peu pour montrer l'animation de succès
+      setTimeout(() => {
+        showSuccess('Demande de prêt soumise avec succès ! Notre équipe vous contactera dans les 24h.');
       navigate('/dashboard');
+      }, 1500);
+      
     } catch (error) {
       showError('Erreur lors de la soumission de la demande');
-    } finally {
       setLoading(false);
     }
   };
 
   const getStepIcon = (step) => {
     switch (step) {
-      case 1: return <Target className="w-5 h-5" />;
-      case 2: return <DollarSign className="w-5 h-5" />;
-      case 3: return <User className="w-5 h-5" />;
-      case 4: return <CheckCircle className="w-5 h-5" />;
-      default: return <FileText className="w-5 h-5" />;
+      case 1: return <Target className="w-4 h-4 sm:w-5 sm:h-5" />;
+      case 2: return <DollarSign className="w-4 h-4 sm:w-5 sm:h-5" />;
+      case 3: return <User className="w-4 h-4 sm:w-5 sm:h-5" />;
+      case 4: return <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />;
+      default: return <FileText className="w-4 h-4 sm:w-5 sm:h-5" />;
     }
   };
 
@@ -239,7 +255,7 @@ const LoanRequest = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-accent-50 to-secondary-50">
+    <div id="loan-request-page" className="min-h-screen bg-gradient-to-br from-primary-50 via-accent-50 to-secondary-50">
       {/* Header avec gradient et animations */}
       <motion.div 
         className="relative overflow-hidden"
@@ -253,20 +269,20 @@ const LoanRequest = () => {
             {/* En-tête principal */}
             <div className="text-center mb-8">
               <motion.div 
-                className="flex items-center justify-center mb-6"
+                className="flex flex-col sm:flex-row items-center justify-center mb-6 space-y-4 sm:space-y-0 sm:space-x-6"
                 initial={{ opacity: 0, scale: 0.8 }}
                 animate={{ opacity: 1, scale: 1 }}
                 transition={{ delay: 0.2 }}
               >
-                <div className="p-3 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full mr-4">
-                  <CreditCard className="w-8 h-8 text-white" />
+                <div className="p-4 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full shadow-lg">
+                  <CreditCard className="w-10 h-10 text-white" />
                 </div>
-                <h1 className="text-4xl lg:text-5xl font-bold text-secondary-900 font-montserrat">
-                  Demande de prêt
-                </h1>
+                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-secondary-900 font-montserrat text-center sm:text-left">
+            Demande de prêt
+          </h1>
               </motion.div>
               <motion.p 
-                className="text-xl text-secondary-600 font-montserrat max-w-3xl mx-auto"
+                className="text-lg sm:text-xl text-secondary-600 font-montserrat max-w-3xl mx-auto text-center leading-relaxed"
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.3 }}
@@ -283,33 +299,35 @@ const LoanRequest = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 0.4 }}
             >
-              <div className="flex items-center justify-center space-x-4">
+              <div className="flex items-center justify-center space-x-2 sm:space-x-4 px-4 max-w-md mx-auto">
                 {[1, 2, 3, 4].map((step) => (
-                  <div key={step} className="flex items-center">
-                    <div className={`flex items-center justify-center w-12 h-12 rounded-full border-2 transition-all duration-300 ${
+                  <div key={step} className="flex items-center flex-1 max-w-16 sm:max-w-20">
+                    <div className={`flex items-center justify-center w-8 h-8 sm:w-12 sm:h-12 rounded-full border-2 transition-all duration-300 flex-shrink-0 ${
                       step <= currentStep 
                         ? 'bg-primary-500 border-primary-500 text-white' 
                         : 'bg-white border-gray-300 text-gray-400'
                     }`}>
                       {step < currentStep ? (
-                        <CheckCircle className="w-6 h-6" />
+                        <CheckCircle className="w-4 h-4 sm:w-6 sm:h-6 flex-shrink-0" />
                       ) : (
-                        getStepIcon(step)
+                        <div className="flex items-center justify-center w-full h-full">
+                          {getStepIcon(step)}
+                        </div>
                       )}
                     </div>
                     {step < 4 && (
-                      <div className={`w-16 h-1 mx-2 transition-all duration-300 ${
+                      <div className={`flex-1 h-1 mx-1 sm:mx-2 transition-all duration-300 ${
                         step < currentStep ? 'bg-primary-500' : 'bg-gray-300'
                       }`} />
                     )}
                   </div>
                 ))}
               </div>
-              <div className="text-center mt-4">
-                <p className="text-lg font-semibold text-secondary-900 font-montserrat">
+              <div className="text-center mt-4 px-4 max-w-md mx-auto">
+                <p className="text-base sm:text-lg font-semibold text-secondary-900 font-montserrat">
                   {getStepTitle(currentStep)}
                 </p>
-                <p className="text-sm text-secondary-600 font-montserrat">
+                <p className="text-xs sm:text-sm text-secondary-600 font-montserrat">
                   Étape {currentStep} sur 4
                 </p>
               </div>
@@ -335,8 +353,8 @@ const LoanRequest = () => {
                         </h3>
                         <p className="text-secondary-600 font-montserrat">
                           Sélectionnez la catégorie qui correspond le mieux à votre besoin
-                        </p>
-                      </div>
+          </p>
+        </div>
                       
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         {loanCategories.map((category) => (
@@ -364,14 +382,14 @@ const LoanRequest = () => {
                             </p>
                           </motion.div>
                         ))}
-                      </div>
-                      
+      </div>
+
                       {errors.category && (
                         <div className="mt-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-center space-x-2">
-                          <AlertCircle size={20} />
+                  <AlertCircle size={20} />
                           <span>{errors.category}</span>
-                        </div>
-                      )}
+                </div>
+              )}
                     </Card>
 
                     {/* Informations sur les catégories */}
@@ -440,36 +458,36 @@ const LoanRequest = () => {
                         </div>
                         
                         <div className="space-y-6">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <Input
-                              label="Montant demandé (FCFA)"
-                              type="number"
-                              name="amount"
-                              value={formData.amount}
-                              onChange={handleChange}
-                              placeholder="50000"
-                              min={LOAN_CONFIG.amounts.min}
-                              max={LOAN_CONFIG.amounts.max}
-                              error={errors.amount}
-                              required
-                            />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Input
+                  label="Montant demandé (FCFA)"
+                  type="number"
+                  name="amount"
+                  value={formData.amount}
+                  onChange={handleChange}
+                  placeholder="50000"
+                  min={LOAN_CONFIG.amounts.min}
+                  max={LOAN_CONFIG.amounts.max}
+                  error={errors.amount}
+                  required
+                />
 
                             <div>
-                              <Input
-                                label="Durée du prêt"
-                                type="select"
-                                name="duration"
-                                value={formData.duration}
-                                onChange={handleChange}
-                                error={errors.duration}
-                                required
-                              >
-                                {LOAN_CONFIG.durations.map((option) => (
-                                  <option key={option.value} value={option.weeks}>
-                                    {option.label}
-                                  </option>
-                                ))}
-                              </Input>
+                <Input
+                  label="Durée du prêt"
+                  type="select"
+                  name="duration"
+                  value={formData.duration}
+                  onChange={handleChange}
+                  error={errors.duration}
+                  required
+                >
+                  {LOAN_CONFIG.durations.map((option) => (
+                    <option key={option.value} value={option.weeks}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Input>
                               {formData.amount && formData.duration && (
                                 <div className="mt-2 p-2 bg-blue-50 rounded-lg">
                                   <p className="text-xs text-blue-700 font-montserrat">
@@ -534,52 +552,52 @@ const LoanRequest = () => {
                         <p className="text-secondary-600 font-montserrat">
                           Aidez-nous à mieux comprendre votre situation financière
                         </p>
-                      </div>
-                      
+              </div>
+
                       <div className="space-y-6">
-                        <Input
-                          label="Objet du prêt"
-                          type="textarea"
-                          name="purpose"
-                          value={formData.purpose}
-                          onChange={handleChange}
+              <Input
+                label="Objet du prêt"
+                type="textarea"
+                name="purpose"
+                value={formData.purpose}
+                onChange={handleChange}
                           placeholder="Décrivez en détail l'utilisation prévue du prêt..."
-                          error={errors.purpose}
-                          required
-                        />
+                error={errors.purpose}
+                required
+              />
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <Input
-                            label="Revenu mensuel (FCFA)"
-                            type="number"
-                            name="monthlyIncome"
-                            value={formData.monthlyIncome}
-                            onChange={handleChange}
-                            placeholder={`${LOAN_CONFIG.monthlyIncome.min.toLocaleString()} - ${LOAN_CONFIG.monthlyIncome.max.toLocaleString()}`}
-                            min={LOAN_CONFIG.monthlyIncome.min}
-                            max={LOAN_CONFIG.monthlyIncome.max}
-                            error={errors.monthlyIncome}
-                            required
-                          />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <Input
+                  label="Revenu mensuel (FCFA)"
+                  type="number"
+                  name="monthlyIncome"
+                  value={formData.monthlyIncome}
+                  onChange={handleChange}
+                  placeholder={`${LOAN_CONFIG.monthlyIncome.min.toLocaleString()} - ${LOAN_CONFIG.monthlyIncome.max.toLocaleString()}`}
+                  min={LOAN_CONFIG.monthlyIncome.min}
+                  max={LOAN_CONFIG.monthlyIncome.max}
+                  error={errors.monthlyIncome}
+                  required
+                />
 
-                          <Input
-                            label="Statut professionnel"
-                            type="select"
-                            name="employmentStatus"
-                            value={formData.employmentStatus}
-                            onChange={handleChange}
-                            required
-                          >
-                            <option value="employed">Salarié</option>
-                            <option value="self-employed">Indépendant</option>
-                            <option value="business-owner">Chef d'entreprise</option>
-                            <option value="student">Étudiant</option>
-                          </Input>
-                        </div>
-                      </div>
-                    </Card>
+                <Input
+                  label="Statut professionnel"
+                  type="select"
+                  name="employmentStatus"
+                  value={formData.employmentStatus}
+                  onChange={handleChange}
+                  required
+                >
+                  <option value="employed">Salarié</option>
+                  <option value="self-employed">Indépendant</option>
+                  <option value="business-owner">Chef d'entreprise</option>
+                  <option value="student">Étudiant</option>
+                </Input>
+              </div>
+            </div>
+          </Card>
 
-                    {/* Informations importantes */}
+          {/* Informations importantes */}
                     <div className="space-y-6">
                       <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
                         <div className="flex items-center space-x-3 mb-4">
@@ -610,27 +628,27 @@ const LoanRequest = () => {
                           <h3 className="text-lg font-semibold text-secondary-900 font-montserrat">
                             Documents requis
                           </h3>
-                        </div>
+              </div>
                         <div className="space-y-2 text-sm text-secondary-600 font-montserrat">
                           <div className="flex items-center space-x-2">
                             <CheckCircle className="w-4 h-4 text-green-500" />
                             <span>Pièce d'identité valide</span>
-                          </div>
+              </div>
                           <div className="flex items-center space-x-2">
                             <CheckCircle className="w-4 h-4 text-green-500" />
                             <span>Justificatif de domicile</span>
-                          </div>
+              </div>
                           <div className="flex items-center space-x-2">
                             <CheckCircle className="w-4 h-4 text-green-500" />
                             <span>Justificatif de revenus</span>
-                          </div>
+              </div>
                           <div className="flex items-center space-x-2">
                             <CheckCircle className="w-4 h-4 text-green-500" />
                             <span>Relevé bancaire (3 mois)</span>
-                          </div>
-                        </div>
-                      </Card>
-                    </div>
+              </div>
+            </div>
+          </Card>
+        </div>
                   </motion.div>
                 )}
 
@@ -647,15 +665,15 @@ const LoanRequest = () => {
                       <div className="text-center mb-8">
                         <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                           <CheckCircle className="w-8 h-8 text-green-600" />
-                        </div>
+      </div>
                         <h3 className="text-2xl font-bold text-secondary-900 font-montserrat mb-2">
                           Récapitulatif de votre demande
                         </h3>
                         <p className="text-secondary-600 font-montserrat">
                           Vérifiez toutes les informations avant de soumettre votre demande
-                        </p>
-                      </div>
-                      
+              </p>
+            </div>
+            
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                         <div className="space-y-4">
                           <div className="p-4 bg-accent-50 rounded-xl">
@@ -753,19 +771,70 @@ const LoanRequest = () => {
                     <ArrowRight className="w-4 h-4" />
                   </Button>
                 ) : (
-                  <Button
-                    onClick={handleSubmit}
-                    loading={loading}
-                    className="flex items-center space-x-2 bg-green-600 hover:bg-green-700"
+                  <motion.div
+                    initial={{ scale: 1 }}
+                    animate={submitted ? { scale: [1, 1.1, 1] } : {}}
+                    transition={{ duration: 0.5 }}
                   >
-                    <span>{loading ? 'Soumission...' : 'Soumettre la demande'}</span>
-                    <CheckCircle className="w-4 h-4" />
-                  </Button>
+            <Button
+              onClick={handleSubmit}
+                      disabled={loading || submitted}
+                      className={`relative overflow-hidden flex items-center space-x-2 px-4 sm:px-8 py-3 sm:py-4 rounded-2xl font-semibold text-base sm:text-lg transition-all duration-500 ${
+                        submitted 
+                          ? 'bg-green-500 text-white shadow-lg shadow-green-500/50' 
+                          : loading
+                          ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/50'
+                          : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg hover:shadow-xl hover:shadow-green-500/50 transform hover:scale-105'
+                      }`}
+                    >
+                      {submitted ? (
+                        <>
+                          <motion.div
+                            initial={{ scale: 0, rotate: -180 }}
+                            animate={{ scale: 1, rotate: 0 }}
+                            transition={{ duration: 0.5, delay: 0.2 }}
+                            className="flex items-center justify-center"
+                          >
+                            <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6" />
+                          </motion.div>
+                          <motion.span
+                            initial={{ opacity: 0, x: 10 }}
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ duration: 0.3, delay: 0.4 }}
+                          >
+                            Demande soumise !
+                          </motion.span>
+                        </>
+                      ) : loading ? (
+                        <>
+                          <motion.div
+                            animate={{ rotate: 360 }}
+                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+                            className="flex items-center justify-center"
+                          >
+                            <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full" />
+                          </motion.div>
+                          <span>Soumission en cours...</span>
+                        </>
+                      ) : (
+                        <>
+                          <motion.div
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.9 }}
+                            className="flex items-center justify-center"
+                          >
+                            <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                          </motion.div>
+                          <span>Soumettre la demande</span>
+                        </>
+                      )}
+            </Button>
+                  </motion.div>
                 )}
               </motion.div>
             </div>
           </div>
-        </div>
+      </div>
       </motion.div>
     </div>
   );

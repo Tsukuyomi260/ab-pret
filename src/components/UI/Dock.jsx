@@ -57,8 +57,8 @@ const Dock = ({
         duration: 0.3
       }}
     >
-      {/* Fond avec blur et ombre */}
-      <div className="absolute inset-0 bg-white/80 backdrop-blur-3xl border border-white/30 rounded-3xl shadow-2xl" />
+      {/* Fond avec glassmorphism très transparent */}
+      <div className="absolute inset-0 bg-white/30 backdrop-blur-3xl border border-white/30 rounded-3xl shadow-2xl" />
       
       {/* Container du dock */}
       <div 
@@ -86,10 +86,10 @@ const Dock = ({
                   className={`
                     flex flex-col items-center justify-center rounded-2xl cursor-pointer backdrop-blur-xl
                     ${isActive 
-                      ? 'bg-primary-100/90 shadow-large' 
+                      ? 'bg-primary-100/60 shadow-lg' 
                       : isHovered 
-                        ? 'bg-primary-100/70 shadow-large' 
-                        : 'bg-white/60 hover:bg-white/80'
+                        ? 'bg-primary-100/50 shadow-lg' 
+                        : 'bg-white/40 hover:bg-white/60'
                     }
                     transition-all duration-300 ease-out
                   `}
@@ -148,7 +148,7 @@ const Dock = ({
                 {/* Effet de glow pour l'item hovered */}
                 {isHovered && (
                   <motion.div
-                    className="absolute inset-0 rounded-2xl bg-primary-200/30 blur-2xl -z-10"
+                    className="absolute inset-0 rounded-2xl bg-primary-200/40 blur-2xl -z-10"
                     initial={{ opacity: 0, scale: 0.8 }}
                     animate={{ opacity: 1, scale: 1.3 }}
                     exit={{ opacity: 0, scale: 0.8 }}
@@ -161,8 +161,8 @@ const Dock = ({
         </div>
       </div>
       
-      {/* Indicateur de sécurité pour iOS */}
-      <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-32 h-1 bg-gradient-to-r from-transparent via-primary-200 to-transparent rounded-full" />
+                      {/* Indicateur de sécurité pour iOS */}
+                <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-32 h-1 bg-gradient-to-r from-transparent via-primary-200/50 to-transparent rounded-full" />
     </motion.div>
   );
 };

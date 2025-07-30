@@ -62,10 +62,10 @@ const Header = () => {
 
   // Fonction pour obtenir le nom d'affichage
   const getDisplayName = () => {
-    if (user?.role === 'admin') {
-      return 'Abel Viakinnou';
+    if (user?.firstName && user?.lastName) {
+      return `${user.firstName} ${user.lastName}`;
     }
-    return `${user?.firstName} ${user?.lastName}`;
+    return user?.email || 'Utilisateur';
   };
 
   return (
@@ -132,7 +132,7 @@ const Header = () => {
                   {getDisplayName()}
                 </span>
                 <span className="text-xs text-neutral-600 font-montserrat">
-                  {user?.role === 'admin' ? 'Administrateur' : 'Client'}
+                  {user?.role === 'admin' ? 'Administrateur' : 'Client AB PRET'}
                 </span>
               </div>
               <button

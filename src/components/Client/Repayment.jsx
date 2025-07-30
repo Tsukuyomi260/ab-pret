@@ -98,8 +98,6 @@ const Repayment = () => {
   const getPaymentMethodIcon = (method) => {
     switch (method) {
       case 'mobile_money': return '📱';
-      case 'bank_transfer': return '🏦';
-      case 'cash': return '💵';
       default: return '💳';
     }
   };
@@ -107,8 +105,6 @@ const Repayment = () => {
   const getPaymentMethodText = (method) => {
     switch (method) {
       case 'mobile_money': return 'Mobile Money';
-      case 'bank_transfer': return 'Virement bancaire';
-      case 'cash': return 'Espèces';
       default: return 'Carte bancaire';
     }
   };
@@ -234,9 +230,7 @@ const Repayment = () => {
                     </label>
                     <div className="space-y-3">
                       {[
-                        { value: 'mobile_money', label: 'Mobile Money', description: 'Moov Money, MTN Mobile Money' },
-                        { value: 'bank_transfer', label: 'Virement bancaire', description: 'Transfert vers notre compte bancaire' },
-                        { value: 'cash', label: 'Espèces', description: 'Paiement en agence' }
+                        { value: 'mobile_money', label: 'Mobile Money', description: 'Moov Money, MTN Mobile Money' }
                       ].map((method) => (
                         <label
                           key={method.value}

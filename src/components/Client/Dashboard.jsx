@@ -166,7 +166,7 @@ const ClientDashboard = () => {
                   animate={{ opacity: 1, x: 0 }}
                   transition={{ delay: 0.2 }}
                 >
-                  Bonjour, AVOCE Elodie ! 👋
+              Bonjour, AVOCE Elodie ! 👋
                 </motion.h1>
                 <motion.p 
                   className="text-lg text-secondary-600 font-montserrat"
@@ -176,23 +176,23 @@ const ClientDashboard = () => {
                 >
                   Voici votre tableau de bord financier
                 </motion.p>
-              </div>
-              
+          </div>
+          
               <motion.div 
                 className="flex space-x-3"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.4 }}
               >
-                <Button 
-                  onClick={() => navigate('/loan-request')}
+          <Button 
+            onClick={() => navigate('/loan-request')}
                   className="bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
-                >
+          >
                   <Plus size={20} className="mr-2" />
                   Nouveau prêt
-                </Button>
+          </Button>
               </motion.div>
-            </div>
+        </div>
 
             {/* Score de crédit et métriques principales */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
@@ -246,14 +246,14 @@ const ClientDashboard = () => {
                 transition={{ delay: 0.6 }}
               >
                 <Card className="bg-gradient-to-br from-orange-500 to-red-500 text-white p-6 h-full">
-                  <div className="flex items-center justify-between">
-                    <div>
-                      <p className="text-orange-100 font-montserrat text-sm mb-1">Prochain paiement</p>
+          <div className="flex items-center justify-between">
+            <div>
+                      <p className="text-orange-100 font-montserrat text-sm mb-1">Prochain remboursement</p>
                       <p className="text-3xl font-bold mb-2">{formatCurrency(stats.nextPayment)}</p>
                       <div className="flex items-center space-x-2">
                         <Clock className="w-4 h-4" />
                         <span className="text-sm">
-                          Dans {stats.daysUntilNextPayment} jour{stats.daysUntilNextPayment > 1 ? 's' : ''}
+                          Échéance dans {stats.daysUntilNextPayment} jour{stats.daysUntilNextPayment > 1 ? 's' : ''}
                         </span>
                       </div>
                     </div>
@@ -279,60 +279,60 @@ const ClientDashboard = () => {
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-medium text-gray-600 font-montserrat mb-1 truncate">Total emprunté</p>
                     <p className="text-lg lg:text-xl font-bold text-gray-900 font-montserrat truncate">
-                      {formatCurrency(stats.totalLoaned)}
-                    </p>
+                {formatCurrency(stats.totalLoaned)}
+              </p>
                     <p className="text-xs text-green-600 font-montserrat truncate">+12% ce mois</p>
-                  </div>
+            </div>
                   <div className="flex-shrink-0 p-2 lg:p-3 bg-gradient-to-br from-blue-500 to-blue-600 rounded-full ml-2">
                     <CreditCard className="h-5 w-5 lg:h-6 lg:w-6 text-white" />
-                  </div>
-                </div>
-              </Card>
+            </div>
+          </div>
+        </Card>
 
               <Card className="bg-white hover:shadow-lg transition-all duration-200 transform hover:scale-105">
                 <div className="flex items-center justify-between p-3 lg:p-4">
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-medium text-gray-600 font-montserrat mb-1 truncate">Total remboursé</p>
                     <p className="text-lg lg:text-xl font-bold text-gray-900 font-montserrat truncate">
-                      {formatCurrency(stats.totalRepaid)}
-                    </p>
+                {formatCurrency(stats.totalRepaid)}
+              </p>
                     <p className="text-xs text-green-600 font-montserrat truncate">+8% ce mois</p>
-                  </div>
+            </div>
                   <div className="flex-shrink-0 p-2 lg:p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-full ml-2">
                     <CheckCircle className="h-5 w-5 lg:h-6 lg:w-6 text-white" />
-                  </div>
-                </div>
-              </Card>
+            </div>
+          </div>
+        </Card>
 
               <Card className="bg-white hover:shadow-lg transition-all duration-200 transform hover:scale-105">
                 <div className="flex items-center justify-between p-3 lg:p-4">
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-medium text-gray-600 font-montserrat mb-1 truncate">À rembourser</p>
                     <p className="text-lg lg:text-xl font-bold text-gray-900 font-montserrat truncate">
-                      {formatCurrency(stats.amountToRepay)}
-                    </p>
+                {formatCurrency(stats.amountToRepay)}
+              </p>
                     <p className="text-xs text-orange-600 font-montserrat truncate">Échéance proche</p>
-                  </div>
+            </div>
                   <div className="flex-shrink-0 p-2 lg:p-3 bg-gradient-to-br from-yellow-500 to-orange-500 rounded-full ml-2">
                     <Clock className="h-5 w-5 lg:h-6 lg:w-6 text-white" />
-                  </div>
-                </div>
-              </Card>
+            </div>
+          </div>
+        </Card>
 
               <Card className="bg-white hover:shadow-lg transition-all duration-200 transform hover:scale-105">
                 <div className="flex items-center justify-between p-3 lg:p-4">
                   <div className="min-w-0 flex-1">
                     <p className="text-xs font-medium text-gray-600 font-montserrat mb-1 truncate">Prêts actifs</p>
                     <p className="text-lg lg:text-xl font-bold text-gray-900 font-montserrat truncate">
-                      {stats.activeLoans}
-                    </p>
+                {stats.activeLoans}
+              </p>
                     <p className="text-xs text-blue-600 font-montserrat truncate">En cours</p>
-                  </div>
+            </div>
                   <div className="flex-shrink-0 p-2 lg:p-3 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full ml-2">
                     <Target className="h-5 w-5 lg:h-6 lg:w-6 text-white" />
-                  </div>
-                </div>
-              </Card>
+            </div>
+          </div>
+        </Card>
             </motion.div>
 
             {/* Prêts récents */}
@@ -354,11 +354,11 @@ const ClientDashboard = () => {
                     Voir tout
                     <ArrowUpRight className="w-4 h-4 ml-1" />
                   </Button>
-                </div>
+      </div>
                 <div className="space-y-4">
                   {recentLoans.slice(0, 3).map((loan) => (
-                    <div 
-                      key={loan.id}
+              <div 
+                key={loan.id}
                       className="p-6 border border-gray-200 rounded-xl hover:shadow-lg transition-all duration-200"
                     >
                       <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-4 space-y-3 lg:space-y-0">
@@ -370,18 +370,18 @@ const ClientDashboard = () => {
                             <h4 className="text-lg font-semibold text-gray-900 font-montserrat truncate">{loan.purpose}</h4>
                             <p className="text-sm text-gray-500 font-montserrat">
                               Demande du {new Date(loan.requestDate).toLocaleDateString('fr-FR')}
-                            </p>
-                          </div>
-                        </div>
+                  </p>
+                </div>
+                  </div>
                         <div className="text-right flex-shrink-0">
                           <p className="text-xl lg:text-2xl font-bold text-gray-900 font-montserrat">
                             {formatCurrency(loan.amount)}
                           </p>
                           <span className={`inline-block px-3 py-1 rounded-full text-xs font-medium border ${getStatusColor(loan.status)}`}>
                             {getStatusText(loan.status)}
-                          </span>
-                        </div>
-                      </div>
+                    </span>
+                  </div>
+                </div>
                       
                       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4 mb-4">
                         <div className="min-w-0">
@@ -391,10 +391,10 @@ const ClientDashboard = () => {
                           </p>
                         </div>
                         <div className="min-w-0">
-                          <p className="text-xs lg:text-sm text-gray-600 font-montserrat truncate">Reste à payer</p>
-                          <p className="text-sm lg:text-base font-semibold text-gray-900 font-montserrat truncate">
-                            {formatCurrency(loan.remainingAmount)}
-                          </p>
+                          <p className="text-xs lg:text-sm text-gray-600 font-montserrat truncate">Statut</p>
+                                                      <p className="text-sm lg:text-base font-semibold text-gray-900 font-montserrat truncate">
+                              {loan.paidAmount >= loan.totalAmount ? 'Remboursé' : 'En cours'}
+                            </p>
                         </div>
                         <div className="min-w-0">
                           <p className="text-xs lg:text-sm text-gray-600 font-montserrat truncate">Progression</p>
@@ -414,16 +414,16 @@ const ClientDashboard = () => {
                           style={{ width: `${loan.progress}%` }}
                         />
                       </div>
-                      
-                      {loan.status === 'active' && (
+                
+                {loan.status === 'active' && (
                         <div className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3">
-                          <Button
-                            onClick={() => navigate('/repayment')}
+                    <Button
+                      onClick={() => navigate('/repayment')}
                             className="flex-1 bg-primary-500 hover:bg-primary-600 text-white"
-                          >
+                    >
                             <Wallet className="w-4 h-4 mr-2" />
-                            Rembourser
-                          </Button>
+                      Rembourser
+                    </Button>
                           <Button
                             variant="outline"
                             className="flex-1"
@@ -431,12 +431,12 @@ const ClientDashboard = () => {
                             <Eye className="w-4 h-4 mr-2" />
                             Détails
                           </Button>
-                        </div>
-                      )}
-                    </div>
-                  ))}
-                </div>
-              </Card>
+                  </div>
+                )}
+              </div>
+            ))}
+          </div>
+      </Card>
             </motion.div>
 
             {/* Actions rapides en bas */}
@@ -446,9 +446,9 @@ const ClientDashboard = () => {
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: 1 }}
             >
-              <Button
-                variant="outline"
-                onClick={() => navigate('/loan-request')}
+        <Button
+          variant="outline"
+          onClick={() => navigate('/loan-request')}
                 className="p-6 h-auto flex-col space-y-3 bg-white hover:shadow-lg transition-all duration-200"
               >
                 <div className="p-3 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full">
@@ -458,11 +458,11 @@ const ClientDashboard = () => {
                   <span className="font-semibold text-gray-900 font-montserrat">Demander un prêt</span>
                   <p className="text-sm text-gray-500 font-montserrat mt-1">Nouvelle demande de financement</p>
                 </div>
-              </Button>
+        </Button>
 
-              <Button
-                variant="outline"
-                onClick={() => navigate('/repayment')}
+        <Button
+          variant="outline"
+          onClick={() => navigate('/repayment')}
                 className="p-6 h-auto flex-col space-y-3 bg-white hover:shadow-lg transition-all duration-200"
               >
                 <div className="p-3 bg-gradient-to-br from-green-500 to-green-600 rounded-full">
@@ -471,12 +471,12 @@ const ClientDashboard = () => {
                 <div className="text-center">
                   <span className="font-semibold text-gray-900 font-montserrat">Rembourser</span>
                   <p className="text-sm text-gray-500 font-montserrat mt-1">Effectuer un paiement</p>
-                </div>
-              </Button>
+      </div>
+        </Button>
 
-              <Button
-                variant="outline"
-                onClick={() => navigate('/loan-history')}
+        <Button
+          variant="outline"
+          onClick={() => navigate('/loan-history')}
                 className="p-6 h-auto flex-col space-y-3 bg-white hover:shadow-lg transition-all duration-200"
               >
                 <div className="p-3 bg-gradient-to-br from-purple-500 to-purple-600 rounded-full">
@@ -486,10 +486,10 @@ const ClientDashboard = () => {
                   <span className="font-semibold text-gray-900 font-montserrat">Historique</span>
                   <p className="text-sm text-gray-500 font-montserrat mt-1">Voir tous vos prêts</p>
                 </div>
-              </Button>
+        </Button>
             </motion.div>
-          </div>
-        </div>
+      </div>
+      </div>
       </motion.div>
     </div>
   );
