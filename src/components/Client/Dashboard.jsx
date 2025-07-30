@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useNotification } from '../../context/NotificationContext';
+import { useNotifications } from '../../context/NotificationContext';
 import { motion } from 'framer-motion';
 import Card from '../UI/Card';
 import Button from '../UI/Button';
+import NotificationBell from '../UI/NotificationBell';
 import { 
   CreditCard, 
   Clock, 
@@ -24,7 +25,7 @@ import { formatCurrency } from '../../utils/helpers';
 
 const ClientDashboard = () => {
   const navigate = useNavigate();
-  const { addNotification } = useNotification();
+  const { notifications, addNotification, markAsRead, showSuccess } = useNotifications();
   const [stats, setStats] = useState({
     totalLoaned: 0,
     totalRepaid: 0,
@@ -92,17 +93,18 @@ const ClientDashboard = () => {
       
       setLoading(false);
 
-      // Exemple d'ajout de notification (à supprimer en production)
-      setTimeout(() => {
-        addNotification({
-          type: 'success',
-          title: 'Bienvenue !',
-          message: 'Votre tableau de bord a été mis à jour avec les dernières informations.',
-          time: 'À l\'instant'
-        });
-      }, 2000);
+      // Notification de bienvenue (une seule fois)
+      // setTimeout(() => {
+      //   addNotification({
+      //     type: 'success',
+      //     title: 'Bienvenue !',
+      //     message: 'Votre tableau de bord a été mis à jour avec les dernières informations.',
+      //     action: 'Voir les détails'
+      //   });
+      //   showSuccess('Bienvenue ! Votre tableau de bord a été mis à jour.');
+      // }, 2000);
     }, 1000);
-  }, [addNotification]);
+  }, []); // Dépendances vides pour éviter les boucles infinies
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -179,18 +181,18 @@ const ClientDashboard = () => {
           </div>
           
               <motion.div 
-                className="flex space-x-3"
+                className="flex items-center"
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
                 transition={{ delay: 0.4 }}
               >
-          <Button 
-            onClick={() => navigate('/loan-request')}
+                <Button 
+                  onClick={() => navigate('/loan-request')}
                   className="bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-200"
-          >
+                >
                   <Plus size={20} className="mr-2" />
                   Nouveau prêt
-          </Button>
+                </Button>
               </motion.div>
         </div>
 

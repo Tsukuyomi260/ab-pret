@@ -1,13 +1,11 @@
-import React, { useState, useEffect } from 'react';
-import { X, CheckCircle, AlertCircle, Info, XCircle } from 'lucide-react';
+import React, { useEffect } from 'react';
+import { motion, AnimatePresence } from 'framer-motion';
+import { CheckCircle, AlertCircle, Info, X } from 'lucide-react';
 
 const Toast = ({ message, type = 'info', duration = 5000, onClose }) => {
-  const [isVisible, setIsVisible] = useState(true);
-
   useEffect(() => {
     const timer = setTimeout(() => {
-      setIsVisible(false);
-      setTimeout(onClose, 300); // Attendre l'animation de sortie
+      onClose();
     }, duration);
 
     return () => clearTimeout(timer);
@@ -18,7 +16,7 @@ const Toast = ({ message, type = 'info', duration = 5000, onClose }) => {
       case 'success':
         return <CheckCircle size={20} className="text-green-600" />;
       case 'error':
-        return <XCircle size={20} className="text-red-600" />;
+        return <AlertCircle size={20} className="text-red-600" />;
       case 'warning':
         return <AlertCircle size={20} className="text-yellow-600" />;
       default:
@@ -26,7 +24,7 @@ const Toast = ({ message, type = 'info', duration = 5000, onClose }) => {
     }
   };
 
-  const getBgColor = () => {
+  const getBackgroundColor = () => {
     switch (type) {
       case 'success':
         return 'bg-green-50 border-green-200';
@@ -39,47 +37,49 @@ const Toast = ({ message, type = 'info', duration = 5000, onClose }) => {
     }
   };
 
-  const getTextColor = () => {
-    switch (type) {
-      case 'success':
-        return 'text-green-800';
-      case 'error':
-        return 'text-red-800';
-      case 'warning':
-        return 'text-yellow-800';
-      default:
-        return 'text-blue-800';
-    }
-  };
-
-  if (!isVisible) return null;
-
   return (
-    <div className={`fixed top-4 right-4 z-50 transform transition-all duration-300 ${
-      isVisible ? 'translate-x-0 opacity-100' : 'translate-x-full opacity-0'
-    }`}>
-      <div className={`${getBgColor()} border rounded-xl shadow-large p-4 max-w-sm`}>
-        <div className="flex items-start space-x-3">
-          <div className="flex-shrink-0 mt-0.5">
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0, y: -50, scale: 0.9 }}
+        animate={{ opacity: 1, y: 0, scale: 1 }}
+        exit={{ opacity: 0, y: -50, scale: 0.9 }}
+        transition={{ duration: 0.3, ease: "easeOut" }}
+        className={`fixed top-4 right-4 z-50 max-w-sm w-full ${getBackgroundColor()} border rounded-2xl shadow-2xl backdrop-blur-xl`}
+      >
+        <div className="flex items-start p-4">
+          <div className="flex-shrink-0 mr-3 mt-0.5">
             {getIcon()}
           </div>
-          <div className="flex-1">
-            <p className={`text-sm font-medium font-montserrat ${getTextColor()}`}>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-medium text-gray-900">
               {message}
             </p>
           </div>
-          <button
-            onClick={() => {
-              setIsVisible(false);
-              setTimeout(onClose, 300);
-            }}
-            className="flex-shrink-0 p-1 text-neutral-400 hover:text-neutral-600 transition-colors duration-200"
-          >
-            <X size={16} />
-          </button>
+          <div className="flex-shrink-0 ml-3">
+            <button
+              onClick={onClose}
+              className="inline-flex text-gray-400 hover:text-gray-600 transition-colors duration-200"
+            >
+              <X size={16} />
+            </button>
+          </div>
         </div>
-      </div>
-    </div>
+        
+        {/* Barre de progression */}
+        <div className="h-1 bg-gray-200 rounded-b-2xl overflow-hidden">
+          <motion.div
+            className={`h-full ${
+              type === 'success' ? 'bg-green-500' :
+              type === 'error' ? 'bg-red-500' :
+              type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'
+            }`}
+            initial={{ width: '100%' }}
+            animate={{ width: '0%' }}
+            transition={{ duration: duration / 1000, ease: "linear" }}
+          />
+        </div>
+      </motion.div>
+    </AnimatePresence>
   );
 };
 

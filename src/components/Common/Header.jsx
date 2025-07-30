@@ -1,15 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { useNotification } from '../../context/NotificationContext';
+import { useNotifications } from '../../context/NotificationContext';
 import { LogOut, User, Bell, Menu, X } from 'lucide-react';
 import Logo from '../UI/Logo';
+import NotificationBell from '../UI/NotificationBell';
 
 const Header = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { showInfo } = useNotification();
+  const { showInfo, notifications, markAsRead } = useNotifications();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
 
@@ -80,6 +81,22 @@ const Header = () => {
             <Logo size="md" />
           </button>
 
+          {/* Cloche de notification mobile - à droite du logo */}
+          <div className="lg:hidden">
+            <NotificationBell 
+              notifications={notifications}
+              onNotificationClick={(notification) => {
+                markAsRead(notification.id);
+                // Navigation basée sur le type de notification
+                if (notification.type === 'payment') {
+                  navigate('/repayment');
+                } else if (notification.type === 'loan') {
+                  navigate('/loan-history');
+                }
+              }}
+            />
+          </div>
+
           {/* Navigation desktop */}
           <nav className="hidden lg:flex items-center space-x-6">
             <a href="/dashboard" className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-colors duration-200">
@@ -114,6 +131,20 @@ const Header = () => {
 
           {/* Actions utilisateur desktop */}
           <div className="hidden lg:flex items-center space-x-4">
+            {/* Cloche de notification desktop - pour tous les utilisateurs */}
+            <NotificationBell 
+              notifications={notifications}
+              onNotificationClick={(notification) => {
+                markAsRead(notification.id);
+                // Navigation basée sur le type de notification
+                if (notification.type === 'payment') {
+                  navigate('/repayment');
+                } else if (notification.type === 'loan') {
+                  navigate('/loan-history');
+                }
+              }}
+            />
+            
             {user?.role === 'admin' && notificationCount > 0 && (
               <button className="relative p-2 text-neutral-400 hover:text-neutral-600 transition-colors duration-200">
                 <Bell size={20} />

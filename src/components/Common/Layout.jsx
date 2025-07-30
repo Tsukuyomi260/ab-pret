@@ -15,9 +15,6 @@ const Layout = ({ children }) => {
         <Footer />
         
         {/* Notification Bell - Présent sur toutes les pages */}
-        <div className="fixed top-6 right-6 z-40">
-          <NotificationBell />
-        </div>
       </div>
     </DockProvider>
   );

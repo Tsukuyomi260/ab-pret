@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useNotification } from '../../context/NotificationContext';
+import { useNotifications } from '../../context/NotificationContext';
 import { useSupabaseNotifications } from '../../utils/useSupabaseNotifications';
 import { getAnalyticsData } from '../../utils/supabaseClient';
 import Card from '../UI/Card';
@@ -33,7 +33,7 @@ import {
 
 const Analytics = () => {
   const navigate = useNavigate();
-  const { showSuccess, showError } = useNotification();
+  const { showSuccess, showError } = useNotifications();
   const { isConnected } = useSupabaseNotifications();
   const [loading, setLoading] = useState(true);
   const [timeRange, setTimeRange] = useState('month');

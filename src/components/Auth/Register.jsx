@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { useNotification } from '../../context/NotificationContext';
+import { useNotifications } from '../../context/NotificationContext';
 import { registerUser } from '../../utils/supabaseClient';
 import Button from '../UI/Button';
 import Input from '../UI/Input';
@@ -30,7 +30,7 @@ const Register = () => {
 
 
   const navigate = useNavigate();
-  const { showSuccess, showError } = useNotification();
+  const { showSuccess, showError } = useNotifications();
 
   const handleChange = (e) => {
     setFormData({

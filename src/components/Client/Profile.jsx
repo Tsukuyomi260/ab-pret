@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
+import { useNotifications } from '../../context/NotificationContext';
 import Card from '../UI/Card';
 import Button from '../UI/Button';
 import Input from '../UI/Input';
+import NotificationBell from '../UI/NotificationBell';
 import { 
   User, 
   Mail, 
@@ -45,6 +47,7 @@ import { formatCurrency, formatDate } from '../../utils/helpers';
 const Profile = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { notifications, markAsRead } = useNotifications();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [userStats, setUserStats] = useState({
@@ -131,19 +134,23 @@ const Profile = () => {
         animate={{ opacity: 1, y: 0 }}
         className="text-center py-8 px-4"
       >
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-4xl mx-auto">
           <motion.div 
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: 0.1 }}
             className="mb-6"
           >
-            <h1 className="text-4xl lg:text-5xl font-bold text-secondary-900 font-montserrat mb-4">
-              Mon Profil
-            </h1>
-            <p className="text-xl lg:text-2xl text-secondary-600 font-montserrat leading-relaxed">
-              Gérez vos informations personnelles et consultez vos statistiques détaillées
-            </p>
+            <div className="flex items-center justify-between mb-6">
+              <div className="w-full text-center">
+                <h1 className="text-4xl lg:text-5xl font-bold text-secondary-900 font-montserrat mb-4">
+                  Mon Profil
+                </h1>
+                <p className="text-xl lg:text-2xl text-secondary-600 font-montserrat leading-relaxed">
+                  Gérez vos informations personnelles et consultez vos statistiques détaillées
+                </p>
+              </div>
+            </div>
           </motion.div>
         </div>
       </motion.div>

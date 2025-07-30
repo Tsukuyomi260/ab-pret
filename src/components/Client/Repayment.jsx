@@ -1,14 +1,15 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-
+import { useNotifications } from '../../context/NotificationContext';
 import Card from '../UI/Card';
 import Button from '../UI/Button';
 import Input from '../UI/Input';
+import NotificationBell from '../UI/NotificationBell';
 import { ArrowLeft, CreditCard, Wallet, CheckCircle, AlertCircle } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 
 const Repayment = () => {
-
+  const { notifications, markAsRead } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
   const [activeLoans, setActiveLoans] = useState([]);
@@ -113,13 +114,17 @@ const Repayment = () => {
     <div className="min-h-screen bg-gray-50">
       {/* Header centré style Apple */}
       <div className="text-center py-8 px-4">
-        <div className="max-w-2xl mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900 font-montserrat mb-3">
-            Remboursement
-          </h1>
-          <p className="text-lg text-gray-600 font-montserrat leading-relaxed">
-            Effectuez vos paiements de prêt en toute simplicité
-          </p>
+        <div className="max-w-4xl mx-auto">
+          <div className="flex items-center justify-between mb-6">
+            <div className="w-full text-center">
+              <h1 className="text-3xl font-bold text-gray-900 font-montserrat mb-3">
+                Remboursement
+              </h1>
+              <p className="text-lg text-gray-600 font-montserrat leading-relaxed">
+                Effectuez vos paiements de prêt en toute simplicité
+              </p>
+            </div>
+          </div>
         </div>
       </div>
 

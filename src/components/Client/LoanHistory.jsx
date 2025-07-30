@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-
+import { useNotifications } from '../../context/NotificationContext';
 import Card from '../UI/Card';
 import Button from '../UI/Button';
+import NotificationBell from '../UI/NotificationBell';
 import { 
   Search, 
   Filter, 
@@ -23,7 +24,7 @@ import {
 import { formatCurrency, formatDate } from '../../utils/helpers';
 
 const LoanHistory = () => {
-
+  const { notifications, markAsRead } = useNotifications();
   const navigate = useNavigate();
   const [loans, setLoans] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -216,19 +217,21 @@ const LoanHistory = () => {
         className="text-center py-8 px-4"
       >
         <div className="max-w-6xl mx-auto">
-          <motion.div 
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.1 }}
-            className="mb-8"
-          >
-            <h1 className="text-4xl lg:text-5xl font-bold text-secondary-900 font-montserrat mb-4">
-              Historique des prêts
-            </h1>
-            <p className="text-xl lg:text-2xl text-secondary-600 font-montserrat leading-relaxed">
-              Consultez tous vos prêts et leur statut en temps réel
-            </p>
-          </motion.div>
+          <div className="flex items-center justify-between mb-8">
+            <motion.div 
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.1 }}
+              className="w-full text-center"
+            >
+              <h1 className="text-4xl lg:text-5xl font-bold text-secondary-900 font-montserrat mb-4">
+                Historique des prêts
+              </h1>
+              <p className="text-xl lg:text-2xl text-secondary-600 font-montserrat leading-relaxed">
+                Consultez l'historique complet de vos prêts et paiements
+              </p>
+            </motion.div>
+          </div>
 
           {/* Statistiques */}
           <motion.div 

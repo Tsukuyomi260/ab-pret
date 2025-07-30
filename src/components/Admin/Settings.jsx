@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useNotification } from '../../context/NotificationContext';
+import { useNotifications } from '../../context/NotificationContext';
 import { useSupabaseNotifications } from '../../utils/useSupabaseNotifications';
 import Card from '../UI/Card';
 import Button from '../UI/Button';
@@ -39,7 +39,7 @@ import {
 const Settings = () => {
   const navigate = useNavigate();
 
-  const { showSuccess, showError } = useNotification();
+  const { showSuccess, showError } = useNotifications();
   const { isConnected } = useSupabaseNotifications();
   const [loading, setLoading] = useState(false);
   const [activeTab, setActiveTab] = useState('profile');

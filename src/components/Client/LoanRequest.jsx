@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import { useNotification } from '../../context/NotificationContext';
+import { useNotifications } from '../../context/NotificationContext';
 import Card from '../UI/Card';
 import Button from '../UI/Button';
 import Input from '../UI/Input';
+import NotificationBell from '../UI/NotificationBell';
 import LoanCalculator from '../UI/LoanCalculator';
 import { 
   ArrowLeft, 
@@ -36,7 +37,7 @@ import { LOAN_CONFIG } from '../../utils/loanConfig';
 import { formatCurrency } from '../../utils/helpers';
 
 const LoanRequest = () => {
-  const { showSuccess, showError } = useNotification();
+  const { notifications, addNotification, markAsRead, showSuccess, showError } = useNotifications();
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
@@ -225,7 +226,7 @@ const LoanRequest = () => {
       // Attendre un peu pour montrer l'animation de succès
       setTimeout(() => {
         showSuccess('Demande de prêt soumise avec succès ! Notre équipe vous contactera dans les 24h.');
-      navigate('/dashboard');
+        navigate('/dashboard');
       }, 1500);
       
     } catch (error) {
@@ -268,19 +269,21 @@ const LoanRequest = () => {
           <div className="max-w-7xl mx-auto">
             {/* En-tête principal */}
             <div className="text-center mb-8">
-              <motion.div 
-                className="flex flex-col sm:flex-row items-center justify-center mb-6 space-y-4 sm:space-y-0 sm:space-x-6"
-                initial={{ opacity: 0, scale: 0.8 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ delay: 0.2 }}
-              >
-                <div className="p-4 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full shadow-lg">
-                  <CreditCard className="w-10 h-10 text-white" />
-                </div>
-                <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-secondary-900 font-montserrat text-center sm:text-left">
-            Demande de prêt
-          </h1>
-              </motion.div>
+              <div className="flex items-center justify-between mb-6">
+                <motion.div 
+                  className="flex flex-col sm:flex-row items-center justify-center w-full space-y-4 sm:space-y-0 sm:space-x-6"
+                  initial={{ opacity: 0, scale: 0.8 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  transition={{ delay: 0.2 }}
+                >
+                  <div className="p-4 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full shadow-lg">
+                    <CreditCard className="w-10 h-10 text-white" />
+                  </div>
+                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-secondary-900 font-montserrat text-center">
+                    Demande de prêt
+                  </h1>
+                </motion.div>
+              </div>
               <motion.p 
                 className="text-lg sm:text-xl text-secondary-600 font-montserrat max-w-3xl mx-auto text-center leading-relaxed"
                 initial={{ opacity: 0, y: 20 }}

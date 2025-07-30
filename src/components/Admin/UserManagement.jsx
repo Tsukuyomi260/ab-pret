@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useNotification } from '../../context/NotificationContext';
+import { useNotifications } from '../../context/NotificationContext';
 import { 
   ArrowLeft, 
   Search, 
@@ -18,7 +18,7 @@ import Button from '../UI/Button';
 
 const UserManagement = () => {
   const navigate = useNavigate();
-  const { showSuccess, showError, showInfo } = useNotification();
+  const { showSuccess, showError, showInfo } = useNotifications();
   const [users, setUsers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
