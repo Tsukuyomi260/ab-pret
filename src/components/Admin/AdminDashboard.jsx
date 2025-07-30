@@ -21,12 +21,7 @@ import {
   Settings,
   BarChart3,
   LogOut,
-  Search,
-  ArrowLeft,
   Store,
-  Copy,
-  MoreHorizontal,
-  Monitor,
   Plus,
   MessageCircle,
   Info,
@@ -49,7 +44,6 @@ const AdminDashboard = () => {
   const [recentRequests, setRecentRequests] = useState([]);
   const [pendingRegistrations, setPendingRegistrations] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [searchTerm, setSearchTerm] = useState('');
 
   useEffect(() => {
     const loadData = async () => {
@@ -378,7 +372,7 @@ const AdminDashboard = () => {
       <div className="flex-1 w-full overflow-x-hidden">
         {/* Header */}
         <header className="bg-white shadow-soft border-b border-accent-200 w-full">
-          <div className="flex items-center justify-between w-full px-4 lg:px-8 py-4">
+          <div className="flex items-center justify-between py-4 px-4 lg:px-8">
             <div className="flex items-center space-x-4">
               {/* Bouton menu burger pour mobile */}
               <button 
@@ -387,29 +381,8 @@ const AdminDashboard = () => {
               >
                 <Menu size={24} />
               </button>
-              
-              <button className="hidden lg:block p-2 text-neutral-400 hover:text-neutral-600">
-                <ArrowLeft size={20} />
-              </button>
-              <span className="text-lg font-medium text-secondary-900 font-montserrat">Aperçu</span>
             </div>
-            
-            {/* Barre de recherche */}
-            <div className="flex-1 max-w-2xl mx-4 lg:mx-8">
-              <div className="relative">
-                <Search size={20} className="absolute left-3 top-1/2 transform -translate-y-1/2 text-neutral-400" />
-                <input
-                  type="text"
-                  placeholder="Rechercher..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                  className="w-full pl-10 pr-4 py-3 bg-accent-50 border border-accent-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent font-montserrat"
-                />
-              </div>
-            </div>
-            
-            {/* Actions utilisateur */}
-            <div className="flex items-center space-x-2 lg:space-x-3">
+            <div className="flex items-center space-x-3">
               <Button
                 variant="outline"
                 size="sm"
@@ -418,15 +391,6 @@ const AdminDashboard = () => {
                 <Store size={16} />
                 <span>Visiter le site</span>
               </Button>
-              <button className="p-2 text-neutral-400 hover:text-neutral-600">
-                <Copy size={20} />
-              </button>
-              <button className="p-2 text-neutral-400 hover:text-neutral-600">
-                <MoreHorizontal size={20} />
-              </button>
-              <button className="p-2 text-neutral-400 hover:text-neutral-600">
-                <Monitor size={20} />
-              </button>
             </div>
           </div>
         </header>
