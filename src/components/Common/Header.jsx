@@ -70,7 +70,7 @@ const Header = () => {
   };
 
   return (
-    <header className="fixed top-0 left-0 right-0 bg-white shadow-soft border-b border-accent-200 w-full overflow-x-hidden z-50">
+    <header className="fixed top-0 left-0 right-0 bg-white shadow-soft border-b border-accent-200 w-full z-50">
       <div className="w-full">
         <div className="flex justify-between items-center py-4 w-full px-4 lg:px-8">
           {/* Logo AB PRET */}

@@ -73,7 +73,7 @@ const NotificationBell = ({ notifications = [], onNotificationClick, className =
   };
 
   return (
-    <div className={`relative ${fixed ? 'fixed top-24 right-4 z-50 sm:top-4' : ''} ${className}`} ref={dropdownRef}>
+    <div className={`relative ${fixed ? 'fixed top-24 right-4 z-[9999] sm:top-4' : 'z-[9999]'} ${className}`} ref={dropdownRef}>
       {/* Bouton de notification */}
       <motion.button
         onClick={() => setIsOpen(!isOpen)}
@@ -105,7 +105,7 @@ const NotificationBell = ({ notifications = [], onNotificationClick, className =
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, y: -10, scale: 0.95 }}
             transition={{ duration: 0.2, ease: "easeOut" }}
-            className="absolute right-0 top-12 w-80 max-w-[calc(100vw-2rem)] sm:right-0 bg-white/95 backdrop-blur-xl border border-gray-200/50 rounded-2xl shadow-2xl z-50 overflow-hidden"
+            className="absolute right-0 top-12 w-80 max-w-[calc(100vw-2rem)] sm:right-0 bg-white/95 backdrop-blur-xl border border-gray-200/50 rounded-2xl shadow-2xl z-[9999] overflow-hidden"
           >
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200/50 bg-gradient-to-r from-gray-50/50 to-white/50">
