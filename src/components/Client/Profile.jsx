@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
@@ -40,7 +40,9 @@ import {
   Activity,
   BarChart3,
   DollarSign,
-  Percent
+  Percent,
+  Upload,
+  Image
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '../../utils/helpers';
 
@@ -50,6 +52,10 @@ const Profile = () => {
   const { notifications, markAsRead } = useNotifications();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [profileImage, setProfileImage] = useState(null);
+  const [previewImage, setPreviewImage] = useState(null);
+  const [imageLoading, setImageLoading] = useState(false);
+  const fileInputRef = useRef(null);
   const [userStats, setUserStats] = useState({
     totalLoans: 15,
     activeLoans: 3,
@@ -85,7 +91,17 @@ const Profile = () => {
     try {
       // Simulation d'appel API
       await new Promise(resolve => setTimeout(resolve, 1000));
+      
+      // Si une nouvelle image a été sélectionnée, simuler l'upload
+      if (profileImage) {
+        console.log('Upload de l\'image de profil:', profileImage.name);
+        // Ici, vous pouvez ajouter la logique pour uploader l'image vers votre serveur
+        // Par exemple : await uploadProfileImage(profileImage);
+      }
+      
       setIsEditing(false);
+      // Réinitialiser l'état de l'image après sauvegarde
+      setProfileImage(null);
     } catch (error) {
       console.error('Erreur lors de la sauvegarde:', error);
     } finally {
@@ -95,6 +111,8 @@ const Profile = () => {
 
   const handleCancel = () => {
     setIsEditing(false);
+    // Réinitialiser l'image de prévisualisation
+    setPreviewImage(null);
     // Réinitialiser les données du formulaire
     setFormData({
       firstName: user?.first_name || 'John',
@@ -105,6 +123,46 @@ const Profile = () => {
       occupation: 'Entrepreneur',
       monthlyIncome: 500000
     });
+  };
+
+  const handleImageUpload = (event) => {
+    const file = event.target.files[0];
+    if (file) {
+      // Vérifier le type de fichier
+      if (!file.type.startsWith('image/')) {
+        alert('Veuillez sélectionner une image valide');
+        return;
+      }
+      
+      // Vérifier la taille (max 5MB)
+      if (file.size > 5 * 1024 * 1024) {
+        alert('L\'image doit faire moins de 5MB');
+        return;
+      }
+      
+      setImageLoading(true);
+      
+      // Créer une prévisualisation
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        setPreviewImage(e.target.result);
+        setProfileImage(file);
+        setImageLoading(false);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const triggerImageUpload = () => {
+    fileInputRef.current?.click();
+  };
+
+  const removeProfileImage = () => {
+    setProfileImage(null);
+    setPreviewImage(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
   };
 
   const handleLogout = () => {
@@ -349,28 +407,78 @@ const Profile = () => {
               <Card className="bg-white/90 backdrop-blur-sm border-white/20 hover:shadow-xl transition-all duration-300">
                 <div className="text-center">
                   <div className="relative mx-auto mb-6">
+                    {/* Input file caché */}
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                    
+                    {/* Avatar avec image ou initiales */}
                     <motion.div 
-                      className="w-24 h-24 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full mx-auto flex items-center justify-center shadow-lg"
+                      className="w-24 h-24 bg-gradient-to-br from-primary-400 to-primary-600 rounded-full mx-auto flex items-center justify-center shadow-lg overflow-hidden relative"
                       whileHover={{ scale: 1.05 }}
                       transition={{ type: "spring", stiffness: 300 }}
                     >
-                      <span className="text-white text-3xl font-bold">
-                        {formData.firstName.charAt(0)}{formData.lastName.charAt(0)}
-                      </span>
+                      {previewImage ? (
+                        <img 
+                          src={previewImage} 
+                          alt="Photo de profil" 
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-white text-3xl font-bold">
+                          {formData.firstName.charAt(0)}{formData.lastName.charAt(0)}
+                        </span>
+                      )}
+                      
+                      {/* Overlay de chargement */}
+                      {imageLoading && (
+                        <div className="absolute inset-0 bg-black/50 flex items-center justify-center rounded-full">
+                          <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-white"></div>
+                        </div>
+                      )}
                     </motion.div>
+                    
+                    {/* Boutons d'action pour l'image */}
                     {isEditing && (
-                      <motion.button 
-                        className="absolute bottom-0 right-0 bg-white rounded-full p-2 shadow-lg hover:shadow-xl transition-all duration-200"
-                        whileHover={{ scale: 1.1 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        <Camera size={16} className="text-gray-600" />
-                      </motion.button>
+                      <div className="absolute bottom-0 right-0 flex space-x-1">
+                        <motion.button 
+                          onClick={triggerImageUpload}
+                          className="bg-white rounded-full p-2 shadow-lg hover:shadow-xl transition-all duration-200"
+                          whileHover={{ scale: 1.1 }}
+                          whileTap={{ scale: 0.95 }}
+                          title="Changer la photo"
+                        >
+                          {previewImage ? <Camera size={16} className="text-gray-600" /> : <Upload size={16} className="text-gray-600" />}
+                        </motion.button>
+                        
+                        {previewImage && (
+                          <motion.button 
+                            onClick={removeProfileImage}
+                            className="bg-red-500 rounded-full p-2 shadow-lg hover:shadow-xl transition-all duration-200"
+                            whileHover={{ scale: 1.1 }}
+                            whileTap={{ scale: 0.95 }}
+                            title="Supprimer la photo"
+                          >
+                            <Trash2 size={16} className="text-white" />
+                          </motion.button>
+                        )}
+                      </div>
                     )}
                   </div>
                   <h3 className="text-xl font-semibold text-gray-900 font-montserrat mb-2">
                     {formData.firstName} {formData.lastName}
                   </h3>
+                  {previewImage && isEditing && (
+                    <div className="flex items-center justify-center space-x-2 mb-4">
+                      <div className="bg-yellow-100 text-yellow-800 text-xs px-2 py-1 rounded-full font-medium">
+                        📸 Photo en attente de sauvegarde
+                      </div>
+                    </div>
+                  )}
                   <div className="flex items-center justify-center space-x-2 mb-4">
                     <Award className="text-yellow-500" size={16} />
                     <p className="text-yellow-600 font-medium">Client Premium</p>
