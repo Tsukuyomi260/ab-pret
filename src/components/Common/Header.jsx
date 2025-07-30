@@ -5,6 +5,8 @@ import { useNotifications } from '../../context/NotificationContext';
 import { LogOut, User, Bell, Menu, X } from 'lucide-react';
 import Logo from '../UI/Logo';
 import NotificationBell from '../UI/NotificationBell';
+import { motion } from 'framer-motion';
+import { AnimatePresence } from 'framer-motion';
 
 const Header = () => {
   const { user, logout } = useAuth();
@@ -176,114 +178,157 @@ const Header = () => {
           </div>
 
           {/* Bouton menu mobile */}
-          <button
+          <motion.button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-            className="lg:hidden p-2 text-neutral-400 hover:text-neutral-600"
+            className="lg:hidden relative p-3 rounded-xl bg-white/80 backdrop-blur-sm border border-gray-200/50 hover:bg-white/90 transition-all duration-200 shadow-sm hover:shadow-md"
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
           >
-            {mobileMenuOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
+            <motion.div
+              animate={mobileMenuOpen ? "open" : "closed"}
+              className="flex flex-col space-y-1.5"
+            >
+              <motion.span
+                variants={{
+                  closed: { rotate: 0, y: 0 },
+                  open: { rotate: 45, y: 6 }
+                }}
+                className="w-6 h-0.5 bg-gray-700 rounded-full"
+              />
+              <motion.span
+                variants={{
+                  closed: { opacity: 1 },
+                  open: { opacity: 0 }
+                }}
+                className="w-6 h-0.5 bg-gray-700 rounded-full"
+              />
+              <motion.span
+                variants={{
+                  closed: { rotate: 0, y: 0 },
+                  open: { rotate: -45, y: -6 }
+                }}
+                className="w-6 h-0.5 bg-gray-700 rounded-full"
+              />
+            </motion.div>
+          </motion.button>
         </div>
 
         {/* Menu mobile */}
-        {mobileMenuOpen && (
-          <div className="lg:hidden border-t border-accent-200 py-4 w-full">
-            <nav className="flex flex-col space-y-4">
-              <a 
-                href="/dashboard" 
-                className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-colors duration-200 px-4 py-2 rounded-lg hover:bg-accent-50 flex items-start space-x-3"
-                onClick={() => setMobileMenuOpen(false)}
-              >
-                <span className="w-5 h-5 flex-shrink-0 mt-0.5">🏠</span>
-                <span>Accueil</span>
-              </a>
-              {user?.role === 'admin' ? (
-                <>
-                  <a 
-                    href="/admin/loan-requests" 
-                    className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-colors duration-200 px-4 py-2 rounded-lg hover:bg-accent-50 flex items-start space-x-3"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <span className="w-5 h-5 flex-shrink-0 mt-0.5">📋</span>
-                    <span>Demandes de prêt</span>
-                  </a>
-                  <a 
-                    href="/admin/user-management" 
-                    className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-colors duration-200 px-4 py-2 rounded-lg hover:bg-accent-50 flex items-start space-x-3"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <span className="w-5 h-5 flex-shrink-0 mt-0.5">👥</span>
-                    <span>Gestion utilisateur</span>
-                  </a>
-                  <a 
-                    href="/admin/analytics" 
-                    className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-colors duration-200 px-4 py-2 rounded-lg hover:bg-accent-50 flex items-start space-x-3"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <span className="w-5 h-5 flex-shrink-0 mt-0.5">📊</span>
-                    <span>Analytiques</span>
-                  </a>
-                </>
-              ) : (
-                <>
-                  <a 
-                    href="/loan-request" 
-                    className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-colors duration-200 px-4 py-2 rounded-lg hover:bg-accent-50 flex items-start space-x-3"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <span className="w-5 h-5 flex-shrink-0 mt-0.5">💳</span>
-                    <span className="text-left leading-tight">
-                      Demander un<br />prêt
-                    </span>
-                  </a>
-                  <a 
-                    href="/loan-history" 
-                    className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-colors duration-200 px-4 py-2 rounded-lg hover:bg-accent-50 flex items-start space-x-3"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <span className="w-5 h-5 flex-shrink-0 mt-0.5">📊</span>
-                    <span>Historique</span>
-                  </a>
-                  <a 
-                    href="/repayment" 
-                    className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-colors duration-200 px-4 py-2 rounded-lg hover:bg-accent-50 flex items-start space-x-3"
-                    onClick={() => setMobileMenuOpen(false)}
-                  >
-                    <span className="w-5 h-5 flex-shrink-0 mt-0.5">💰</span>
-                    <span>Remboursement</span>
-                  </a>
-                </>
-              )}
-            </nav>
-            
-            {/* Actions utilisateur mobile */}
-            <div className="mt-6 pt-6 border-t border-accent-200">
-              <div className="flex items-center justify-between px-4">
-                <div className="flex items-center space-x-3">
-                  <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
-                    <User size={16} className="text-primary-600" />
-                  </div>
-                  <div className="flex flex-col">
-                    <span className="text-sm font-medium text-secondary-900 font-montserrat">
-                      {getDisplayName()}
-                    </span>
-                    <span className="text-xs text-neutral-600 font-montserrat">
-                      {user?.role === 'admin' ? 'Administrateur' : 'Client'}
-              </span>
-            </div>
-                </div>
-            <button
-                  onClick={() => {
-                    handleLogout();
-                    setMobileMenuOpen(false);
-                  }}
-                  className="p-2 text-neutral-400 hover:text-neutral-600 transition-colors duration-200"
+        <AnimatePresence>
+          {mobileMenuOpen && (
+            <motion.div 
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: "auto" }}
+              exit={{ opacity: 0, height: 0 }}
+              transition={{ duration: 0.3, ease: "easeInOut" }}
+              className="lg:hidden border-t border-accent-200 py-4 w-full overflow-hidden"
             >
-              <LogOut size={20} />
-            </button>
-          </div>
-        </div>
-          </div>
-        )}
+              <motion.nav 
+                initial={{ opacity: 0, y: -20 }}
+                animate={{ opacity: 1, y: 0 }}
+                exit={{ opacity: 0, y: -20 }}
+                transition={{ delay: 0.1, duration: 0.2 }}
+                className="flex flex-col space-y-2"
+              >
+                <a 
+                  href="/dashboard" 
+                  className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-all duration-200 px-4 py-3 rounded-xl hover:bg-accent-50 flex items-start space-x-3 hover:shadow-sm"
+                  onClick={() => setMobileMenuOpen(false)}
+                >
+                  <span className="w-5 h-5 flex-shrink-0 mt-0.5">🏠</span>
+                  <span>Accueil</span>
+                </a>
+                {user?.role === 'admin' ? (
+                  <>
+                    <a 
+                      href="/admin/loan-requests" 
+                      className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-all duration-200 px-4 py-3 rounded-xl hover:bg-accent-50 flex items-start space-x-3 hover:shadow-sm"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <span className="w-5 h-5 flex-shrink-0 mt-0.5">📋</span>
+                      <span>Demandes de prêt</span>
+                    </a>
+                    <a 
+                      href="/admin/user-management" 
+                      className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-all duration-200 px-4 py-3 rounded-xl hover:bg-accent-50 flex items-start space-x-3 hover:shadow-sm"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <span className="w-5 h-5 flex-shrink-0 mt-0.5">👥</span>
+                      <span>Gestion utilisateur</span>
+                    </a>
+                    <a 
+                      href="/admin/analytics" 
+                      className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-all duration-200 px-4 py-3 rounded-xl hover:bg-accent-50 flex items-start space-x-3 hover:shadow-sm"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <span className="w-5 h-5 flex-shrink-0 mt-0.5">📊</span>
+                      <span>Analytiques</span>
+                    </a>
+                  </>
+                ) : (
+                  <>
+                    <a 
+                      href="/loan-request" 
+                      className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-all duration-200 px-4 py-3 rounded-xl hover:bg-accent-50 flex items-start space-x-3 hover:shadow-sm"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <span className="w-5 h-5 flex-shrink-0 mt-0.5">💳</span>
+                      <span className="text-left leading-tight">
+                        Demander un<br />prêt
+                      </span>
+                    </a>
+                    <a 
+                      href="/loan-history" 
+                      className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-all duration-200 px-4 py-3 rounded-xl hover:bg-accent-50 flex items-start space-x-3 hover:shadow-sm"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <span className="w-5 h-5 flex-shrink-0 mt-0.5">📊</span>
+                      <span>Historique</span>
+                    </a>
+                    <a 
+                      href="/repayment" 
+                      className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-all duration-200 px-4 py-3 rounded-xl hover:bg-accent-50 flex items-start space-x-3 hover:shadow-sm"
+                      onClick={() => setMobileMenuOpen(false)}
+                    >
+                      <span className="w-5 h-5 flex-shrink-0 mt-0.5">💰</span>
+                      <span>Remboursement</span>
+                    </a>
+                  </>
+                )}
+              </motion.nav>
+               
+               {/* Actions utilisateur mobile */}
+               <motion.div 
+                 initial={{ opacity: 0, y: 20 }}
+                 animate={{ opacity: 1, y: 0 }}
+                 transition={{ delay: 0.2, duration: 0.2 }}
+                 className="mt-6 pt-6 border-t border-accent-200"
+               >
+                 <div className="flex items-center justify-between px-4">
+                   <div className="flex items-center space-x-3">
+                     <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
+                       <User size={16} className="text-primary-600" />
+                     </div>
+                     <div className="flex flex-col">
+                       <span className="text-sm font-medium text-secondary-900 font-montserrat">
+                         {getDisplayName()}
+                       </span>
+                       <span className="text-xs text-neutral-600 font-montserrat">
+                         {user?.role === 'admin' ? 'Administrateur' : 'Client'}
+                       </span>
+                     </div>
+                   </div>
+                   <button
+                     onClick={handleLogout}
+                     className="p-2 text-neutral-400 hover:text-neutral-600 transition-colors duration-200"
+                   >
+                     <LogOut size={20} />
+                   </button>
+                 </div>
+               </motion.div>
+             </motion.div>
+           )}
+         </AnimatePresence>
       </div>
     </header>
   );
