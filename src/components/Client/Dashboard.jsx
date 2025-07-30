@@ -146,7 +146,7 @@ const ClientDashboard = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-accent-50 to-secondary-50">
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-accent-50 to-secondary-50 pt-0">
       {/* Header avec gradient et animations */}
       <motion.div 
         className="relative overflow-hidden"
@@ -258,16 +258,9 @@ const ClientDashboard = () => {
                       </div>
                     </div>
                     <div className="text-right">
-                      <div className="p-3 bg-white/10 rounded-full mb-2">
+                      <div className="p-3 bg-white/10 rounded-full">
                         <Bell className="w-8 h-8" />
                       </div>
-                      <Button 
-                        size="sm"
-                        onClick={() => navigate('/repayment')}
-                        className="bg-white text-orange-600 hover:bg-orange-50"
-                      >
-                        Payer maintenant
-                      </Button>
                     </div>
                   </div>
                 </Card>

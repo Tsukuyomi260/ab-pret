@@ -1,28 +1,95 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-
+import { motion, AnimatePresence } from 'framer-motion';
 import { useNotification } from '../../context/NotificationContext';
 import Card from '../UI/Card';
 import Button from '../UI/Button';
 import Input from '../UI/Input';
 import LoanCalculator from '../UI/LoanCalculator';
-import { ArrowLeft, AlertCircle } from 'lucide-react';
+import { 
+  ArrowLeft, 
+  AlertCircle, 
+  CheckCircle, 
+  CreditCard, 
+  Calendar, 
+  DollarSign, 
+  TrendingUp, 
+  Shield, 
+  Clock, 
+  Star,
+  Zap,
+  Target,
+  BookOpen,
+  ShoppingBag,
+  Home,
+  Car,
+  Heart,
+  Smartphone,
+  GraduationCap,
+  Briefcase,
+  User,
+  FileText,
+  ArrowRight,
+  Sparkles
+} from 'lucide-react';
 import { LOAN_CONFIG } from '../../utils/loanConfig';
+import { formatCurrency } from '../../utils/helpers';
 
 const LoanRequest = () => {
-
   const { showSuccess, showError } = useNotification();
   const navigate = useNavigate();
+  const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     amount: '',
-    duration: 1, // 1 semaine par défaut
+    duration: 1,
     purpose: '',
     monthlyIncome: '',
-    employmentStatus: 'employed'
+    employmentStatus: 'employed',
+    category: '',
+    documents: []
   });
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+  const [selectedCategory, setSelectedCategory] = useState('');
 
+  // Catégories de prêts avec icônes et couleurs
+  const loanCategories = [
+    { 
+      id: 'education', 
+      name: 'Éducation', 
+      icon: <BookOpen className="w-6 h-6" />, 
+      color: 'from-blue-500 to-blue-600',
+      description: 'Frais de scolarité, matériel scolaire, formation'
+    },
+    { 
+      id: 'business', 
+      name: 'Entreprise', 
+      icon: <ShoppingBag className="w-6 h-6" />, 
+      color: 'from-green-500 to-green-600',
+      description: 'Démarrage d\'activité, investissement, stock'
+    },
+    { 
+      id: 'housing', 
+      name: 'Logement', 
+      icon: <Home className="w-6 h-6" />, 
+      color: 'from-orange-500 to-orange-600',
+      description: 'Loyer, rénovation, ameublement'
+    },
+    { 
+      id: 'personal', 
+      name: 'Raison personnelle', 
+      icon: <User className="w-6 h-6" />, 
+      color: 'from-purple-500 to-purple-600',
+      description: 'Voyage, événement spécial, projet personnel'
+    },
+    { 
+      id: 'health', 
+      name: 'Santé', 
+      icon: <Heart className="w-6 h-6" />, 
+      color: 'from-pink-500 to-pink-600',
+      description: 'Soins médicaux, médicaments, consultation'
+    }
+  ];
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -31,20 +98,20 @@ const LoanRequest = () => {
       [name]: value
     });
     
-    // Effacer l'erreur du champ
     if (errors[name]) {
       setErrors({
         ...errors,
         [name]: ''
       });
     }
+  };
 
-    // Calculer automatiquement si montant et durée sont remplis
-    if (name === 'amount' || name === 'duration') {
-      if (formData.amount && formData.duration) {
-        // La calculatrice se met à jour automatiquement
-      }
-    }
+  const handleCategorySelect = (categoryId) => {
+    setSelectedCategory(categoryId);
+    setFormData(prev => ({
+      ...prev,
+      category: categoryId
+    }));
   };
 
   const handleCalculation = (result) => {
@@ -55,47 +122,94 @@ const LoanRequest = () => {
     }));
   };
 
-  const validateForm = () => {
+  // Calcul automatique quand le montant ou la durée change
+  useEffect(() => {
+    if (formData.amount && formData.duration) {
+      const numAmount = parseFloat(formData.amount);
+      const numDuration = parseInt(formData.duration);
+      
+      if (numAmount >= LOAN_CONFIG.amounts.min && numAmount <= LOAN_CONFIG.amounts.max) {
+        const interestRate = LOAN_CONFIG.getInterestRate(numDuration);
+        const interestAmount = LOAN_CONFIG.calculateInterest(numAmount, numDuration);
+        const totalAmount = LOAN_CONFIG.calculateTotalAmount(numAmount, numDuration);
+        const monthlyPayment = LOAN_CONFIG.calculateMonthlyPayment(totalAmount, numDuration);
+
+        const result = {
+          principal: numAmount,
+          duration: numDuration,
+          interestRate,
+          interestAmount,
+          totalAmount,
+          monthlyPayment,
+          durationLabel: LOAN_CONFIG.durations.find(d => d.weeks === numDuration)?.label
+        };
+
+        handleCalculation(result);
+      }
+    }
+  }, [formData.amount, formData.duration]);
+
+  const validateStep = (step) => {
     const newErrors = {};
 
-    if (!formData.amount || parseFloat(formData.amount) < LOAN_CONFIG.amounts.min) {
-      newErrors.amount = `Le montant minimum est de ${LOAN_CONFIG.amounts.min.toLocaleString()} FCFA`;
-    }
-
-    if (parseFloat(formData.amount) > LOAN_CONFIG.amounts.max) {
-      newErrors.amount = `Le montant maximum est de ${LOAN_CONFIG.amounts.max.toLocaleString()} FCFA`;
-    }
-
-    if (!formData.purpose.trim()) {
-      newErrors.purpose = 'Veuillez préciser l\'objet du prêt';
-    }
-
-    if (!formData.monthlyIncome) {
-      newErrors.monthlyIncome = 'Le revenu mensuel est requis';
-    } else {
-      const income = parseFloat(formData.monthlyIncome);
-      const incomeValidation = LOAN_CONFIG.validateMonthlyIncome(income);
-      if (!incomeValidation.isValid) {
-        newErrors.monthlyIncome = incomeValidation.errors[0];
-      }
+    switch (step) {
+      case 1:
+        if (!selectedCategory) {
+          newErrors.category = 'Veuillez sélectionner une catégorie';
+        }
+        break;
+      case 2:
+        if (!formData.amount || parseFloat(formData.amount) < LOAN_CONFIG.amounts.min) {
+          newErrors.amount = `Le montant minimum est de ${LOAN_CONFIG.amounts.min.toLocaleString()} FCFA`;
+        }
+        if (parseFloat(formData.amount) > LOAN_CONFIG.amounts.max) {
+          newErrors.amount = `Le montant maximum est de ${LOAN_CONFIG.amounts.max.toLocaleString()} FCFA`;
+        }
+        if (!formData.duration) {
+          newErrors.duration = 'Veuillez sélectionner une durée';
+        }
+        break;
+      case 3:
+        if (!formData.purpose.trim()) {
+          newErrors.purpose = 'Veuillez préciser l\'objet du prêt';
+        }
+        if (!formData.monthlyIncome) {
+          newErrors.monthlyIncome = 'Le revenu mensuel est requis';
+        } else {
+          const income = parseFloat(formData.monthlyIncome);
+          const incomeValidation = LOAN_CONFIG.validateMonthlyIncome(income);
+          if (!incomeValidation.isValid) {
+            newErrors.monthlyIncome = incomeValidation.errors[0];
+          }
+        }
+        break;
     }
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
+  const nextStep = () => {
+    if (validateStep(currentStep)) {
+      setCurrentStep(prev => Math.min(prev + 1, 4));
+    }
+  };
+
+  const prevStep = () => {
+    setCurrentStep(prev => Math.max(prev - 1, 1));
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     
-    if (!validateForm()) return;
+    if (!validateStep(currentStep)) return;
 
     setLoading(true);
     
     try {
-      // Simulation d'appel API
       await new Promise(resolve => setTimeout(resolve, 2000));
       
-      showSuccess('Demande de prêt soumise avec succès !');
+      showSuccess('Demande de prêt soumise avec succès ! Notre équipe vous contactera dans les 24h.');
       navigate('/dashboard');
     } catch (error) {
       showError('Erreur lors de la soumission de la demande');
@@ -104,165 +218,555 @@ const LoanRequest = () => {
     }
   };
 
+  const getStepIcon = (step) => {
+    switch (step) {
+      case 1: return <Target className="w-5 h-5" />;
+      case 2: return <DollarSign className="w-5 h-5" />;
+      case 3: return <User className="w-5 h-5" />;
+      case 4: return <CheckCircle className="w-5 h-5" />;
+      default: return <FileText className="w-5 h-5" />;
+    }
+  };
+
+  const getStepTitle = (step) => {
+    switch (step) {
+      case 1: return 'Catégorie du prêt';
+      case 2: return 'Montant et durée';
+      case 3: return 'Informations personnelles';
+      case 4: return 'Validation';
+      default: return 'Étape';
+    }
+  };
+
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header centré style Apple */}
-      <div className="text-center py-8 px-4">
-        <div className="max-w-2xl mx-auto">
-          <h1 className="text-3xl font-bold text-gray-900 font-montserrat mb-3">
-            Demande de prêt
-          </h1>
-          <p className="text-lg text-gray-600 font-montserrat leading-relaxed">
-            Remplissez le formulaire ci-dessous pour demander votre prêt. 
-            Notre équipe traitera votre demande dans les plus brefs délais.
-          </p>
-        </div>
-      </div>
-
-      {/* Contenu principal centré */}
-      <div className="max-w-6xl mx-auto px-4 pb-8">
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-        {/* Formulaire */}
-        <div className="lg:col-span-2">
-          <Card title="Informations du prêt" className="bg-white/90 backdrop-blur-sm border-white/20">
-            <div className="space-y-6">
-              {errors.general && (
-                <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg flex items-center space-x-2">
-                  <AlertCircle size={20} />
-                  <span>{errors.general}</span>
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-accent-50 to-secondary-50">
+      {/* Header avec gradient et animations */}
+      <motion.div 
+        className="relative overflow-hidden"
+        initial={{ opacity: 0, y: -20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.6 }}
+      >
+        <div className="absolute inset-0 bg-gradient-to-r from-primary-500/10 to-secondary-500/10" />
+        <div className="relative px-4 lg:px-8 py-8">
+          <div className="max-w-7xl mx-auto">
+            {/* En-tête principal */}
+            <div className="text-center mb-8">
+              <motion.div 
+                className="flex items-center justify-center mb-6"
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                transition={{ delay: 0.2 }}
+              >
+                <div className="p-3 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full mr-4">
+                  <CreditCard className="w-8 h-8 text-white" />
                 </div>
-              )}
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Input
-                  label="Montant demandé (FCFA)"
-                  type="number"
-                  name="amount"
-                  value={formData.amount}
-                  onChange={handleChange}
-                  placeholder="50000"
-                  min={LOAN_CONFIG.amounts.min}
-                  max={LOAN_CONFIG.amounts.max}
-                  error={errors.amount}
-                  required
-                />
-
-                <Input
-                  label="Durée du prêt"
-                  type="select"
-                  name="duration"
-                  value={formData.duration}
-                  onChange={handleChange}
-                  error={errors.duration}
-                  required
-                >
-                  {LOAN_CONFIG.durations.map((option) => (
-                    <option key={option.value} value={option.weeks}>
-                      {option.label}
-                    </option>
-                  ))}
-                </Input>
-              </div>
-
-              <Input
-                label="Objet du prêt"
-                type="textarea"
-                name="purpose"
-                value={formData.purpose}
-                onChange={handleChange}
-                placeholder="Décrivez l'utilisation prévue du prêt..."
-                error={errors.purpose}
-                required
-              />
-
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Input
-                  label="Revenu mensuel (FCFA)"
-                  type="number"
-                  name="monthlyIncome"
-                  value={formData.monthlyIncome}
-                  onChange={handleChange}
-                  placeholder={`${LOAN_CONFIG.monthlyIncome.min.toLocaleString()} - ${LOAN_CONFIG.monthlyIncome.max.toLocaleString()}`}
-                  min={LOAN_CONFIG.monthlyIncome.min}
-                  max={LOAN_CONFIG.monthlyIncome.max}
-                  error={errors.monthlyIncome}
-                  required
-                />
-
-                <Input
-                  label="Statut professionnel"
-                  type="select"
-                  name="employmentStatus"
-                  value={formData.employmentStatus}
-                  onChange={handleChange}
-                  required
-                >
-                  <option value="employed">Salarié</option>
-                  <option value="self-employed">Indépendant</option>
-                  <option value="business-owner">Chef d'entreprise</option>
-                  <option value="student">Étudiant</option>
-                </Input>
-              </div>
+                <h1 className="text-4xl lg:text-5xl font-bold text-secondary-900 font-montserrat">
+                  Demande de prêt
+                </h1>
+              </motion.div>
+              <motion.p 
+                className="text-xl text-secondary-600 font-montserrat max-w-3xl mx-auto"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.3 }}
+              >
+                Remplissez les étapes ci-dessous pour demander votre prêt. 
+                Notre processus est simple, rapide et sécurisé.
+              </motion.p>
             </div>
-          </Card>
-        </div>
 
-        {/* Calculatrice */}
-        <div className="space-y-6">
-          <LoanCalculator onCalculate={handleCalculation} />
-
-          {/* Informations importantes */}
-          <Card title="Informations importantes" className="bg-white/90 backdrop-blur-sm border-white/20">
-            <div className="space-y-4 text-sm">
-              <div className="flex items-start space-x-3 p-3 bg-accent-50/50 rounded-xl">
-                <div className="w-2 h-2 bg-primary-600 rounded-full mt-2 flex-shrink-0"></div>
-                <p className="text-gray-700 font-medium">Taux d'intérêt: <span className="text-primary-600">10%</span> pour les prêts de 1-2 semaines, <span className="text-primary-600">35%</span> pour les prêts de plus d'un mois</p>
-              </div>
-              <div className="flex items-start space-x-3 p-3 bg-accent-50/50 rounded-xl">
-                <div className="w-2 h-2 bg-primary-600 rounded-full mt-2 flex-shrink-0"></div>
-                <p className="text-gray-700 font-medium">Montant minimum: <span className="text-primary-600">{LOAN_CONFIG.amounts.min.toLocaleString()} FCFA</span></p>
-              </div>
-              <div className="flex items-start space-x-3 p-3 bg-accent-50/50 rounded-xl">
-                <div className="w-2 h-2 bg-primary-600 rounded-full mt-2 flex-shrink-0"></div>
-                <p className="text-gray-700 font-medium">Montant maximum: <span className="text-primary-600">{LOAN_CONFIG.amounts.max.toLocaleString()} FCFA</span></p>
-              </div>
-              <div className="flex items-start space-x-3 p-3 bg-accent-50/50 rounded-xl">
-                <div className="w-2 h-2 bg-primary-600 rounded-full mt-2 flex-shrink-0"></div>
-                <p className="text-gray-700 font-medium">Durées disponibles: <span className="text-primary-600">1 semaine, 2 semaines, 1 mois</span></p>
-              </div>
-              <div className="flex items-start space-x-3 p-3 bg-accent-50/50 rounded-xl">
-                <div className="w-2 h-2 bg-primary-600 rounded-full mt-2 flex-shrink-0"></div>
-                <p className="text-gray-700 font-medium">Revenu mensuel: <span className="text-primary-600">{LOAN_CONFIG.monthlyIncome.min.toLocaleString()} - {LOAN_CONFIG.monthlyIncome.max.toLocaleString()} FCFA</span></p>
-              </div>
-            </div>
-          </Card>
-        </div>
-      </div>
-
-      {/* Section de soumission centrée */}
-      <div className="max-w-4xl mx-auto mt-8">
-        <Card title="Soumission de la demande" className="bg-white/90 backdrop-blur-sm">
-          <div className="text-center space-y-6">
-            <div className="bg-blue-50/80 border border-blue-200/50 rounded-2xl p-6">
-              <p className="text-blue-800 font-medium mb-3 text-lg">
-                📋 Vérifiez vos informations
-              </p>
-              <p className="text-blue-700 text-base leading-relaxed">
-                Assurez-vous que toutes les informations sont correctes et que vous avez bien vu les calculs de votre prêt avant de soumettre votre demande.
-              </p>
-            </div>
-            
-            <Button
-              onClick={handleSubmit}
-              loading={loading}
-              className="px-12 py-4 text-lg bg-primary-500 hover:bg-primary-600 text-white font-medium rounded-2xl shadow-lg hover:shadow-xl transition-all duration-300"
+            {/* Indicateur de progression */}
+            <motion.div 
+              className="mb-8"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
             >
-              {loading ? 'Soumission...' : 'Soumettre la demande'}
-            </Button>
+              <div className="flex items-center justify-center space-x-4">
+                {[1, 2, 3, 4].map((step) => (
+                  <div key={step} className="flex items-center">
+                    <div className={`flex items-center justify-center w-12 h-12 rounded-full border-2 transition-all duration-300 ${
+                      step <= currentStep 
+                        ? 'bg-primary-500 border-primary-500 text-white' 
+                        : 'bg-white border-gray-300 text-gray-400'
+                    }`}>
+                      {step < currentStep ? (
+                        <CheckCircle className="w-6 h-6" />
+                      ) : (
+                        getStepIcon(step)
+                      )}
+                    </div>
+                    {step < 4 && (
+                      <div className={`w-16 h-1 mx-2 transition-all duration-300 ${
+                        step < currentStep ? 'bg-primary-500' : 'bg-gray-300'
+                      }`} />
+                    )}
+                  </div>
+                ))}
+              </div>
+              <div className="text-center mt-4">
+                <p className="text-lg font-semibold text-secondary-900 font-montserrat">
+                  {getStepTitle(currentStep)}
+                </p>
+                <p className="text-sm text-secondary-600 font-montserrat">
+                  Étape {currentStep} sur 4
+                </p>
+              </div>
+            </motion.div>
+
+            {/* Contenu des étapes */}
+            <div className="max-w-6xl mx-auto">
+              <AnimatePresence mode="wait">
+                {currentStep === 1 && (
+                  <motion.div
+                    key="step1"
+                    initial={{ opacity: 0, x: 50 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -50 }}
+                    transition={{ duration: 0.3 }}
+                    className="grid grid-cols-1 lg:grid-cols-2 gap-8"
+                  >
+                    {/* Sélection de catégorie */}
+                    <Card className="bg-white">
+                      <div className="mb-6">
+                        <h3 className="text-2xl font-bold text-secondary-900 font-montserrat mb-2">
+                          Choisissez votre catégorie
+                        </h3>
+                        <p className="text-secondary-600 font-montserrat">
+                          Sélectionnez la catégorie qui correspond le mieux à votre besoin
+                        </p>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {loanCategories.map((category) => (
+                          <motion.div
+                            key={category.id}
+                            whileHover={{ scale: 1.02 }}
+                            whileTap={{ scale: 0.98 }}
+                            className={`p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
+                              selectedCategory === category.id
+                                ? 'border-primary-500 bg-primary-50 shadow-lg'
+                                : 'border-gray-200 hover:border-primary-300 hover:shadow-md'
+                            }`}
+                            onClick={() => handleCategorySelect(category.id)}
+                          >
+                            <div className="flex items-center space-x-3 mb-2">
+                              <div className={`p-2 bg-gradient-to-r ${category.color} rounded-lg text-white`}>
+                                {category.icon}
+                              </div>
+                              <h4 className="font-semibold text-secondary-900 font-montserrat">
+                                {category.name}
+                              </h4>
+                            </div>
+                            <p className="text-sm text-secondary-600 font-montserrat">
+                              {category.description}
+                            </p>
+                          </motion.div>
+                        ))}
+                      </div>
+                      
+                      {errors.category && (
+                        <div className="mt-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-center space-x-2">
+                          <AlertCircle size={20} />
+                          <span>{errors.category}</span>
+                        </div>
+                      )}
+                    </Card>
+
+                    {/* Informations sur les catégories */}
+                    <div className="space-y-6">
+                      <Card className="bg-gradient-to-br from-primary-500 to-primary-600 text-white">
+                        <div className="flex items-center space-x-3 mb-4">
+                          <Sparkles className="w-8 h-8" />
+                          <h3 className="text-xl font-bold font-montserrat">
+                            Pourquoi choisir AB PRET ?
+                          </h3>
+                        </div>
+                        <div className="space-y-3">
+                          <div className="flex items-center space-x-3">
+                            <CheckCircle className="w-5 h-5 text-green-300" />
+                            <span className="font-montserrat">Traitement rapide en 24h</span>
+                          </div>
+                          <div className="flex items-center space-x-3">
+                            <CheckCircle className="w-5 h-5 text-green-300" />
+                            <span className="font-montserrat">Taux d'intérêt compétitifs</span>
+                          </div>
+                          <div className="flex items-center space-x-3">
+                            <CheckCircle className="w-5 h-5 text-green-300" />
+                            <span className="font-montserrat">Processus simplifié</span>
+                          </div>
+                          <div className="flex items-center space-x-3">
+                            <CheckCircle className="w-5 h-5 text-green-300" />
+                            <span className="font-montserrat">Support client 24/7</span>
+                          </div>
+                        </div>
+                      </Card>
+
+                      <Card className="bg-white">
+                        <div className="flex items-center space-x-3 mb-4">
+                          <Shield className="w-6 h-6 text-primary-600" />
+                          <h3 className="text-lg font-semibold text-secondary-900 font-montserrat">
+                            Sécurité garantie
+                          </h3>
+                        </div>
+                        <p className="text-secondary-600 font-montserrat text-sm">
+                          Vos données sont protégées et sécurisées. Nous respectons les normes de sécurité les plus strictes.
+                        </p>
+                      </Card>
+                    </div>
+                  </motion.div>
+                )}
+
+                {currentStep === 2 && (
+                  <motion.div
+                    key="step2"
+                    initial={{ opacity: 0, x: 50 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -50 }}
+                    transition={{ duration: 0.3 }}
+                    className="grid grid-cols-1 lg:grid-cols-3 gap-8"
+                  >
+                    {/* Formulaire montant et durée */}
+                    <div className="lg:col-span-2">
+                      <Card className="bg-white">
+                        <div className="mb-6">
+                          <h3 className="text-2xl font-bold text-secondary-900 font-montserrat mb-2">
+                            Montant et durée
+                          </h3>
+                          <p className="text-secondary-600 font-montserrat">
+                            Définissez le montant que vous souhaitez emprunter et la durée de remboursement
+                          </p>
+                        </div>
+                        
+                        <div className="space-y-6">
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <Input
+                              label="Montant demandé (FCFA)"
+                              type="number"
+                              name="amount"
+                              value={formData.amount}
+                              onChange={handleChange}
+                              placeholder="50000"
+                              min={LOAN_CONFIG.amounts.min}
+                              max={LOAN_CONFIG.amounts.max}
+                              error={errors.amount}
+                              required
+                            />
+
+                            <div>
+                              <Input
+                                label="Durée du prêt"
+                                type="select"
+                                name="duration"
+                                value={formData.duration}
+                                onChange={handleChange}
+                                error={errors.duration}
+                                required
+                              >
+                                {LOAN_CONFIG.durations.map((option) => (
+                                  <option key={option.value} value={option.weeks}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </Input>
+                              {formData.amount && formData.duration && (
+                                <div className="mt-2 p-2 bg-blue-50 rounded-lg">
+                                  <p className="text-xs text-blue-700 font-montserrat">
+                                    💰 Taux d'intérêt: <span className="font-semibold">
+                                      {LOAN_CONFIG.getInterestRate(parseInt(formData.duration))}%
+                                    </span>
+                                  </p>
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      </Card>
+                    </div>
+
+                    {/* Calculatrice */}
+                    <div className="space-y-6">
+                      <LoanCalculator 
+                        onCalculate={handleCalculation}
+                        initialAmount={formData.amount}
+                        initialDuration={formData.duration}
+                        syncWithForm={true}
+                      />
+                      
+                      <Card className="bg-white">
+                        <div className="flex items-center space-x-3 mb-4">
+                          <TrendingUp className="w-6 h-6 text-primary-600" />
+                          <h3 className="text-lg font-semibold text-secondary-900 font-montserrat">
+                            Taux d'intérêt
+                          </h3>
+                        </div>
+                        <div className="space-y-3">
+                          <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
+                            <span className="text-sm font-medium text-green-800 font-montserrat">Prêts courts (1-2 semaines)</span>
+                            <span className="text-lg font-bold text-green-600 font-montserrat">10%</span>
+                          </div>
+                          <div className="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
+                            <span className="text-sm font-medium text-orange-800 font-montserrat">Prêts longs (&gt; 1 mois)</span>
+                            <span className="text-lg font-bold text-orange-600 font-montserrat">35%</span>
+                          </div>
+                        </div>
+                      </Card>
+                    </div>
+                  </motion.div>
+                )}
+
+                {currentStep === 3 && (
+                  <motion.div
+                    key="step3"
+                    initial={{ opacity: 0, x: 50 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -50 }}
+                    transition={{ duration: 0.3 }}
+                    className="grid grid-cols-1 lg:grid-cols-2 gap-8"
+                  >
+                    {/* Informations personnelles */}
+                    <Card className="bg-white">
+                      <div className="mb-6">
+                        <h3 className="text-2xl font-bold text-secondary-900 font-montserrat mb-2">
+                          Informations personnelles
+                        </h3>
+                        <p className="text-secondary-600 font-montserrat">
+                          Aidez-nous à mieux comprendre votre situation financière
+                        </p>
+                      </div>
+                      
+                      <div className="space-y-6">
+                        <Input
+                          label="Objet du prêt"
+                          type="textarea"
+                          name="purpose"
+                          value={formData.purpose}
+                          onChange={handleChange}
+                          placeholder="Décrivez en détail l'utilisation prévue du prêt..."
+                          error={errors.purpose}
+                          required
+                        />
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <Input
+                            label="Revenu mensuel (FCFA)"
+                            type="number"
+                            name="monthlyIncome"
+                            value={formData.monthlyIncome}
+                            onChange={handleChange}
+                            placeholder={`${LOAN_CONFIG.monthlyIncome.min.toLocaleString()} - ${LOAN_CONFIG.monthlyIncome.max.toLocaleString()}`}
+                            min={LOAN_CONFIG.monthlyIncome.min}
+                            max={LOAN_CONFIG.monthlyIncome.max}
+                            error={errors.monthlyIncome}
+                            required
+                          />
+
+                          <Input
+                            label="Statut professionnel"
+                            type="select"
+                            name="employmentStatus"
+                            value={formData.employmentStatus}
+                            onChange={handleChange}
+                            required
+                          >
+                            <option value="employed">Salarié</option>
+                            <option value="self-employed">Indépendant</option>
+                            <option value="business-owner">Chef d'entreprise</option>
+                            <option value="student">Étudiant</option>
+                          </Input>
+                        </div>
+                      </div>
+                    </Card>
+
+                    {/* Informations importantes */}
+                    <div className="space-y-6">
+                      <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
+                        <div className="flex items-center space-x-3 mb-4">
+                          <Clock className="w-6 h-6" />
+                          <h3 className="text-lg font-semibold font-montserrat">
+                            Délais de traitement
+                          </h3>
+                        </div>
+                        <div className="space-y-3">
+                          <div className="flex items-center space-x-3">
+                            <CheckCircle className="w-5 h-5 text-green-300" />
+                            <span className="font-montserrat">Validation automatique : 2h</span>
+                          </div>
+                          <div className="flex items-center space-x-3">
+                            <CheckCircle className="w-5 h-5 text-green-300" />
+                            <span className="font-montserrat">Validation manuelle : 24h</span>
+                          </div>
+                          <div className="flex items-center space-x-3">
+                            <CheckCircle className="w-5 h-5 text-green-300" />
+                            <span className="font-montserrat">Versement : 48h max</span>
+                          </div>
+                        </div>
+                      </Card>
+
+                      <Card className="bg-white">
+                        <div className="flex items-center space-x-3 mb-4">
+                          <Shield className="w-6 h-6 text-primary-600" />
+                          <h3 className="text-lg font-semibold text-secondary-900 font-montserrat">
+                            Documents requis
+                          </h3>
+                        </div>
+                        <div className="space-y-2 text-sm text-secondary-600 font-montserrat">
+                          <div className="flex items-center space-x-2">
+                            <CheckCircle className="w-4 h-4 text-green-500" />
+                            <span>Pièce d'identité valide</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <CheckCircle className="w-4 h-4 text-green-500" />
+                            <span>Justificatif de domicile</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <CheckCircle className="w-4 h-4 text-green-500" />
+                            <span>Justificatif de revenus</span>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <CheckCircle className="w-4 h-4 text-green-500" />
+                            <span>Relevé bancaire (3 mois)</span>
+                          </div>
+                        </div>
+                      </Card>
+                    </div>
+                  </motion.div>
+                )}
+
+                {currentStep === 4 && (
+                  <motion.div
+                    key="step4"
+                    initial={{ opacity: 0, x: 50 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -50 }}
+                    transition={{ duration: 0.3 }}
+                    className="max-w-4xl mx-auto"
+                  >
+                    <Card className="bg-white">
+                      <div className="text-center mb-8">
+                        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <CheckCircle className="w-8 h-8 text-green-600" />
+                        </div>
+                        <h3 className="text-2xl font-bold text-secondary-900 font-montserrat mb-2">
+                          Récapitulatif de votre demande
+                        </h3>
+                        <p className="text-secondary-600 font-montserrat">
+                          Vérifiez toutes les informations avant de soumettre votre demande
+                        </p>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
+                        <div className="space-y-4">
+                          <div className="p-4 bg-accent-50 rounded-xl">
+                            <h4 className="font-semibold text-secondary-900 font-montserrat mb-2">Détails du prêt</h4>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-secondary-600 font-montserrat">Catégorie:</span>
+                                <span className="font-medium text-secondary-900 font-montserrat">
+                                  {loanCategories.find(c => c.id === selectedCategory)?.name}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-secondary-600 font-montserrat">Montant:</span>
+                                <span className="font-medium text-secondary-900 font-montserrat">
+                                  {formatCurrency(parseFloat(formData.amount) || 0)}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-secondary-600 font-montserrat">Durée:</span>
+                                <span className="font-medium text-secondary-900 font-montserrat">
+                                  {LOAN_CONFIG.durations.find(d => d.weeks === parseInt(formData.duration))?.label}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        
+                        <div className="space-y-4">
+                          <div className="p-4 bg-accent-50 rounded-xl">
+                            <h4 className="font-semibold text-secondary-900 font-montserrat mb-2">Informations personnelles</h4>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-secondary-600 font-montserrat">Revenu mensuel:</span>
+                                <span className="font-medium text-secondary-900 font-montserrat">
+                                  {formatCurrency(parseFloat(formData.monthlyIncome) || 0)}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-secondary-600 font-montserrat">Statut:</span>
+                                <span className="font-medium text-secondary-900 font-montserrat">
+                                  {formData.employmentStatus === 'employed' ? 'Salarié' : 
+                                   formData.employmentStatus === 'self-employed' ? 'Indépendant' :
+                                   formData.employmentStatus === 'business-owner' ? 'Chef d\'entreprise' : 'Étudiant'}
+                                </span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                      
+                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-8">
+                        <div className="flex items-start space-x-3">
+                          <AlertCircle className="w-6 h-6 text-blue-600 mt-1" />
+                          <div>
+                            <h4 className="font-semibold text-blue-900 font-montserrat mb-2">
+                              Important à savoir
+                            </h4>
+                            <ul className="text-blue-800 font-montserrat text-sm space-y-1">
+                              <li>• Votre demande sera traitée dans les 24h</li>
+                              <li>• Vous recevrez un email de confirmation</li>
+                              <li>• Notre équipe vous contactera pour finaliser le processus</li>
+                              <li>• Le versement sera effectué sous 48h après approbation</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Navigation entre les étapes */}
+              <motion.div 
+                className="flex justify-between items-center mt-8"
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.5 }}
+              >
+                <Button
+                  variant="outline"
+                  onClick={prevStep}
+                  disabled={currentStep === 1}
+                  className="flex items-center space-x-2"
+                >
+                  <ArrowLeft className="w-4 h-4" />
+                  <span>Précédent</span>
+                </Button>
+
+                {currentStep < 4 ? (
+                  <Button
+                    onClick={nextStep}
+                    className="flex items-center space-x-2 bg-primary-500 hover:bg-primary-600"
+                  >
+                    <span>Suivant</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </Button>
+                ) : (
+                  <Button
+                    onClick={handleSubmit}
+                    loading={loading}
+                    className="flex items-center space-x-2 bg-green-600 hover:bg-green-700"
+                  >
+                    <span>{loading ? 'Soumission...' : 'Soumettre la demande'}</span>
+                    <CheckCircle className="w-4 h-4" />
+                  </Button>
+                )}
+              </motion.div>
+            </div>
           </div>
-        </Card>
-      </div>
-      </div>
+        </div>
+      </motion.div>
     </div>
   );
 };

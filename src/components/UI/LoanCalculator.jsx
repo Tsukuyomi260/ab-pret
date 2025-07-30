@@ -3,11 +3,25 @@ import { LOAN_CONFIG } from '../../utils/loanConfig';
 import Card from './Card';
 import { Calculator, DollarSign, Calendar, TrendingUp, AlertCircle } from 'lucide-react';
 
-const LoanCalculator = ({ onCalculate, className = '' }) => {
-  const [amount, setAmount] = useState('');
-  const [duration, setDuration] = useState(1);
+const LoanCalculator = ({ 
+  onCalculate, 
+  className = '', 
+  initialAmount = '', 
+  initialDuration = 1,
+  syncWithForm = false 
+}) => {
+  const [amount, setAmount] = useState(initialAmount);
+  const [duration, setDuration] = useState(initialDuration);
   const [calculation, setCalculation] = useState(null);
   const [errors, setErrors] = useState([]);
+
+  // Synchroniser avec les props si syncWithForm est activé
+  useEffect(() => {
+    if (syncWithForm) {
+      setAmount(initialAmount);
+      setDuration(initialDuration);
+    }
+  }, [initialAmount, initialDuration, syncWithForm]);
 
   useEffect(() => {
     if (amount && duration) {
@@ -67,6 +81,14 @@ const LoanCalculator = ({ onCalculate, className = '' }) => {
           <h3 className="text-xl font-semibold text-secondary-900 font-montserrat">
             Calculateur de prêt
           </h3>
+          {syncWithForm && (
+            <div className="ml-auto">
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                <div className="w-2 h-2 bg-green-400 rounded-full mr-1"></div>
+                Synchronisé
+              </span>
+            </div>
+          )}
         </div>
 
         {/* Formulaire */}
@@ -83,14 +105,22 @@ const LoanCalculator = ({ onCalculate, className = '' }) => {
                 value={amount}
                 onChange={(e) => setAmount(e.target.value)}
                 placeholder="Entrez le montant"
-                className="w-full pl-10 pr-4 py-3 border border-accent-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className={`w-full pl-10 pr-4 py-3 border border-accent-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                  syncWithForm ? 'bg-gray-50 cursor-not-allowed' : ''
+                }`}
                 min={LOAN_CONFIG.amounts.min}
                 max={LOAN_CONFIG.amounts.max}
+                readOnly={syncWithForm}
               />
             </div>
             <p className="text-xs text-neutral-600 font-montserrat mt-1">
               Min: {formatCurrency(LOAN_CONFIG.amounts.min)} - Max: {formatCurrency(LOAN_CONFIG.amounts.max)}
             </p>
+            {syncWithForm && (
+              <p className="text-xs text-green-600 font-montserrat mt-1">
+                💡 Synchronisé avec le formulaire principal
+              </p>
+            )}
           </div>
 
           {/* Durée */}
@@ -103,7 +133,10 @@ const LoanCalculator = ({ onCalculate, className = '' }) => {
               <select
                 value={duration}
                 onChange={(e) => setDuration(parseInt(e.target.value))}
-                className="w-full pl-10 pr-4 py-3 border border-accent-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+                className={`w-full pl-10 pr-4 py-3 border border-accent-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent ${
+                  syncWithForm ? 'bg-gray-50 cursor-not-allowed' : ''
+                }`}
+                disabled={syncWithForm}
               >
                 {LOAN_CONFIG.durations.map((option) => (
                   <option key={option.value} value={option.weeks}>
