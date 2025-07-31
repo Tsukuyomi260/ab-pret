@@ -384,21 +384,23 @@ const AdminDashboard = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => navigate('/admin/loan-requests')}
-                    className="group cursor-pointer"
+                    className="group cursor-pointer h-full"
                   >
-                    <div className="bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300">
+                    <div className="bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 h-full flex flex-col">
                       <div className="flex items-center justify-between mb-4">
                         <div className="p-3 bg-white/20 rounded-xl">
                           <CreditCard size={24} />
                         </div>
                         <ArrowRight size={20} className="opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                       </div>
-                      <h3 className="text-lg font-bold font-montserrat mb-2">
-                        Gérer les Demandes
-                      </h3>
-                      <p className="text-primary-100 text-sm font-montserrat">
-                        Traiter les demandes de prêt en attente
-                      </p>
+                      <div className="flex-1">
+                        <h3 className="text-lg font-bold font-montserrat mb-2">
+                          Gérer les Demandes
+                        </h3>
+                        <p className="text-primary-100 text-sm font-montserrat">
+                          Traiter les demandes de prêt en attente
+                        </p>
+                      </div>
                     </div>
                   </motion.div>
 
@@ -409,21 +411,23 @@ const AdminDashboard = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => navigate('/admin/user-management')}
-                    className="group cursor-pointer"
+                    className="group cursor-pointer h-full"
                   >
-                    <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300">
+                    <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 h-full flex flex-col">
                       <div className="flex items-center justify-between mb-4">
                         <div className="p-3 bg-white/20 rounded-xl">
                           <Users size={24} />
                         </div>
                         <ArrowRight size={20} className="opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                       </div>
-                      <h3 className="text-lg font-bold font-montserrat mb-2">
-                        Gérer les Utilisateurs
-                      </h3>
-                      <p className="text-green-100 text-sm font-montserrat">
-                        Voir et gérer tous les clients
-                      </p>
+                      <div className="flex-1">
+                        <h3 className="text-lg font-bold font-montserrat mb-2">
+                          Gérer les Utilisateurs
+                        </h3>
+                        <p className="text-green-100 text-sm font-montserrat">
+                          Voir et gérer tous les clients
+                        </p>
+                      </div>
                     </div>
                   </motion.div>
 
@@ -434,21 +438,23 @@ const AdminDashboard = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => navigate('/admin/analytics')}
-                    className="group cursor-pointer"
+                    className="group cursor-pointer h-full"
                   >
-                    <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300">
+                    <div className="bg-gradient-to-br from-blue-500 to-blue-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 h-full flex flex-col">
                       <div className="flex items-center justify-between mb-4">
                         <div className="p-3 bg-white/20 rounded-xl">
                           <BarChart3 size={24} />
                         </div>
                         <ArrowRight size={20} className="opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                       </div>
-                      <h3 className="text-lg font-bold font-montserrat mb-2">
-                        Voir les Rapports
-                      </h3>
-                      <p className="text-blue-100 text-sm font-montserrat">
-                        Analyser les performances
-                      </p>
+                      <div className="flex-1">
+                        <h3 className="text-lg font-bold font-montserrat mb-2">
+                          Voir les Rapports
+                        </h3>
+                        <p className="text-blue-100 text-sm font-montserrat">
+                          Analyser les performances
+                        </p>
+                      </div>
                     </div>
                   </motion.div>
 
@@ -459,21 +465,23 @@ const AdminDashboard = () => {
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => navigate('/admin/settings')}
-                    className="group cursor-pointer"
+                    className="group cursor-pointer h-full"
                   >
-                    <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300">
+                    <div className="bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 h-full flex flex-col">
                       <div className="flex items-center justify-between mb-4">
                         <div className="p-3 bg-white/20 rounded-xl">
                           <Settings size={24} />
                         </div>
                         <ArrowRight size={20} className="opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
                       </div>
-                      <h3 className="text-lg font-bold font-montserrat mb-2">
-                        Paramètres
-                      </h3>
-                      <p className="text-purple-100 text-sm font-montserrat">
-                        Configurer l'application
-                      </p>
+                      <div className="flex-1">
+                        <h3 className="text-lg font-bold font-montserrat mb-2">
+                          Paramètres
+                        </h3>
+                        <p className="text-purple-100 text-sm font-montserrat">
+                          Configurer l'application
+                        </p>
+                      </div>
                     </div>
                   </motion.div>
                 </motion.div>
