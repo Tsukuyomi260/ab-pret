@@ -1,11 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import { useNotifications } from '../../context/NotificationContext';
 import Card from '../UI/Card';
 import Button from '../UI/Button';
 import Input from '../UI/Input';
 import NotificationBell from '../UI/NotificationBell';
-import { ArrowLeft, CreditCard, Wallet, CheckCircle, AlertCircle } from 'lucide-react';
+import { ArrowLeft, CreditCard, Wallet, CheckCircle, AlertCircle, Activity, BarChart3, Percent, Award, Gift, Rocket, Shield, TrendingUp, DollarSign } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 
 const Repayment = () => {
@@ -18,6 +19,56 @@ const Repayment = () => {
   const [paymentMethod, setPaymentMethod] = useState('mobile_money');
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
+
+  // Animations CSS personnalisées
+  const gradientAnimation = `
+    @keyframes gradient {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 0.3; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.05); }
+    }
+    @keyframes slide-in-right {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes bounce-in {
+      0% { transform: scale(0.3); opacity: 0; }
+      50% { transform: scale(1.05); }
+      70% { transform: scale(0.9); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+    }
+    @keyframes shine {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+    .animate-gradient {
+      background-size: 200% 200%;
+      animation: gradient 8s ease infinite;
+    }
+    .animate-pulse-glow {
+      animation: pulse-glow 2s ease-in-out infinite;
+    }
+    .animate-slide-in-right {
+      animation: slide-in-right 0.6s ease-out;
+    }
+    .animate-bounce-in {
+      animation: bounce-in 0.8s ease-out;
+    }
+    .animate-float {
+      animation: float 3s ease-in-out infinite;
+    }
+    .animate-shine {
+      animation: shine 2s ease-in-out infinite;
+    }
+  `;
 
   useEffect(() => {
     // Simulation des données (à remplacer par des appels API)
@@ -111,18 +162,324 @@ const Repayment = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50">
-      {/* Header centré style Apple */}
-      <div className="text-center py-8 px-4">
-        <div className="max-w-4xl mx-auto">
-          <div className="flex items-center justify-between mb-6">
-            <div className="w-full text-center">
-              <h1 className="text-3xl font-bold text-gray-900 font-montserrat mb-3">
-                Remboursement
-              </h1>
-              <p className="text-lg text-gray-600 font-montserrat leading-relaxed">
-                Effectuez vos paiements de prêt en toute simplicité
-              </p>
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-accent-50 to-secondary-50">
+      <style>{gradientAnimation}</style>
+      
+      {/* Section Hero - En-tête principal */}
+      <div className="relative overflow-hidden">
+        {/* Background avec gradient animé - Thème remboursement (vert/orange) */}
+        <div className="absolute inset-0 bg-gradient-to-br from-green-500 via-emerald-600 to-orange-500 opacity-15 animate-gradient"></div>
+        
+        {/* Couche de profondeur supplémentaire */}
+        <div className="absolute inset-0 bg-gradient-to-t from-white/20 via-transparent to-transparent"></div>
+        
+        {/* Pattern décoratif amélioré */}
+        <div className="absolute inset-0 opacity-8">
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.2, 1],
+              rotate: [0, 180, 360],
+              opacity: [0.3, 0.6, 0.3]
+            }}
+            transition={{ 
+              duration: 8, 
+              repeat: Infinity, 
+              ease: "easeInOut" 
+            }}
+            className="absolute top-0 left-0 w-72 h-72 bg-green-400 rounded-full mix-blend-multiply filter blur-xl"
+          />
+          <motion.div 
+            animate={{ 
+              scale: [1.2, 1, 1.2],
+              rotate: [360, 180, 0],
+              opacity: [0.6, 0.3, 0.6]
+            }}
+            transition={{ 
+              duration: 10, 
+              repeat: Infinity, 
+              ease: "easeInOut",
+              delay: 2
+            }}
+            className="absolute top-0 right-0 w-72 h-72 bg-emerald-400 rounded-full mix-blend-multiply filter blur-xl"
+          />
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.3, 1],
+              rotate: [180, 360, 180],
+              opacity: [0.4, 0.7, 0.4]
+            }}
+            transition={{ 
+              duration: 12, 
+              repeat: Infinity, 
+              ease: "easeInOut",
+              delay: 4
+            }}
+            className="absolute -bottom-8 left-20 w-72 h-72 bg-orange-400 rounded-full mix-blend-multiply filter blur-xl"
+          />
+          
+          {/* Particules flottantes */}
+          <motion.div
+            animate={{ 
+              y: [0, -20, 0],
+              opacity: [0.2, 0.6, 0.2]
+            }}
+            transition={{ 
+              duration: 4, 
+              repeat: Infinity, 
+              ease: "easeInOut" 
+            }}
+            className="absolute top-1/4 left-1/4 w-4 h-4 bg-green-300 rounded-full"
+          />
+          <motion.div
+            animate={{ 
+              y: [0, 15, 0],
+              opacity: [0.3, 0.7, 0.3]
+            }}
+            transition={{ 
+              duration: 5, 
+              repeat: Infinity, 
+              ease: "easeInOut",
+              delay: 1
+            }}
+            className="absolute top-3/4 right-1/3 w-3 h-3 bg-emerald-300 rounded-full"
+          />
+          <motion.div
+            animate={{ 
+              x: [0, 10, 0],
+              opacity: [0.4, 0.8, 0.4]
+            }}
+            transition={{ 
+              duration: 6, 
+              repeat: Infinity, 
+              ease: "easeInOut",
+              delay: 2
+            }}
+            className="absolute bottom-1/4 left-1/2 w-2 h-2 bg-orange-300 rounded-full"
+          />
+          
+          {/* Particules supplémentaires */}
+          <motion.div
+            animate={{ 
+              x: [0, -15, 0],
+              y: [0, -10, 0],
+              opacity: [0.3, 0.8, 0.3]
+            }}
+            transition={{ 
+              duration: 7, 
+              repeat: Infinity, 
+              ease: "easeInOut",
+              delay: 0.5
+            }}
+            className="absolute top-1/3 right-1/4 w-2 h-2 bg-yellow-300 rounded-full"
+          />
+          <motion.div
+            animate={{ 
+              x: [0, 12, 0],
+              y: [0, -8, 0],
+              opacity: [0.2, 0.7, 0.2]
+            }}
+            transition={{ 
+              duration: 8, 
+              repeat: Infinity, 
+              ease: "easeInOut",
+              delay: 1.5
+            }}
+            className="absolute bottom-1/3 right-1/3 w-3 h-3 bg-lime-300 rounded-full"
+          />
+          <motion.div
+            animate={{ 
+              x: [0, -8, 0],
+              y: [0, 12, 0],
+              opacity: [0.4, 0.9, 0.4]
+            }}
+            transition={{ 
+              duration: 9, 
+              repeat: Infinity, 
+              ease: "easeInOut",
+              delay: 2.5
+            }}
+            className="absolute top-2/3 left-1/3 w-1 h-1 bg-amber-300 rounded-full"
+          />
+        </div>
+
+        {/* Contenu Header */}
+        <div className="relative px-4 lg:px-8 py-8 lg:py-12 backdrop-blur-sm">
+          <div className="max-w-7xl mx-auto">
+            {/* Navigation */}
+            <motion.div
+              initial={{ opacity: 0, y: -20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ duration: 0.6 }}
+              className="flex items-center justify-between mb-8"
+            >
+              <motion.div
+                whileHover={{ scale: 1.05 }}
+                whileTap={{ scale: 0.95 }}
+              >
+                <Button
+                  variant="outline"
+                  onClick={() => navigate('/dashboard')}
+                  className="flex items-center space-x-2 px-4 py-2 bg-white/20 backdrop-blur-sm border-white/30"
+                >
+                  <ArrowLeft size={20} />
+                  <span>Retour</span>
+                </Button>
+              </motion.div>
+            </motion.div>
+
+            {/* Section Hero - En-tête principal */}
+            <div className="text-center mb-8 lg:mb-12">
+              {/* Badge animé */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6 }}
+                className="inline-flex items-center space-x-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full border border-white/30 mb-6 shadow-lg relative overflow-hidden"
+              >
+                {/* Effet de brillance sur le badge */}
+                <motion.div
+                  animate={{ 
+                    x: ['-100%', '100%']
+                  }}
+                  transition={{ 
+                    duration: 2, 
+                    repeat: Infinity, 
+                    ease: "linear",
+                    delay: 1
+                  }}
+                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                />
+                <motion.div 
+                  animate={{ 
+                    scale: [1, 1.2, 1],
+                    opacity: [0.6, 1, 0.6]
+                  }}
+                  transition={{ 
+                    duration: 2, 
+                    repeat: Infinity, 
+                    ease: "easeInOut" 
+                  }}
+                  className="w-2 h-2 bg-green-400 rounded-full"
+                />
+                <motion.span 
+                  animate={{ 
+                    backgroundPosition: ['0% 50%', '100% 50%', '0% 50%']
+                  }}
+                  transition={{ 
+                    duration: 3, 
+                    repeat: Infinity, 
+                    ease: "linear" 
+                  }}
+                  className="text-sm font-medium text-green-700 font-montserrat bg-gradient-to-r from-green-600 via-emerald-600 to-green-600 bg-[length:200%_100%] bg-clip-text text-transparent"
+                >
+                  💰 Remboursement de Prêt
+                </motion.span>
+              </motion.div>
+
+              {/* Titre principal */}
+              <motion.h1
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+                className="text-4xl lg:text-6xl font-bold text-secondary-900 font-montserrat mb-4"
+              >
+                Remboursement{' '}
+                <motion.span 
+                  animate={{ 
+                    backgroundPosition: ['0% 50%', '100% 50%', '0% 50%']
+                  }}
+                  transition={{ 
+                    duration: 4, 
+                    repeat: Infinity, 
+                    ease: "linear" 
+                  }}
+                  className="bg-gradient-to-r from-green-600 via-emerald-600 to-orange-600 bg-[length:200%_100%] bg-clip-text text-transparent"
+                >
+                  de Prêt
+                </motion.span>{' '}
+                <motion.span
+                  animate={{ 
+                    rotate: [0, 10, -10, 0],
+                    scale: [1, 1.1, 1]
+                  }}
+                  transition={{ 
+                    duration: 2, 
+                    repeat: Infinity, 
+                    ease: "easeInOut" 
+                  }}
+                  className="inline-block"
+                >
+                  💳
+                </motion.span>
+              </motion.h1>
+
+              {/* Description */}
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                className="text-lg lg:text-xl text-neutral-600 font-montserrat max-w-3xl mx-auto leading-relaxed"
+              >
+                Effectuez vos paiements de prêt en toute simplicité et sécurité
+              </motion.p>
+
+              {/* Sous-titre avec icônes animées */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+                className="flex items-center justify-center space-x-6 mt-6"
+              >
+                <motion.div
+                  animate={{ 
+                    y: [0, -5, 0],
+                    rotate: [0, 5, 0]
+                  }}
+                  transition={{ 
+                    duration: 3, 
+                    repeat: Infinity, 
+                    ease: "easeInOut" 
+                  }}
+                  className="flex items-center space-x-2 text-sm text-neutral-500"
+                >
+                  <Wallet size={16} className="text-green-500" />
+                  <span>Paiement sécurisé</span>
+                </motion.div>
+                
+                <motion.div
+                  animate={{ 
+                    y: [0, -5, 0],
+                    rotate: [0, -5, 0]
+                  }}
+                  transition={{ 
+                    duration: 3, 
+                    repeat: Infinity, 
+                    ease: "easeInOut",
+                    delay: 1
+                  }}
+                  className="flex items-center space-x-2 text-sm text-neutral-500"
+                >
+                  <Shield size={16} className="text-emerald-500" />
+                  <span>Transactions protégées</span>
+                </motion.div>
+                
+                <motion.div
+                  animate={{ 
+                    y: [0, -5, 0],
+                    rotate: [0, 5, 0]
+                  }}
+                  transition={{ 
+                    duration: 3, 
+                    repeat: Infinity, 
+                    ease: "easeInOut",
+                    delay: 2
+                  }}
+                  className="flex items-center space-x-2 text-sm text-neutral-500"
+                >
+                  <CheckCircle size={16} className="text-orange-500" />
+                  <span>Confirmation instantanée</span>
+                </motion.div>
+              </motion.div>
             </div>
           </div>
         </div>
