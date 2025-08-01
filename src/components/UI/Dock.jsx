@@ -129,20 +129,22 @@ const Dock = ({
                   </motion.div>
                   
                   {/* Label */}
-                  <AnimatePresence>
-                    {isHovered && (
-                      <motion.span
-                        initial={{ opacity: 0, y: 8, scale: 0.8 }}
-                        animate={{ opacity: 1, y: 0, scale: 1 }}
-                        exit={{ opacity: 0, y: 8, scale: 0.8 }}
-                        className="text-xs font-medium text-primary-600 mt-1"
-                        style={{ fontSize: '10px' }}
-                        transition={{ duration: 0.2 }}
-                      >
-                        {item.label}
-                      </motion.span>
-                    )}
-                  </AnimatePresence>
+                  <motion.span
+                    className={`text-xs font-medium mt-1 transition-colors duration-200 ${
+                      isActive 
+                        ? 'text-primary-600' 
+                        : isHovered 
+                          ? 'text-primary-600' 
+                          : 'text-secondary-600'
+                    }`}
+                    style={{ fontSize: '10px' }}
+                    animate={{
+                      scale: isHovered ? 1.05 : 1
+                    }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    {item.label}
+                  </motion.span>
                 </motion.div>
                 
                 {/* Effet de glow pour l'item hovered */}

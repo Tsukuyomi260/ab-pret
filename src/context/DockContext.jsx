@@ -4,13 +4,13 @@ import Dock from '../components/UI/Dock';
 import { 
   Home,
   FileText,
-  History,
   Wallet,
   User,
   Users,
   BarChart3,
   Settings,
-  CreditCard
+  CreditCard,
+  Grid
 } from 'lucide-react';
 
 const DockContext = createContext();
@@ -69,9 +69,9 @@ export const DockProvider = ({ children }) => {
           path: '/loan-request'
         },
         { 
-          icon: <History size={20} />, 
-          label: 'Historique', 
-          path: '/loan-history'
+          icon: <Grid size={20} />, 
+          label: 'Menu', 
+          path: '/menu'
         },
         { 
           icon: <Wallet size={20} />, 
@@ -96,9 +96,9 @@ export const DockProvider = ({ children }) => {
       {/* Dock global - toujours présent */}
       <Dock 
         items={dockItems}
-        panelHeight={68}
-        baseItemSize={50}
-        magnification={70}
+        panelHeight={80}
+        baseItemSize={60}
+        magnification={80}
       />
     </DockContext.Provider>
   );

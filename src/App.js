@@ -6,6 +6,7 @@ import Layout from './components/Common/Layout';
 import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
 import PendingApproval from './components/Auth/PendingApproval';
+import VerifyOTP from './components/Auth/VerifyOTP';
 import ClientDashboard from './components/Client/Dashboard';
 import AdminDashboard from './components/Admin/AdminDashboard';
 import LoanRequests from './components/Admin/LoanRequests';
@@ -16,6 +17,8 @@ import LoanRequest from './components/Client/LoanRequest';
 import LoanHistory from './components/Client/LoanHistory';
 import Repayment from './components/Client/Repayment';
 import Profile from './components/Client/Profile';
+import Menu from './components/Client/Menu';
+import ABEpargne from './components/Client/ABEpargne';
 import './styles/globals.css';
 
 // Composant pour protéger les routes
@@ -92,6 +95,14 @@ function App() {
                   </PublicRoute>
                 } 
               />
+              <Route 
+                path="/verify-otp" 
+                element={
+                  <PublicRoute>
+                    <VerifyOTP />
+                  </PublicRoute>
+                } 
+              />
 
               {/* Routes protégées - Client */}
               <Route 
@@ -134,6 +145,22 @@ function App() {
                   </ProtectedRoute>
                 } 
               />
+                                        <Route
+                            path="/menu"
+                            element={
+                              <ProtectedRoute>
+                                <Menu />
+                              </ProtectedRoute>
+                            }
+                          />
+                          <Route
+                            path="/ab-epargne"
+                            element={
+                              <ProtectedRoute>
+                                <ABEpargne />
+                              </ProtectedRoute>
+                            }
+                          />
 
               {/* Routes protégées - Admin */}
               <Route 
