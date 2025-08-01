@@ -326,10 +326,13 @@ const LoanRequest = () => {
       {/* Header avec design moderne */}
       <div className="relative overflow-hidden">
         {/* Background avec gradient animé */}
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-500 via-purple-600 to-indigo-600 opacity-10 animate-gradient"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-500 via-purple-600 to-indigo-600 opacity-15 animate-gradient"></div>
+        
+        {/* Couche de profondeur supplémentaire */}
+        <div className="absolute inset-0 bg-gradient-to-t from-white/20 via-transparent to-transparent"></div>
         
         {/* Pattern décoratif amélioré */}
-        <div className="absolute inset-0 opacity-5">
+        <div className="absolute inset-0 opacity-8">
           <motion.div 
             animate={{ 
               scale: [1, 1.2, 1],
@@ -411,19 +414,77 @@ const LoanRequest = () => {
             }}
             className="absolute bottom-1/4 left-1/2 w-2 h-2 bg-indigo-300 rounded-full"
           />
+          
+          {/* Particules supplémentaires */}
+          <motion.div
+            animate={{ 
+              x: [0, -15, 0],
+              y: [0, -10, 0],
+              opacity: [0.3, 0.8, 0.3]
+            }}
+            transition={{ 
+              duration: 7, 
+              repeat: Infinity, 
+              ease: "easeInOut",
+              delay: 0.5
+            }}
+            className="absolute top-1/3 right-1/4 w-2 h-2 bg-green-300 rounded-full"
+          />
+          <motion.div
+            animate={{ 
+              x: [0, 12, 0],
+              y: [0, -8, 0],
+              opacity: [0.2, 0.7, 0.2]
+            }}
+            transition={{ 
+              duration: 8, 
+              repeat: Infinity, 
+              ease: "easeInOut",
+              delay: 1.5
+            }}
+            className="absolute bottom-1/3 right-1/3 w-3 h-3 bg-pink-300 rounded-full"
+          />
+          <motion.div
+            animate={{ 
+              x: [0, -8, 0],
+              y: [0, 12, 0],
+              opacity: [0.4, 0.9, 0.4]
+            }}
+            transition={{ 
+              duration: 9, 
+              repeat: Infinity, 
+              ease: "easeInOut",
+              delay: 2.5
+            }}
+            className="absolute top-2/3 left-1/3 w-1 h-1 bg-yellow-300 rounded-full"
+          />
         </div>
 
         {/* Contenu Header */}
-        <div className="relative px-4 lg:px-8 py-8 lg:py-12">
+        <div className="relative px-4 lg:px-8 py-8 lg:py-12 backdrop-blur-sm">
           <div className="max-w-7xl mx-auto">
-            {/* En-tête avec salutation */}
+            {/* Section Hero - En-tête principal */}
             <div className="text-center mb-8 lg:mb-12">
+              {/* Badge animé */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6 }}
-                className="inline-flex items-center space-x-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full border border-white/30 mb-6"
+                className="inline-flex items-center space-x-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full border border-white/30 mb-6 shadow-lg relative overflow-hidden"
               >
+                {/* Effet de brillance sur le badge */}
+                <motion.div
+                  animate={{ 
+                    x: ['-100%', '100%']
+                  }}
+                  transition={{ 
+                    duration: 2, 
+                    repeat: Infinity, 
+                    ease: "linear",
+                    delay: 1
+                  }}
+                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                />
                 <motion.div 
                   animate={{ 
                     scale: [1, 1.2, 1],
@@ -434,7 +495,7 @@ const LoanRequest = () => {
                     repeat: Infinity, 
                     ease: "easeInOut" 
                   }}
-                  className="w-2 h-2 bg-blue-400 rounded-full"
+                  className="w-2 h-2 bg-green-400 rounded-full"
                 />
                 <motion.span 
                   animate={{ 
@@ -445,12 +506,13 @@ const LoanRequest = () => {
                     repeat: Infinity, 
                     ease: "linear" 
                   }}
-                  className="text-sm font-medium text-blue-700 font-montserrat bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-[length:200%_100%] bg-clip-text text-transparent"
+                  className="text-sm font-medium text-green-700 font-montserrat bg-gradient-to-r from-green-600 via-blue-600 to-green-600 bg-[length:200%_100%] bg-clip-text text-transparent"
                 >
-                  Demande de Prêt
+                  🚀 Demande de Prêt
                 </motion.span>
               </motion.div>
 
+              {/* Titre principal */}
               <motion.h1
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -481,11 +543,13 @@ const LoanRequest = () => {
                     repeat: Infinity, 
                     ease: "easeInOut" 
                   }}
+                  className="inline-block"
                 >
                   💰
                 </motion.span>
               </motion.h1>
 
+              {/* Description */}
               <motion.p
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
@@ -495,6 +559,64 @@ const LoanRequest = () => {
                 Remplissez les étapes ci-dessous pour demander votre prêt. 
                 Notre processus est simple, rapide et sécurisé.
               </motion.p>
+
+              {/* Sous-titre avec icônes animées */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+                className="flex items-center justify-center space-x-6 mt-6"
+              >
+                <motion.div
+                  animate={{ 
+                    y: [0, -5, 0],
+                    rotate: [0, 5, 0]
+                  }}
+                  transition={{ 
+                    duration: 3, 
+                    repeat: Infinity, 
+                    ease: "easeInOut" 
+                  }}
+                  className="flex items-center space-x-2 text-sm text-neutral-500"
+                >
+                  <CheckCircle size={16} className="text-green-500" />
+                  <span>Processus simple</span>
+                </motion.div>
+                
+                <motion.div
+                  animate={{ 
+                    y: [0, -5, 0],
+                    rotate: [0, -5, 0]
+                  }}
+                  transition={{ 
+                    duration: 3, 
+                    repeat: Infinity, 
+                    ease: "easeInOut",
+                    delay: 1
+                  }}
+                  className="flex items-center space-x-2 text-sm text-neutral-500"
+                >
+                  <Clock size={16} className="text-blue-500" />
+                  <span>Réponse rapide</span>
+                </motion.div>
+                
+                <motion.div
+                  animate={{ 
+                    y: [0, -5, 0],
+                    rotate: [0, 5, 0]
+                  }}
+                  transition={{ 
+                    duration: 3, 
+                    repeat: Infinity, 
+                    ease: "easeInOut",
+                    delay: 2
+                  }}
+                  className="flex items-center space-x-2 text-sm text-neutral-500"
+                >
+                  <Shield size={16} className="text-purple-500" />
+                  <span>100% sécurisé</span>
+                </motion.div>
+              </motion.div>
             </div>
 
             {/* Indicateur de progression */}

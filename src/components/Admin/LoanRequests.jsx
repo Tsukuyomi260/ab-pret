@@ -18,7 +18,14 @@ import {
   AlertCircle,
   Plus,
   Download,
-  MoreHorizontal
+  MoreHorizontal,
+  Activity,
+  BarChart3,
+  Percent,
+  Award,
+  Gift,
+  Rocket,
+  Shield
 } from 'lucide-react';
 import Card from '../UI/Card';
 import Button from '../UI/Button';
@@ -32,6 +39,56 @@ const LoanRequests = () => {
   const [selectedRequest, setSelectedRequest] = useState(null);
   const [showDetails, setShowDetails] = useState(false);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' ou 'list'
+
+  // Animations CSS personnalisées
+  const gradientAnimation = `
+    @keyframes gradient {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    @keyframes pulse-glow {
+      0%, 100% { opacity: 0.3; transform: scale(1); }
+      50% { opacity: 0.6; transform: scale(1.05); }
+    }
+    @keyframes slide-in-right {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    @keyframes bounce-in {
+      0% { transform: scale(0.3); opacity: 0; }
+      50% { transform: scale(1.05); }
+      70% { transform: scale(0.9); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+    }
+    @keyframes shine {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+    .animate-gradient {
+      background-size: 200% 200%;
+      animation: gradient 8s ease infinite;
+    }
+    .animate-pulse-glow {
+      animation: pulse-glow 2s ease-in-out infinite;
+    }
+    .animate-slide-in-right {
+      animation: slide-in-right 0.6s ease-out;
+    }
+    .animate-bounce-in {
+      animation: bounce-in 0.8s ease-out;
+    }
+    .animate-float {
+      animation: float 3s ease-in-out infinite;
+    }
+    .animate-shine {
+      animation: shine 2s ease-in-out infinite;
+    }
+  `;
 
   // Simuler les données de demandes de prêt
   useEffect(() => {
@@ -262,113 +319,618 @@ const LoanRequests = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-accent-50 to-accent-100">
-      {/* Header moderne */}
-      <motion.div
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="bg-white/80 backdrop-blur-sm shadow-soft border-b border-white/50"
-      >
-        <div className="px-4 lg:px-8 py-8">
+      <style>{gradientAnimation}</style>
+      
+      {/* Section Hero - En-tête principal */}
+      <div className="relative overflow-hidden">
+        {/* Background avec gradient animé */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-500 via-purple-600 to-indigo-600 opacity-15 animate-gradient"></div>
+        
+        {/* Couche de profondeur supplémentaire */}
+        <div className="absolute inset-0 bg-gradient-to-t from-white/20 via-transparent to-transparent"></div>
+        
+        {/* Pattern décoratif amélioré */}
+        <div className="absolute inset-0 opacity-8">
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.2, 1],
+              rotate: [0, 180, 360],
+              opacity: [0.3, 0.6, 0.3]
+            }}
+            transition={{ 
+              duration: 8, 
+              repeat: Infinity, 
+              ease: "easeInOut" 
+            }}
+            className="absolute top-0 left-0 w-72 h-72 bg-blue-400 rounded-full mix-blend-multiply filter blur-xl"
+          />
+          <motion.div 
+            animate={{ 
+              scale: [1.2, 1, 1.2],
+              rotate: [360, 180, 0],
+              opacity: [0.6, 0.3, 0.6]
+            }}
+            transition={{ 
+              duration: 10, 
+              repeat: Infinity, 
+              ease: "easeInOut",
+              delay: 2
+            }}
+            className="absolute top-0 right-0 w-72 h-72 bg-purple-400 rounded-full mix-blend-multiply filter blur-xl"
+          />
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.3, 1],
+              rotate: [180, 360, 180],
+              opacity: [0.4, 0.7, 0.4]
+            }}
+            transition={{ 
+              duration: 12, 
+              repeat: Infinity, 
+              ease: "easeInOut",
+              delay: 4
+            }}
+            className="absolute -bottom-8 left-20 w-72 h-72 bg-indigo-400 rounded-full mix-blend-multiply filter blur-xl"
+          />
+          
+          {/* Particules flottantes */}
+          <motion.div
+            animate={{ 
+              y: [0, -20, 0],
+              opacity: [0.2, 0.6, 0.2]
+            }}
+            transition={{ 
+              duration: 4, 
+              repeat: Infinity, 
+              ease: "easeInOut" 
+            }}
+            className="absolute top-1/4 left-1/4 w-4 h-4 bg-blue-300 rounded-full"
+          />
+          <motion.div
+            animate={{ 
+              y: [0, 15, 0],
+              opacity: [0.3, 0.7, 0.3]
+            }}
+            transition={{ 
+              duration: 5, 
+              repeat: Infinity, 
+              ease: "easeInOut",
+              delay: 1
+            }}
+            className="absolute top-3/4 right-1/3 w-3 h-3 bg-purple-300 rounded-full"
+          />
+          <motion.div
+            animate={{ 
+              x: [0, 10, 0],
+              opacity: [0.4, 0.8, 0.4]
+            }}
+            transition={{ 
+              duration: 6, 
+              repeat: Infinity, 
+              ease: "easeInOut",
+              delay: 2
+            }}
+            className="absolute bottom-1/4 left-1/2 w-2 h-2 bg-indigo-300 rounded-full"
+          />
+          
+          {/* Particules supplémentaires */}
+          <motion.div
+            animate={{ 
+              x: [0, -15, 0],
+              y: [0, -10, 0],
+              opacity: [0.3, 0.8, 0.3]
+            }}
+            transition={{ 
+              duration: 7, 
+              repeat: Infinity, 
+              ease: "easeInOut",
+              delay: 0.5
+            }}
+            className="absolute top-1/3 right-1/4 w-2 h-2 bg-green-300 rounded-full"
+          />
+          <motion.div
+            animate={{ 
+              x: [0, 12, 0],
+              y: [0, -8, 0],
+              opacity: [0.2, 0.7, 0.2]
+            }}
+            transition={{ 
+              duration: 8, 
+              repeat: Infinity, 
+              ease: "easeInOut",
+              delay: 1.5
+            }}
+            className="absolute bottom-1/3 right-1/3 w-3 h-3 bg-pink-300 rounded-full"
+          />
+          <motion.div
+            animate={{ 
+              x: [0, -8, 0],
+              y: [0, 12, 0],
+              opacity: [0.4, 0.9, 0.4]
+            }}
+            transition={{ 
+              duration: 9, 
+              repeat: Infinity, 
+              ease: "easeInOut",
+              delay: 2.5
+            }}
+            className="absolute top-2/3 left-1/3 w-1 h-1 bg-yellow-300 rounded-full"
+          />
+        </div>
+
+        {/* Contenu Header */}
+        <div className="relative px-4 lg:px-8 py-8 lg:py-12 backdrop-blur-sm">
           <div className="max-w-7xl mx-auto">
-            <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 space-y-4 lg:space-y-0">
-              <div>
-                <motion.h1
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.1 }}
-                  className="text-2xl lg:text-3xl xl:text-4xl font-bold text-secondary-900 font-montserrat mb-2"
+            {/* Section Hero - En-tête principal */}
+            <div className="text-center mb-8 lg:mb-12">
+              {/* Badge animé */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6 }}
+                className="inline-flex items-center space-x-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full border border-white/30 mb-6 shadow-lg relative overflow-hidden"
+              >
+                {/* Effet de brillance sur le badge */}
+                <motion.div
+                  animate={{ 
+                    x: ['-100%', '100%']
+                  }}
+                  transition={{ 
+                    duration: 2, 
+                    repeat: Infinity, 
+                    ease: "linear",
+                    delay: 1
+                  }}
+                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
+                />
+                <motion.div 
+                  animate={{ 
+                    scale: [1, 1.2, 1],
+                    opacity: [0.6, 1, 0.6]
+                  }}
+                  transition={{ 
+                    duration: 2, 
+                    repeat: Infinity, 
+                    ease: "easeInOut" 
+                  }}
+                  className="w-2 h-2 bg-orange-400 rounded-full"
+                />
+                <motion.span 
+                  animate={{ 
+                    backgroundPosition: ['0% 50%', '100% 50%', '0% 50%']
+                  }}
+                  transition={{ 
+                    duration: 3, 
+                    repeat: Infinity, 
+                    ease: "linear" 
+                  }}
+                  className="text-sm font-medium text-orange-700 font-montserrat bg-gradient-to-r from-orange-600 via-red-600 to-orange-600 bg-[length:200%_100%] bg-clip-text text-transparent"
                 >
-                  Demandes de prêt
-                </motion.h1>
-                <motion.p
-                  initial={{ opacity: 0, x: -20 }}
-                  animate={{ opacity: 1, x: 0 }}
-                  transition={{ delay: 0.2 }}
-                  className="text-base lg:text-lg text-neutral-600 font-montserrat"
+                  🎯 Gestion des Demandes
+                </motion.span>
+              </motion.div>
+
+              {/* Titre principal */}
+              <motion.h1
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+                className="text-4xl lg:text-6xl font-bold text-secondary-900 font-montserrat mb-4"
+              >
+                Demandes de{' '}
+                <motion.span 
+                  animate={{ 
+                    backgroundPosition: ['0% 50%', '100% 50%', '0% 50%']
+                  }}
+                  transition={{ 
+                    duration: 4, 
+                    repeat: Infinity, 
+                    ease: "linear" 
+                  }}
+                  className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-[length:200%_100%] bg-clip-text text-transparent"
                 >
-                  Gérez et validez les demandes de prêt des clients
-                </motion.p>
-              </div>
-              
+                  Prêt
+                </motion.span>{' '}
+                <motion.span
+                  animate={{ 
+                    rotate: [0, 10, -10, 0],
+                    scale: [1, 1.1, 1]
+                  }}
+                  transition={{ 
+                    duration: 2, 
+                    repeat: Infinity, 
+                    ease: "easeInOut" 
+                  }}
+                  className="inline-block"
+                >
+                  📋
+                </motion.span>
+              </motion.h1>
+
+              {/* Description */}
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                className="text-lg lg:text-xl text-neutral-600 font-montserrat max-w-3xl mx-auto leading-relaxed"
+              >
+                Gérez et validez les demandes de prêt des clients avec efficacité et précision.
+              </motion.p>
+
+              {/* Sous-titre avec icônes animées */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.3 }}
+                className="flex items-center justify-center space-x-6 mt-6"
+              >
+                <motion.div
+                  animate={{ 
+                    y: [0, -5, 0],
+                    rotate: [0, 5, 0]
+                  }}
+                  transition={{ 
+                    duration: 3, 
+                    repeat: Infinity, 
+                    ease: "easeInOut" 
+                  }}
+                  className="flex items-center space-x-2 text-sm text-neutral-500"
+                >
+                  <CheckCircle size={16} className="text-green-500" />
+                  <span>Validation rapide</span>
+                </motion.div>
+                
+                <motion.div
+                  animate={{ 
+                    y: [0, -5, 0],
+                    rotate: [0, -5, 0]
+                  }}
+                  transition={{ 
+                    duration: 3, 
+                    repeat: Infinity, 
+                    ease: "easeInOut",
+                    delay: 1
+                  }}
+                  className="flex items-center space-x-2 text-sm text-neutral-500"
+                >
+                  <Shield size={16} className="text-blue-500" />
+                  <span>Sécurité garantie</span>
+                </motion.div>
+                
+                <motion.div
+                  animate={{ 
+                    y: [0, -5, 0],
+                    rotate: [0, 5, 0]
+                  }}
+                  transition={{ 
+                    duration: 3, 
+                    repeat: Infinity, 
+                    ease: "easeInOut",
+                    delay: 2
+                  }}
+                  className="flex items-center space-x-2 text-sm text-neutral-500"
+                >
+                  <Activity size={16} className="text-purple-500" />
+                  <span>Suivi en temps réel</span>
+                </motion.div>
+              </motion.div>
+            </div>
+
+            {/* Actions principales */}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ delay: 0.4 }}
+              className="flex flex-col lg:flex-row lg:items-center lg:justify-between mb-6 space-y-4 lg:space-y-0"
+            >
               <motion.div
                 initial={{ opacity: 0, x: 20 }}
                 animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: 0.3 }}
+                transition={{ delay: 0.5 }}
                 className="flex flex-col sm:flex-row items-stretch sm:items-center space-y-2 sm:space-y-0 sm:space-x-3"
               >
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex items-center justify-center space-x-2 px-3 py-2"
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                 >
-                  <Download size={16} />
-                  <span className="hidden sm:inline">Exporter</span>
-                </Button>
-                <Button
-                  size="sm"
-                  className="bg-primary-600 hover:bg-primary-700 flex items-center justify-center space-x-2 px-3 py-2"
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex items-center justify-center space-x-2 px-3 py-2"
+                  >
+                    <Download size={16} />
+                    <span className="hidden sm:inline">Exporter</span>
+                  </Button>
+                </motion.div>
+                <motion.div
+                  whileHover={{ scale: 1.05 }}
+                  whileTap={{ scale: 0.95 }}
                 >
-                  <Plus size={16} />
-                  <span className="hidden sm:inline">Nouvelle demande</span>
-                  <span className="sm:hidden">Nouvelle</span>
-                </Button>
+                  <Button
+                    size="sm"
+                    className="bg-primary-600 hover:bg-primary-700 flex items-center justify-center space-x-2 px-3 py-2"
+                  >
+                    <Plus size={16} />
+                    <span className="hidden sm:inline">Nouvelle demande</span>
+                    <span className="sm:hidden">Nouvelle</span>
+                  </Button>
+                </motion.div>
               </motion.div>
-      </div>
+            </motion.div>
 
             {/* Statistiques avec design moderne */}
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
+              transition={{ delay: 0.6 }}
               className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
             >
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-soft hover:shadow-lg transition-all duration-300">
+              {/* Carte En attente */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.7 }}
+                whileHover={{ 
+                  scale: 1.05,
+                  y: -5,
+                  boxShadow: "0 20px 40px rgba(0,0,0,0.1)"
+                }}
+                className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-soft relative overflow-hidden"
+              >
+                {/* Effet de brillance */}
+                <motion.div
+                  animate={{ 
+                    x: ['-100%', '100%']
+                  }}
+                  transition={{ 
+                    duration: 3, 
+                    repeat: Infinity, 
+                    ease: "linear",
+                    delay: 0.5
+                  }}
+                  className="absolute inset-0 bg-gradient-to-r from-transparent via-yellow-200/20 to-transparent"
+                />
                 <div className="flex items-center justify-between mb-4">
-                  <div className="p-3 bg-yellow-100 rounded-xl">
-                <Clock size={20} className="text-yellow-600" />
-              </div>
-                  <TrendingUp size={16} className="text-yellow-500" />
+                  <motion.div 
+                    animate={{ 
+                      scale: [1, 1.1, 1],
+                      rotate: [0, 5, 0]
+                    }}
+                    transition={{ 
+                      duration: 2, 
+                      repeat: Infinity, 
+                      ease: "easeInOut" 
+                    }}
+                    className="p-3 bg-yellow-100 rounded-xl"
+                  >
+                    <Clock size={20} className="text-yellow-600" />
+                  </motion.div>
+                  <motion.div
+                    animate={{ 
+                      y: [0, -3, 0]
+                    }}
+                    transition={{ 
+                      duration: 2, 
+                      repeat: Infinity, 
+                      ease: "easeInOut",
+                      delay: 1
+                    }}
+                  >
+                    <TrendingUp size={16} className="text-yellow-500" />
+                  </motion.div>
                 </div>
                 <p className="text-sm text-neutral-600 font-montserrat mb-1">En attente</p>
-                <p className="text-2xl font-bold text-secondary-900 font-montserrat">{pendingCount}</p>
-              </div>
+                <motion.p 
+                  initial={{ scale: 0.8 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.8 }}
+                  className="text-2xl font-bold text-secondary-900 font-montserrat"
+                >
+                  {pendingCount}
+                </motion.p>
+              </motion.div>
               
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-soft hover:shadow-lg transition-all duration-300">
+              {/* Carte Approuvées */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.8 }}
+                whileHover={{ 
+                  scale: 1.05,
+                  y: -5,
+                  boxShadow: "0 20px 40px rgba(0,0,0,0.1)"
+                }}
+                className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-soft relative overflow-hidden"
+              >
+                {/* Effet de brillance */}
+                <motion.div
+                  animate={{ 
+                    x: ['-100%', '100%']
+                  }}
+                  transition={{ 
+                    duration: 3, 
+                    repeat: Infinity, 
+                    ease: "linear",
+                    delay: 1
+                  }}
+                  className="absolute inset-0 bg-gradient-to-r from-transparent via-green-200/20 to-transparent"
+                />
                 <div className="flex items-center justify-between mb-4">
-                  <div className="p-3 bg-green-100 rounded-xl">
-                <CheckCircle size={20} className="text-green-600" />
-              </div>
-                  <TrendingUp size={16} className="text-green-500" />
+                  <motion.div 
+                    animate={{ 
+                      scale: [1, 1.1, 1],
+                      rotate: [0, -5, 0]
+                    }}
+                    transition={{ 
+                      duration: 2, 
+                      repeat: Infinity, 
+                      ease: "easeInOut",
+                      delay: 0.5
+                    }}
+                    className="p-3 bg-green-100 rounded-xl"
+                  >
+                    <CheckCircle size={20} className="text-green-600" />
+                  </motion.div>
+                  <motion.div
+                    animate={{ 
+                      y: [0, -3, 0]
+                    }}
+                    transition={{ 
+                      duration: 2, 
+                      repeat: Infinity, 
+                      ease: "easeInOut",
+                      delay: 1.5
+                    }}
+                  >
+                    <TrendingUp size={16} className="text-green-500" />
+                  </motion.div>
                 </div>
                 <p className="text-sm text-neutral-600 font-montserrat mb-1">Approuvées</p>
-                <p className="text-2xl font-bold text-secondary-900 font-montserrat">{approvedCount}</p>
-              </div>
+                <motion.p 
+                  initial={{ scale: 0.8 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 0.9 }}
+                  className="text-2xl font-bold text-secondary-900 font-montserrat"
+                >
+                  {approvedCount}
+                </motion.p>
+              </motion.div>
               
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-soft hover:shadow-lg transition-all duration-300">
+              {/* Carte Rejetées */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.9 }}
+                whileHover={{ 
+                  scale: 1.05,
+                  y: -5,
+                  boxShadow: "0 20px 40px rgba(0,0,0,0.1)"
+                }}
+                className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-soft relative overflow-hidden"
+              >
+                {/* Effet de brillance */}
+                <motion.div
+                  animate={{ 
+                    x: ['-100%', '100%']
+                  }}
+                  transition={{ 
+                    duration: 3, 
+                    repeat: Infinity, 
+                    ease: "linear",
+                    delay: 1.5
+                  }}
+                  className="absolute inset-0 bg-gradient-to-r from-transparent via-red-200/20 to-transparent"
+                />
                 <div className="flex items-center justify-between mb-4">
-                  <div className="p-3 bg-red-100 rounded-xl">
-                <XCircle size={20} className="text-red-600" />
-              </div>
-                  <AlertCircle size={16} className="text-red-500" />
+                  <motion.div 
+                    animate={{ 
+                      scale: [1, 1.1, 1],
+                      rotate: [0, 5, 0]
+                    }}
+                    transition={{ 
+                      duration: 2, 
+                      repeat: Infinity, 
+                      ease: "easeInOut",
+                      delay: 1
+                    }}
+                    className="p-3 bg-red-100 rounded-xl"
+                  >
+                    <XCircle size={20} className="text-red-600" />
+                  </motion.div>
+                  <motion.div
+                    animate={{ 
+                      y: [0, -3, 0]
+                    }}
+                    transition={{ 
+                      duration: 2, 
+                      repeat: Infinity, 
+                      ease: "easeInOut",
+                      delay: 2
+                    }}
+                  >
+                    <AlertCircle size={16} className="text-red-500" />
+                  </motion.div>
                 </div>
                 <p className="text-sm text-neutral-600 font-montserrat mb-1">Rejetées</p>
-                <p className="text-2xl font-bold text-secondary-900 font-montserrat">{rejectedCount}</p>
-              </div>
+                <motion.p 
+                  initial={{ scale: 0.8 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 1.0 }}
+                  className="text-2xl font-bold text-secondary-900 font-montserrat"
+                >
+                  {rejectedCount}
+                </motion.p>
+              </motion.div>
               
-              <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-soft hover:shadow-lg transition-all duration-300">
+              {/* Carte Montant total */}
+              <motion.div
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 1.0 }}
+                whileHover={{ 
+                  scale: 1.05,
+                  y: -5,
+                  boxShadow: "0 20px 40px rgba(0,0,0,0.1)"
+                }}
+                className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-soft relative overflow-hidden"
+              >
+                {/* Effet de brillance */}
+                <motion.div
+                  animate={{ 
+                    x: ['-100%', '100%']
+                  }}
+                  transition={{ 
+                    duration: 3, 
+                    repeat: Infinity, 
+                    ease: "linear",
+                    delay: 2
+                  }}
+                  className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-200/20 to-transparent"
+                />
                 <div className="flex items-center justify-between mb-4">
-                  <div className="p-3 bg-primary-100 rounded-xl">
-                <DollarSign size={20} className="text-primary-600" />
-              </div>
-                  <TrendingUp size={16} className="text-primary-500" />
+                  <motion.div 
+                    animate={{ 
+                      scale: [1, 1.1, 1],
+                      rotate: [0, -5, 0]
+                    }}
+                    transition={{ 
+                      duration: 2, 
+                      repeat: Infinity, 
+                      ease: "easeInOut",
+                      delay: 1.5
+                    }}
+                    className="p-3 bg-primary-100 rounded-xl"
+                  >
+                    <DollarSign size={20} className="text-primary-600" />
+                  </motion.div>
+                  <motion.div
+                    animate={{ 
+                      y: [0, -3, 0]
+                    }}
+                    transition={{ 
+                      duration: 2, 
+                      repeat: Infinity, 
+                      ease: "easeInOut",
+                      delay: 2.5
+                    }}
+                  >
+                    <TrendingUp size={16} className="text-primary-500" />
+                  </motion.div>
                 </div>
                 <p className="text-sm text-neutral-600 font-montserrat mb-1">Montant total</p>
-                <p className="text-2xl font-bold text-secondary-900 font-montserrat">{formatCurrency(totalAmount)}</p>
-              </div>
+                <motion.p 
+                  initial={{ scale: 0.8 }}
+                  animate={{ scale: 1 }}
+                  transition={{ delay: 1.1 }}
+                  className="text-2xl font-bold text-secondary-900 font-montserrat"
+                >
+                  {formatCurrency(totalAmount)}
+                </motion.p>
+              </motion.div>
             </motion.div>
-            </div>
+          </div>
         </div>
-      </motion.div>
+      </div>
 
       <div className="px-4 lg:px-8 py-4 lg:py-6">
         <div className="max-w-7xl mx-auto">
