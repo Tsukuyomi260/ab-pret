@@ -158,7 +158,7 @@ const UserManagement = () => {
     // Simulation du chargement des données
     setTimeout(() => {
       setUsers(mockUsers);
-      setLoading(false);
+        setLoading(false);
     }, 1000);
   }, []);
 
@@ -289,7 +289,7 @@ const UserManagement = () => {
           <div className="absolute top-0 left-0 w-72 h-72 bg-blue-400 rounded-full mix-blend-multiply filter blur-xl animate-pulse"></div>
           <div className="absolute top-0 right-0 w-72 h-72 bg-purple-400 rounded-full mix-blend-multiply filter blur-xl animate-pulse animation-delay-2000"></div>
           <div className="absolute -bottom-8 left-20 w-72 h-72 bg-indigo-400 rounded-full mix-blend-multiply filter blur-xl animate-pulse animation-delay-4000"></div>
-        </div>
+              </div>
 
         {/* Contenu Header */}
         <div className="relative px-4 lg:px-8 py-8 lg:py-12">
@@ -304,7 +304,7 @@ const UserManagement = () => {
               >
                 <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
                 <span className="text-sm font-medium text-blue-700 font-montserrat">
-                  Gestion des Utilisateurs
+                Gestion des Utilisateurs
                 </span>
               </motion.div>
 

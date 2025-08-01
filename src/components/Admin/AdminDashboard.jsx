@@ -512,7 +512,7 @@ const AdminDashboard = () => {
                     <p className="text-neutral-600 font-montserrat">
                       Suivez les dernières demandes et actions
                     </p>
-                  </div>
+                          </div>
                   <button
                     onClick={() => navigate('/admin/loan-requests')}
                     className="flex items-center space-x-2 px-4 py-2 text-primary-600 hover:text-primary-700 font-medium transition-colors duration-200"
@@ -645,7 +645,7 @@ const AdminDashboard = () => {
                           <p className="text-xs text-neutral-500 font-montserrat">En attente</p>
                         </div>
                       </div>
-
+                      
                       <div className="space-y-4">
                         {pendingRegistrations.slice(0, 3).map((user, index) => (
                           <motion.div

@@ -313,7 +313,7 @@ const LoanRequests = () => {
                   <span className="sm:hidden">Nouvelle</span>
                 </Button>
               </motion.div>
-            </div>
+      </div>
 
             {/* Statistiques avec design moderne */}
             <motion.div
@@ -325,8 +325,8 @@ const LoanRequests = () => {
               <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-soft hover:shadow-lg transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-3 bg-yellow-100 rounded-xl">
-                    <Clock size={20} className="text-yellow-600" />
-                  </div>
+                <Clock size={20} className="text-yellow-600" />
+              </div>
                   <TrendingUp size={16} className="text-yellow-500" />
                 </div>
                 <p className="text-sm text-neutral-600 font-montserrat mb-1">En attente</p>
@@ -336,8 +336,8 @@ const LoanRequests = () => {
               <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-soft hover:shadow-lg transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-3 bg-green-100 rounded-xl">
-                    <CheckCircle size={20} className="text-green-600" />
-                  </div>
+                <CheckCircle size={20} className="text-green-600" />
+              </div>
                   <TrendingUp size={16} className="text-green-500" />
                 </div>
                 <p className="text-sm text-neutral-600 font-montserrat mb-1">Approuvées</p>
@@ -347,8 +347,8 @@ const LoanRequests = () => {
               <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-soft hover:shadow-lg transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-3 bg-red-100 rounded-xl">
-                    <XCircle size={20} className="text-red-600" />
-                  </div>
+                <XCircle size={20} className="text-red-600" />
+              </div>
                   <AlertCircle size={16} className="text-red-500" />
                 </div>
                 <p className="text-sm text-neutral-600 font-montserrat mb-1">Rejetées</p>
@@ -358,15 +358,15 @@ const LoanRequests = () => {
               <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-soft hover:shadow-lg transition-all duration-300">
                 <div className="flex items-center justify-between mb-4">
                   <div className="p-3 bg-primary-100 rounded-xl">
-                    <DollarSign size={20} className="text-primary-600" />
-                  </div>
+                <DollarSign size={20} className="text-primary-600" />
+              </div>
                   <TrendingUp size={16} className="text-primary-500" />
                 </div>
                 <p className="text-sm text-neutral-600 font-montserrat mb-1">Montant total</p>
                 <p className="text-2xl font-bold text-secondary-900 font-montserrat">{formatCurrency(totalAmount)}</p>
               </div>
             </motion.div>
-          </div>
+            </div>
         </div>
       </motion.div>
 
@@ -380,33 +380,33 @@ const LoanRequests = () => {
             className="bg-white/80 backdrop-blur-sm rounded-2xl shadow-soft p-6 mb-6 border border-white/50"
           >
             <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between space-y-4 lg:space-y-0 lg:space-x-6">
-              <div className="flex-1">
-                <div className="relative">
+            <div className="flex-1">
+              <div className="relative">
                   <Search size={20} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-neutral-400" />
-                  <input
-                    type="text"
-                    placeholder="Rechercher par nom, email ou objet..."
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
+                <input
+                  type="text"
+                  placeholder="Rechercher par nom, email ou objet..."
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                     className="w-full pl-12 pr-4 py-3 bg-white/50 backdrop-blur-sm border border-white/50 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
-                  />
-                </div>
+                />
               </div>
-              
+            </div>
+            
               <div className="flex items-center space-x-4">
-                <div className="flex items-center space-x-2">
-                  <Filter size={20} className="text-neutral-400" />
-                  <select
-                    value={statusFilter}
-                    onChange={(e) => setStatusFilter(e.target.value)}
+            <div className="flex items-center space-x-2">
+              <Filter size={20} className="text-neutral-400" />
+              <select
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value)}
                     className="px-4 py-3 bg-white/50 backdrop-blur-sm border border-white/50 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all duration-200"
-                  >
-                    <option value="all">Tous les statuts</option>
-                    <option value="pending">En attente</option>
-                    <option value="approved">Approuvées</option>
-                    <option value="rejected">Rejetées</option>
-                  </select>
-                </div>
+              >
+                <option value="all">Tous les statuts</option>
+                <option value="pending">En attente</option>
+                <option value="approved">Approuvées</option>
+                <option value="rejected">Rejetées</option>
+              </select>
+        </div>
 
                 <div className="flex items-center space-x-2 bg-white/50 backdrop-blur-sm rounded-xl p-1 border border-white/50">
                   <button
@@ -486,9 +486,9 @@ const LoanRequests = () => {
                           <span className={`px-2 py-1 rounded-full text-xs font-medium border ${getPriorityColor(request.priority)}`}>
                             {getPriorityText(request.priority)}
                           </span>
-                        </div>
-                      </div>
-
+                    </div>
+                  </div>
+                  
                       {/* Montant et objet */}
                       <div className="mb-4">
                         <div className="flex items-center justify-between mb-2">
@@ -500,17 +500,17 @@ const LoanRequests = () => {
                         <p className="text-sm text-neutral-600 font-montserrat line-clamp-2">
                           {request.purpose}
                         </p>
-                      </div>
+                    </div>
 
                       {/* Détails */}
                       <div className="grid grid-cols-2 gap-4 text-sm mb-4">
-                        <div>
+                    <div>
                           <span className="text-neutral-500 font-montserrat">Date</span>
-                          <p className="font-medium text-secondary-900 font-montserrat">
-                            {new Date(request.requestDate).toLocaleDateString('fr-FR')}
-                          </p>
-                        </div>
-                        <div>
+                      <p className="font-medium text-secondary-900 font-montserrat">
+                        {new Date(request.requestDate).toLocaleDateString('fr-FR')}
+                      </p>
+                    </div>
+                    <div>
                           <span className="text-neutral-500 font-montserrat">Remboursement</span>
                           <p className="font-medium text-secondary-900 font-montserrat">
                             {request.repaymentPlan}
@@ -615,44 +615,44 @@ const LoanRequests = () => {
                                 {request.documents.length} documents
                               </span>
                             </div>
-                          </div>
-                        </div>
-                        
+                    </div>
+                  </div>
+                  
                         <div className="flex items-center space-x-2">
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => {
-                              setSelectedRequest(request);
-                              setShowDetails(true);
-                            }}
-                          >
-                            <Eye size={16} />
-                          </Button>
-                          
-                          {request.status === 'pending' && (
-                            <>
-                              <Button
-                                size="sm"
-                                className="bg-green-600 hover:bg-green-700"
-                                onClick={() => handleApprove(request.id)}
-                              >
-                                <UserCheck size={16} />
-                              </Button>
-                              <Button
-                                variant="danger"
-                                size="sm"
-                                onClick={() => handleReject(request.id)}
-                              >
-                                <UserX size={16} />
-                              </Button>
-                            </>
-                          )}
-                        </div>
-                      </div>
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => {
+                      setSelectedRequest(request);
+                      setShowDetails(true);
+                    }}
+                  >
+                    <Eye size={16} />
+                  </Button>
+                  
+                  {request.status === 'pending' && (
+                    <>
+                      <Button
+                        size="sm"
+                        className="bg-green-600 hover:bg-green-700"
+                        onClick={() => handleApprove(request.id)}
+                      >
+                        <UserCheck size={16} />
+                      </Button>
+                      <Button
+                        variant="danger"
+                        size="sm"
+                        onClick={() => handleReject(request.id)}
+                      >
+                        <UserX size={16} />
+                      </Button>
+                    </>
+                  )}
+                </div>
+              </div>
                     </div>
                   </motion.div>
-                ))}
+          ))}
               </motion.div>
             )}
           </AnimatePresence>
@@ -669,12 +669,12 @@ const LoanRequests = () => {
               <h3 className="text-lg font-semibold text-secondary-900 font-montserrat mb-2">
                 Aucune demande trouvée
               </h3>
-              <p className="text-neutral-500 font-montserrat">
-                {searchTerm || statusFilter !== 'all' 
-                  ? 'Aucune demande ne correspond à vos critères'
-                  : 'Aucune demande de prêt pour le moment'
-                }
-              </p>
+                <p className="text-neutral-500 font-montserrat">
+                  {searchTerm || statusFilter !== 'all' 
+                    ? 'Aucune demande ne correspond à vos critères'
+                    : 'Aucune demande de prêt pour le moment'
+                  }
+                </p>
             </motion.div>
           )}
         </div>
@@ -682,14 +682,14 @@ const LoanRequests = () => {
 
       {/* Modal de détails modernisé */}
       <AnimatePresence>
-        {showDetails && selectedRequest && (
+      {showDetails && selectedRequest && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             className="fixed inset-0 bg-black/50 backdrop-blur-sm flex items-center justify-center p-4 z-50"
-            onClick={() => setShowDetails(false)}
-          >
+                  onClick={() => setShowDetails(false)}
+                >
             <motion.div
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
@@ -702,7 +702,7 @@ const LoanRequests = () => {
                   <div className="flex items-center space-x-4">
                     <div className="w-16 h-16 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full flex items-center justify-center text-white font-bold text-lg">
                       {selectedRequest.user.avatar}
-                    </div>
+              </div>
                     <div>
                       <h2 className="text-2xl font-bold text-secondary-900 font-montserrat">
                         Détails de la demande
@@ -761,23 +761,23 @@ const LoanRequests = () => {
                         <div className="flex justify-between">
                           <span className="text-neutral-600 font-montserrat">Montant demandé:</span>
                           <span className="font-medium text-secondary-900 font-montserrat">{formatCurrency(selectedRequest.amount)}</span>
-                        </div>
+                    </div>
                         <div className="flex justify-between">
-                          <span className="text-neutral-600 font-montserrat">Plan de remboursement:</span>
+                      <span className="text-neutral-600 font-montserrat">Plan de remboursement:</span>
                           <span className="font-medium text-secondary-900 font-montserrat">{selectedRequest.repaymentPlan}</span>
-                        </div>
+                    </div>
                         <div className="flex justify-between">
-                          <span className="text-neutral-600 font-montserrat">Mensualité:</span>
+                      <span className="text-neutral-600 font-montserrat">Mensualité:</span>
                           <span className="font-medium text-secondary-900 font-montserrat">{formatCurrency(selectedRequest.monthlyPayment)}</span>
                         </div>
                         <div className="flex justify-between">
                           <span className="text-neutral-600 font-montserrat">Objet:</span>
                           <span className="font-medium text-secondary-900 font-montserrat">{selectedRequest.purpose}</span>
                         </div>
-                      </div>
                     </div>
                   </div>
-
+                </div>
+                
                   {/* Description et documents */}
                   <div className="space-y-6">
                     <div className="bg-white/50 backdrop-blur-sm rounded-2xl p-6 border border-white/50">
@@ -788,19 +788,19 @@ const LoanRequests = () => {
                       <p className="text-sm text-neutral-600 font-montserrat leading-relaxed">
                         {selectedRequest.description}
                       </p>
-                    </div>
-
+                </div>
+                
                     <div className="bg-white/50 backdrop-blur-sm rounded-2xl p-6 border border-white/50">
                       <h3 className="font-semibold text-secondary-900 font-montserrat mb-4 flex items-center space-x-2">
                         <FileText size={20} className="text-primary-600" />
                         <span>Documents fournis</span>
                       </h3>
-                      <div className="flex flex-wrap gap-2">
-                        {selectedRequest.documents.map((doc, index) => (
+                  <div className="flex flex-wrap gap-2">
+                    {selectedRequest.documents.map((doc, index) => (
                           <span key={index} className="px-3 py-2 bg-primary-100 text-primary-700 rounded-full text-xs font-medium border border-primary-200">
-                            {doc}
-                          </span>
-                        ))}
+                        {doc}
+                      </span>
+                    ))}
                       </div>
                     </div>
                   </div>
@@ -839,7 +839,7 @@ const LoanRequests = () => {
               </div>
             </motion.div>
           </motion.div>
-        )}
+      )}
       </AnimatePresence>
     </div>
   );

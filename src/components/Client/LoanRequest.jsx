@@ -31,7 +31,13 @@ import {
   User,
   FileText,
   ArrowRight,
-  Sparkles
+  Sparkles,
+  Activity,
+  BarChart3,
+  Percent,
+  Award,
+  Gift,
+  Rocket
 } from 'lucide-react';
 import { LOAN_CONFIG } from '../../utils/loanConfig';
 import { formatCurrency } from '../../utils/helpers';
@@ -53,6 +59,67 @@ const LoanRequest = () => {
   const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState({});
   const [selectedCategory, setSelectedCategory] = useState('');
+
+  // Styles CSS pour les animations
+  const gradientAnimation = `
+    @keyframes gradient {
+      0% { background-position: 0% 50%; }
+      50% { background-position: 100% 50%; }
+      100% { background-position: 0% 50%; }
+    }
+    .animate-gradient {
+      background-size: 200% 200%;
+      animation: gradient 15s ease infinite;
+    }
+    
+    /* Animations pour les interactions */
+    @keyframes pulse-glow {
+      0%, 100% { box-shadow: 0 0 5px rgba(59, 130, 246, 0.5); }
+      50% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.8); }
+    }
+    
+    .pulse-glow {
+      animation: pulse-glow 2s ease-in-out infinite;
+    }
+    
+    @keyframes slide-in-right {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+    
+    .slide-in-right {
+      animation: slide-in-right 0.3s ease-out;
+    }
+    
+    @keyframes bounce-in {
+      0% { transform: scale(0.3); opacity: 0; }
+      50% { transform: scale(1.05); }
+      70% { transform: scale(0.9); }
+      100% { transform: scale(1); opacity: 1; }
+    }
+    
+    .bounce-in {
+      animation: bounce-in 0.6s ease-out;
+    }
+    
+    @keyframes float {
+      0%, 100% { transform: translateY(0px); }
+      50% { transform: translateY(-10px); }
+    }
+    
+    .float {
+      animation: float 3s ease-in-out infinite;
+    }
+    
+    @keyframes shine {
+      0% { transform: translateX(-100%); }
+      100% { transform: translateX(100%); }
+    }
+    
+    .shine {
+      animation: shine 2s ease-in-out infinite;
+    }
+  `;
 
   // Catégories de prêts avec icônes et couleurs
   const loanCategories = [
@@ -161,28 +228,28 @@ const LoanRequest = () => {
         }
         break;
       case 2:
-    if (!formData.amount || parseFloat(formData.amount) < LOAN_CONFIG.amounts.min) {
-      newErrors.amount = `Le montant minimum est de ${LOAN_CONFIG.amounts.min.toLocaleString()} FCFA`;
-    }
-    if (parseFloat(formData.amount) > LOAN_CONFIG.amounts.max) {
-      newErrors.amount = `Le montant maximum est de ${LOAN_CONFIG.amounts.max.toLocaleString()} FCFA`;
-    }
+        if (!formData.amount || parseFloat(formData.amount) < LOAN_CONFIG.amounts.min) {
+          newErrors.amount = `Le montant minimum est de ${LOAN_CONFIG.amounts.min.toLocaleString()} FCFA`;
+        }
+        if (parseFloat(formData.amount) > LOAN_CONFIG.amounts.max) {
+          newErrors.amount = `Le montant maximum est de ${LOAN_CONFIG.amounts.max.toLocaleString()} FCFA`;
+        }
         if (!formData.duration) {
           newErrors.duration = 'Veuillez sélectionner une durée';
         }
         break;
       case 3:
-    if (!formData.purpose.trim()) {
-      newErrors.purpose = 'Veuillez préciser l\'objet du prêt';
-    }
-    if (!formData.monthlyIncome) {
-      newErrors.monthlyIncome = 'Le revenu mensuel est requis';
-    } else {
-      const income = parseFloat(formData.monthlyIncome);
-      const incomeValidation = LOAN_CONFIG.validateMonthlyIncome(income);
-      if (!incomeValidation.isValid) {
-        newErrors.monthlyIncome = incomeValidation.errors[0];
-      }
+        if (!formData.purpose.trim()) {
+          newErrors.purpose = 'Veuillez préciser l\'objet du prêt';
+        }
+        if (!formData.monthlyIncome) {
+          newErrors.monthlyIncome = 'Le revenu mensuel est requis';
+        } else {
+          const income = parseFloat(formData.monthlyIncome);
+          const incomeValidation = LOAN_CONFIG.validateMonthlyIncome(income);
+          if (!incomeValidation.isValid) {
+            newErrors.monthlyIncome = incomeValidation.errors[0];
+          }
         }
         break;
     }
@@ -194,7 +261,6 @@ const LoanRequest = () => {
   const nextStep = () => {
     if (validateStep(currentStep)) {
       setCurrentStep(prev => Math.min(prev + 1, 4));
-      // Scroll vers le haut de la page avec animation fluide
       window.scrollTo({
         top: 0,
         behavior: 'smooth'
@@ -204,7 +270,6 @@ const LoanRequest = () => {
 
   const prevStep = () => {
     setCurrentStep(prev => Math.max(prev - 1, 1));
-    // Scroll vers le haut de la page avec animation fluide
     window.scrollTo({
       top: 0,
       behavior: 'smooth'
@@ -223,7 +288,6 @@ const LoanRequest = () => {
       
       setSubmitted(true);
       
-      // Attendre un peu pour montrer l'animation de succès
       setTimeout(() => {
         showSuccess('Demande de prêt soumise avec succès ! Notre équipe vous contactera dans les 24h.');
         navigate('/dashboard');
@@ -256,39 +320,177 @@ const LoanRequest = () => {
   };
 
   return (
-    <div id="loan-request-page" className="min-h-screen bg-gradient-to-br from-primary-50 via-accent-50 to-secondary-50">
-      {/* Header avec gradient et animations */}
-      <motion.div 
-        className="relative overflow-hidden"
-        initial={{ opacity: 0, y: -20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.6 }}
-      >
-        <div className="absolute inset-0 bg-gradient-to-r from-primary-500/10 to-secondary-500/10" />
-        <div className="relative px-4 lg:px-8 py-8">
+    <div id="loan-request-page" className="min-h-screen bg-accent-50">
+      <style>{gradientAnimation}</style>
+      
+      {/* Header avec design moderne */}
+      <div className="relative overflow-hidden">
+        {/* Background avec gradient animé */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-500 via-purple-600 to-indigo-600 opacity-10 animate-gradient"></div>
+        
+        {/* Pattern décoratif amélioré */}
+        <div className="absolute inset-0 opacity-5">
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.2, 1],
+              rotate: [0, 180, 360],
+              opacity: [0.3, 0.6, 0.3]
+            }}
+            transition={{ 
+              duration: 8, 
+              repeat: Infinity, 
+              ease: "easeInOut" 
+            }}
+            className="absolute top-0 left-0 w-72 h-72 bg-blue-400 rounded-full mix-blend-multiply filter blur-xl"
+          />
+          <motion.div 
+            animate={{ 
+              scale: [1.2, 1, 1.2],
+              rotate: [360, 180, 0],
+              opacity: [0.6, 0.3, 0.6]
+            }}
+            transition={{ 
+              duration: 10, 
+              repeat: Infinity, 
+              ease: "easeInOut",
+              delay: 2
+            }}
+            className="absolute top-0 right-0 w-72 h-72 bg-purple-400 rounded-full mix-blend-multiply filter blur-xl"
+          />
+          <motion.div 
+            animate={{ 
+              scale: [1, 1.3, 1],
+              rotate: [180, 360, 180],
+              opacity: [0.4, 0.7, 0.4]
+            }}
+            transition={{ 
+              duration: 12, 
+              repeat: Infinity, 
+              ease: "easeInOut",
+              delay: 4
+            }}
+            className="absolute -bottom-8 left-20 w-72 h-72 bg-indigo-400 rounded-full mix-blend-multiply filter blur-xl"
+          />
+          
+          {/* Particules flottantes */}
+          <motion.div
+            animate={{ 
+              y: [0, -20, 0],
+              opacity: [0.2, 0.6, 0.2]
+            }}
+            transition={{ 
+              duration: 4, 
+              repeat: Infinity, 
+              ease: "easeInOut" 
+            }}
+            className="absolute top-1/4 left-1/4 w-4 h-4 bg-blue-300 rounded-full"
+          />
+          <motion.div
+            animate={{ 
+              y: [0, 15, 0],
+              opacity: [0.3, 0.7, 0.3]
+            }}
+            transition={{ 
+              duration: 5, 
+              repeat: Infinity, 
+              ease: "easeInOut",
+              delay: 1
+            }}
+            className="absolute top-3/4 right-1/3 w-3 h-3 bg-purple-300 rounded-full"
+          />
+          <motion.div
+            animate={{ 
+              x: [0, 10, 0],
+              opacity: [0.4, 0.8, 0.4]
+            }}
+            transition={{ 
+              duration: 6, 
+              repeat: Infinity, 
+              ease: "easeInOut",
+              delay: 2
+            }}
+            className="absolute bottom-1/4 left-1/2 w-2 h-2 bg-indigo-300 rounded-full"
+          />
+        </div>
+
+        {/* Contenu Header */}
+        <div className="relative px-4 lg:px-8 py-8 lg:py-12">
           <div className="max-w-7xl mx-auto">
-            {/* En-tête principal */}
-            <div className="text-center mb-8">
-              <div className="flex items-center justify-between mb-6">
-                <motion.div 
-                  className="flex flex-col sm:flex-row items-center justify-center w-full space-y-4 sm:space-y-0 sm:space-x-6"
-                  initial={{ opacity: 0, scale: 0.8 }}
-                  animate={{ opacity: 1, scale: 1 }}
-                  transition={{ delay: 0.2 }}
-                >
-                  <div className="p-4 bg-gradient-to-br from-primary-500 to-primary-600 rounded-full shadow-lg">
-                    <CreditCard className="w-10 h-10 text-white" />
-                  </div>
-                  <h1 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-secondary-900 font-montserrat text-center">
-                    Demande de prêt
-                  </h1>
-                </motion.div>
-              </div>
-              <motion.p 
-                className="text-lg sm:text-xl text-secondary-600 font-montserrat max-w-3xl mx-auto text-center leading-relaxed"
+            {/* En-tête avec salutation */}
+            <div className="text-center mb-8 lg:mb-12">
+              <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.3 }}
+                transition={{ duration: 0.6 }}
+                className="inline-flex items-center space-x-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full border border-white/30 mb-6"
+              >
+                <motion.div 
+                  animate={{ 
+                    scale: [1, 1.2, 1],
+                    opacity: [0.6, 1, 0.6]
+                  }}
+                  transition={{ 
+                    duration: 2, 
+                    repeat: Infinity, 
+                    ease: "easeInOut" 
+                  }}
+                  className="w-2 h-2 bg-blue-400 rounded-full"
+                />
+                <motion.span 
+                  animate={{ 
+                    backgroundPosition: ['0% 50%', '100% 50%', '0% 50%']
+                  }}
+                  transition={{ 
+                    duration: 3, 
+                    repeat: Infinity, 
+                    ease: "linear" 
+                  }}
+                  className="text-sm font-medium text-blue-700 font-montserrat bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-[length:200%_100%] bg-clip-text text-transparent"
+                >
+                  Demande de Prêt
+                </motion.span>
+              </motion.div>
+
+              <motion.h1
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.1 }}
+                className="text-4xl lg:text-6xl font-bold text-secondary-900 font-montserrat mb-4"
+              >
+                Demande de{' '}
+                <motion.span 
+                  animate={{ 
+                    backgroundPosition: ['0% 50%', '100% 50%', '0% 50%']
+                  }}
+                  transition={{ 
+                    duration: 4, 
+                    repeat: Infinity, 
+                    ease: "linear" 
+                  }}
+                  className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-[length:200%_100%] bg-clip-text text-transparent"
+                >
+                  Prêt
+                </motion.span>{' '}
+                <motion.span
+                  animate={{ 
+                    rotate: [0, 10, -10, 0],
+                    scale: [1, 1.1, 1]
+                  }}
+                  transition={{ 
+                    duration: 2, 
+                    repeat: Infinity, 
+                    ease: "easeInOut" 
+                  }}
+                >
+                  💰
+                </motion.span>
+              </motion.h1>
+
+              <motion.p
+                initial={{ opacity: 0, y: 20 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ duration: 0.6, delay: 0.2 }}
+                className="text-lg lg:text-xl text-neutral-600 font-montserrat max-w-3xl mx-auto leading-relaxed"
               >
                 Remplissez les étapes ci-dessous pour demander votre prêt. 
                 Notre processus est simple, rapide et sécurisé.
@@ -356,22 +558,42 @@ const LoanRequest = () => {
                         </h3>
                         <p className="text-secondary-600 font-montserrat">
                           Sélectionnez la catégorie qui correspond le mieux à votre besoin
-          </p>
-        </div>
+                        </p>
+                      </div>
                       
                       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                        {loanCategories.map((category) => (
+                        {loanCategories.map((category, index) => (
                           <motion.div
                             key={category.id}
-                            whileHover={{ scale: 1.02 }}
-                            whileTap={{ scale: 0.98 }}
-                            className={`p-4 border-2 rounded-xl cursor-pointer transition-all duration-200 ${
+                            initial={{ opacity: 0, y: 20 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            transition={{ delay: index * 0.1 }}
+                            whileHover={{ 
+                              scale: 1.05, 
+                              y: -5,
+                              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)"
+                            }}
+                            whileTap={{ scale: 0.95 }}
+                            className={`p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 relative overflow-hidden ${
                               selectedCategory === category.id
                                 ? 'border-primary-500 bg-primary-50 shadow-lg'
                                 : 'border-gray-200 hover:border-primary-300 hover:shadow-md'
                             }`}
                             onClick={() => handleCategorySelect(category.id)}
                           >
+                            {/* Effet de brillance */}
+                            <motion.div
+                              animate={{ 
+                                x: ['-100%', '100%']
+                              }}
+                              transition={{ 
+                                duration: 3, 
+                                repeat: Infinity, 
+                                ease: "linear",
+                                delay: index * 0.5
+                              }}
+                              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                            />
                             <div className="flex items-center space-x-3 mb-2">
                               <div className={`p-2 bg-gradient-to-r ${category.color} rounded-lg text-white`}>
                                 {category.icon}
@@ -380,19 +602,19 @@ const LoanRequest = () => {
                                 {category.name}
                               </h4>
                             </div>
-                            <p className="text-sm text-secondary-600 font-montserrat">
+                            <p className="text-sm text-secondary-600 font-montserrat relative z-10">
                               {category.description}
                             </p>
                           </motion.div>
                         ))}
-      </div>
+                      </div>
 
                       {errors.category && (
                         <div className="mt-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-center space-x-2">
-                  <AlertCircle size={20} />
+                          <AlertCircle size={20} />
                           <span>{errors.category}</span>
-                </div>
-              )}
+                        </div>
+                      )}
                     </Card>
 
                     {/* Informations sur les catégories */}
@@ -461,36 +683,36 @@ const LoanRequest = () => {
                         </div>
                         
                         <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Input
-                  label="Montant demandé (FCFA)"
-                  type="number"
-                  name="amount"
-                  value={formData.amount}
-                  onChange={handleChange}
-                  placeholder="50000"
-                  min={LOAN_CONFIG.amounts.min}
-                  max={LOAN_CONFIG.amounts.max}
-                  error={errors.amount}
-                  required
-                />
+                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <Input
+                              label="Montant demandé (FCFA)"
+                              type="number"
+                              name="amount"
+                              value={formData.amount}
+                              onChange={handleChange}
+                              placeholder="50000"
+                              min={LOAN_CONFIG.amounts.min}
+                              max={LOAN_CONFIG.amounts.max}
+                              error={errors.amount}
+                              required
+                            />
 
                             <div>
-                <Input
-                  label="Durée du prêt"
-                  type="select"
-                  name="duration"
-                  value={formData.duration}
-                  onChange={handleChange}
-                  error={errors.duration}
-                  required
-                >
-                  {LOAN_CONFIG.durations.map((option) => (
-                    <option key={option.value} value={option.weeks}>
-                      {option.label}
-                    </option>
-                  ))}
-                </Input>
+                              <Input
+                                label="Durée du prêt"
+                                type="select"
+                                name="duration"
+                                value={formData.duration}
+                                onChange={handleChange}
+                                error={errors.duration}
+                                required
+                              >
+                                {LOAN_CONFIG.durations.map((option) => (
+                                  <option key={option.value} value={option.weeks}>
+                                    {option.label}
+                                  </option>
+                                ))}
+                              </Input>
                               {formData.amount && formData.duration && (
                                 <div className="mt-2 p-2 bg-blue-50 rounded-lg">
                                   <p className="text-xs text-blue-700 font-montserrat">
@@ -555,52 +777,52 @@ const LoanRequest = () => {
                         <p className="text-secondary-600 font-montserrat">
                           Aidez-nous à mieux comprendre votre situation financière
                         </p>
-              </div>
+                      </div>
 
                       <div className="space-y-6">
-              <Input
-                label="Objet du prêt"
-                type="textarea"
-                name="purpose"
-                value={formData.purpose}
-                onChange={handleChange}
+                        <Input
+                          label="Objet du prêt"
+                          type="textarea"
+                          name="purpose"
+                          value={formData.purpose}
+                          onChange={handleChange}
                           placeholder="Décrivez en détail l'utilisation prévue du prêt..."
-                error={errors.purpose}
-                required
-              />
+                          error={errors.purpose}
+                          required
+                        />
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Input
-                  label="Revenu mensuel (FCFA)"
-                  type="number"
-                  name="monthlyIncome"
-                  value={formData.monthlyIncome}
-                  onChange={handleChange}
-                  placeholder={`${LOAN_CONFIG.monthlyIncome.min.toLocaleString()} - ${LOAN_CONFIG.monthlyIncome.max.toLocaleString()}`}
-                  min={LOAN_CONFIG.monthlyIncome.min}
-                  max={LOAN_CONFIG.monthlyIncome.max}
-                  error={errors.monthlyIncome}
-                  required
-                />
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                          <Input
+                            label="Revenu mensuel (FCFA)"
+                            type="number"
+                            name="monthlyIncome"
+                            value={formData.monthlyIncome}
+                            onChange={handleChange}
+                            placeholder={`${LOAN_CONFIG.monthlyIncome.min.toLocaleString()} - ${LOAN_CONFIG.monthlyIncome.max.toLocaleString()}`}
+                            min={LOAN_CONFIG.monthlyIncome.min}
+                            max={LOAN_CONFIG.monthlyIncome.max}
+                            error={errors.monthlyIncome}
+                            required
+                          />
 
-                <Input
-                  label="Statut professionnel"
-                  type="select"
-                  name="employmentStatus"
-                  value={formData.employmentStatus}
-                  onChange={handleChange}
-                  required
-                >
-                  <option value="employed">Salarié</option>
-                  <option value="self-employed">Indépendant</option>
-                  <option value="business-owner">Chef d'entreprise</option>
-                  <option value="student">Étudiant</option>
-                </Input>
-              </div>
-            </div>
-          </Card>
+                          <Input
+                            label="Statut professionnel"
+                            type="select"
+                            name="employmentStatus"
+                            value={formData.employmentStatus}
+                            onChange={handleChange}
+                            required
+                          >
+                            <option value="employed">Salarié</option>
+                            <option value="self-employed">Indépendant</option>
+                            <option value="business-owner">Chef d'entreprise</option>
+                            <option value="student">Étudiant</option>
+                          </Input>
+                        </div>
+                      </div>
+                    </Card>
 
-          {/* Informations importantes */}
+                    {/* Informations importantes */}
                     <div className="space-y-6">
                       <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
                         <div className="flex items-center space-x-3 mb-4">
@@ -631,27 +853,27 @@ const LoanRequest = () => {
                           <h3 className="text-lg font-semibold text-secondary-900 font-montserrat">
                             Documents requis
                           </h3>
-              </div>
+                        </div>
                         <div className="space-y-2 text-sm text-secondary-600 font-montserrat">
                           <div className="flex items-center space-x-2">
                             <CheckCircle className="w-4 h-4 text-green-500" />
                             <span>Pièce d'identité valide</span>
-              </div>
+                          </div>
                           <div className="flex items-center space-x-2">
                             <CheckCircle className="w-4 h-4 text-green-500" />
                             <span>Justificatif de domicile</span>
-              </div>
+                          </div>
                           <div className="flex items-center space-x-2">
                             <CheckCircle className="w-4 h-4 text-green-500" />
                             <span>Justificatif de revenus</span>
-              </div>
+                          </div>
                           <div className="flex items-center space-x-2">
                             <CheckCircle className="w-4 h-4 text-green-500" />
                             <span>Relevé bancaire (3 mois)</span>
-              </div>
-            </div>
-          </Card>
-        </div>
+                          </div>
+                        </div>
+                      </Card>
+                    </div>
                   </motion.div>
                 )}
 
@@ -668,15 +890,15 @@ const LoanRequest = () => {
                       <div className="text-center mb-8">
                         <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                           <CheckCircle className="w-8 h-8 text-green-600" />
-      </div>
+                        </div>
                         <h3 className="text-2xl font-bold text-secondary-900 font-montserrat mb-2">
                           Récapitulatif de votre demande
                         </h3>
                         <p className="text-secondary-600 font-montserrat">
                           Vérifiez toutes les informations avant de soumettre votre demande
-              </p>
-            </div>
-            
+                        </p>
+                      </div>
+                      
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
                         <div className="space-y-4">
                           <div className="p-4 bg-accent-50 rounded-xl">
@@ -755,32 +977,52 @@ const LoanRequest = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5 }}
               >
-                <Button
-                  variant="outline"
-                  onClick={prevStep}
-                  disabled={currentStep === 1}
-                  className="flex items-center space-x-2"
+                <motion.div
+                  whileHover={{ scale: 1.05, x: -5 }}
+                  whileTap={{ scale: 0.95 }}
                 >
-                  <ArrowLeft className="w-4 h-4" />
-                  <span>Précédent</span>
-                </Button>
+                  <Button
+                    variant="outline"
+                    onClick={prevStep}
+                    disabled={currentStep === 1}
+                    className="flex items-center space-x-2 relative overflow-hidden"
+                  >
+                    <motion.div
+                      whileHover={{ rotate: -10 }}
+                      transition={{ duration: 0.3 }}
+                    >
+                      <ArrowLeft className="w-4 h-4" />
+                    </motion.div>
+                    <span>Précédent</span>
+                  </Button>
+                </motion.div>
 
                 {currentStep < 4 ? (
-                  <Button
-                    onClick={nextStep}
-                    className="flex items-center space-x-2 bg-primary-500 hover:bg-primary-600"
+                  <motion.div
+                    whileHover={{ scale: 1.05, x: 5 }}
+                    whileTap={{ scale: 0.95 }}
                   >
-                    <span>Suivant</span>
-                    <ArrowRight className="w-4 h-4" />
-                  </Button>
+                    <Button
+                      onClick={nextStep}
+                      className="flex items-center space-x-2 bg-primary-500 hover:bg-primary-600 relative overflow-hidden"
+                    >
+                      <span>Suivant</span>
+                      <motion.div
+                        whileHover={{ rotate: 10 }}
+                        transition={{ duration: 0.3 }}
+                      >
+                        <ArrowRight className="w-4 h-4" />
+                      </motion.div>
+                    </Button>
+                  </motion.div>
                 ) : (
                   <motion.div
                     initial={{ scale: 1 }}
                     animate={submitted ? { scale: [1, 1.1, 1] } : {}}
                     transition={{ duration: 0.5 }}
                   >
-            <Button
-              onClick={handleSubmit}
+                    <Button
+                      onClick={handleSubmit}
                       disabled={loading || submitted}
                       className={`relative overflow-hidden flex items-center space-x-2 px-4 sm:px-8 py-3 sm:py-4 rounded-2xl font-semibold text-base sm:text-lg transition-all duration-500 ${
                         submitted 
@@ -831,14 +1073,14 @@ const LoanRequest = () => {
                           <span>Soumettre la demande</span>
                         </>
                       )}
-            </Button>
+                    </Button>
                   </motion.div>
                 )}
               </motion.div>
             </div>
           </div>
+        </div>
       </div>
-      </motion.div>
     </div>
   );
 };
