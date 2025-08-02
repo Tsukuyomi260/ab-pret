@@ -97,9 +97,9 @@ const LoanRequests = () => {
         {
           id: 1,
           user: {
-            firstName: 'Kossi',
-            lastName: 'Ablo',
-            email: 'kossi.ablo@email.com',
+                    firstName: 'Utilisateur',
+        lastName: 'A',
+        email: 'utilisateur.a@email.com',
             phone: '+229 90123456',
             studentId: '2023-001',
             avatar: 'KA'
@@ -117,9 +117,9 @@ const LoanRequests = () => {
         {
           id: 2,
           user: {
-            firstName: 'Fatou',
-            lastName: 'Diallo',
-            email: 'fatou.diallo@email.com',
+                    firstName: 'Utilisateur',
+        lastName: 'B',
+        email: 'utilisateur.b@email.com',
             phone: '+229 90234567',
             studentId: '2023-002',
             avatar: 'FD'
@@ -137,9 +137,9 @@ const LoanRequests = () => {
         {
           id: 3,
           user: {
-            firstName: 'Moussa',
-            lastName: 'Traoré',
-            email: 'moussa.traore@email.com',
+                    firstName: 'Utilisateur',
+        lastName: 'C',
+        email: 'utilisateur.c@email.com',
             phone: '+229 90345678',
             studentId: '2023-003',
             avatar: 'MT'
@@ -157,9 +157,9 @@ const LoanRequests = () => {
         {
           id: 4,
           user: {
-            firstName: 'Aïcha',
-            lastName: 'Bello',
-            email: 'aicha.bello@email.com',
+                    firstName: 'Utilisateur',
+        lastName: 'D',
+        email: 'utilisateur.d@email.com',
             phone: '+229 90456789',
             studentId: '2023-004',
             avatar: 'AB'

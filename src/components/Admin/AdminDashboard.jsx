@@ -64,9 +64,9 @@ const AdminDashboard = () => {
           {
             id: 1,
             user: {
-              firstName: 'Kossi',
-              lastName: 'Ablo',
-              email: 'kossi.ablo@email.com'
+                      firstName: 'Utilisateur',
+        lastName: 'A',
+        email: 'utilisateur.a@email.com'
             },
             amount: 75000,
             status: 'pending',
@@ -76,9 +76,9 @@ const AdminDashboard = () => {
           {
             id: 2,
             user: {
-              firstName: 'Fatou',
-              lastName: 'Diallo',
-              email: 'fatou.diallo@email.com'
+                      firstName: 'Utilisateur',
+        lastName: 'B',
+        email: 'utilisateur.b@email.com'
             },
             amount: 120000,
             status: 'approved',
@@ -88,9 +88,9 @@ const AdminDashboard = () => {
           {
             id: 3,
             user: {
-              firstName: 'Moussa',
-              lastName: 'Traoré',
-              email: 'moussa.traore@email.com'
+                      firstName: 'Utilisateur',
+        lastName: 'C',
+        email: 'utilisateur.c@email.com'
             },
             amount: 50000,
             status: 'rejected',

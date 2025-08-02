@@ -16,7 +16,7 @@ export const subscribeToNewUsers = (callback) => {
         table: 'users' 
       }, 
       (payload) => {
-        console.log('Nouvelle inscription détectée:', payload.new);
+        console.log('Nouvelle inscription détectée');
         callback(payload.new);
       }
     )
@@ -38,7 +38,7 @@ export const registerUser = async (userData) => {
       throw error;
     }
 
-    console.log('Utilisateur enregistré avec succès:', data);
+    console.log('Utilisateur enregistré avec succès');
     return { success: true, data };
   } catch (error) {
     console.error('Erreur lors de l\'enregistrement:', error);
@@ -71,11 +71,11 @@ export const getLoans = async () => {
   try {
     // Simulation des données de prêts (à remplacer par de vraies données Supabase)
     const mockLoans = [
-      { id: 1, amount: 75000, status: 'active', date: '2025-01-15', user_id: 'user1', user_name: 'Kossi Ablo' },
-      { id: 2, amount: 120000, status: 'active', date: '2025-01-14', user_id: 'user2', user_name: 'Fatou Diallo' },
-      { id: 3, amount: 50000, status: 'repaid', date: '2025-01-13', user_id: 'user3', user_name: 'Moussa Traoré' },
-      { id: 4, amount: 90000, status: 'active', date: '2025-01-12', user_id: 'user4', user_name: 'Aminata Keita' },
-      { id: 5, amount: 60000, status: 'pending', date: '2025-01-11', user_id: 'user5', user_name: 'Souleymane Ouattara' }
+      { id: 1, amount: 75000, status: 'active', date: '2025-01-15', user_id: 'user1', user_name: 'Utilisateur A' },
+      { id: 2, amount: 120000, status: 'active', date: '2025-01-14', user_id: 'user2', user_name: 'Utilisateur B' },
+      { id: 3, amount: 50000, status: 'repaid', date: '2025-01-13', user_id: 'user3', user_name: 'Utilisateur C' },
+      { id: 4, amount: 90000, status: 'active', date: '2025-01-12', user_id: 'user4', user_name: 'Utilisateur D' },
+      { id: 5, amount: 60000, status: 'pending', date: '2025-01-11', user_id: 'user5', user_name: 'Utilisateur E' }
     ];
 
     return { success: true, data: mockLoans };
@@ -137,10 +137,10 @@ export const getAnalyticsData = async () => {
 
     // Activité récente
     const recentActivity = [
-      { type: 'loan_approved', user: 'Kossi Ablo', amount: 75000, date: '2025-01-15' },
-      { type: 'user_registered', user: 'Fatou Diallo', date: '2025-01-14' },
-      { type: 'loan_repaid', user: 'Moussa Traoré', amount: 50000, date: '2025-01-13' },
-      { type: 'loan_requested', user: 'Souleymane Ouattara', amount: 60000, date: '2025-01-11' }
+      { type: 'loan_approved', user: 'Utilisateur A', amount: 75000, date: '2025-01-15' },
+      { type: 'user_registered', user: 'Utilisateur B', date: '2025-01-14' },
+      { type: 'loan_repaid', user: 'Utilisateur C', amount: 50000, date: '2025-01-13' },
+      { type: 'loan_requested', user: 'Utilisateur E', amount: 60000, date: '2025-01-11' }
     ];
 
     return {

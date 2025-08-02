@@ -94,7 +94,7 @@ const Profile = () => {
       
       // Si une nouvelle image a été sélectionnée, simuler l'upload
       if (profileImage) {
-        console.log('Upload de l\'image de profil:', profileImage.name);
+        console.log('Upload de l\'image de profil en cours');
         // Ici, vous pouvez ajouter la logique pour uploader l'image vers votre serveur
         // Par exemple : await uploadProfileImage(profileImage);
       }

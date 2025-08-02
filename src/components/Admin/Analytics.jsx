@@ -80,17 +80,17 @@ const Analytics = () => {
       userGrowth: 15.7
     },
     topPerformers: [
-      { name: 'Kossi Adama', loans: 8, totalAmount: 2500000, avgAmount: 312500 },
-      { name: 'Fatou Diallo', loans: 6, totalAmount: 1800000, avgAmount: 300000 },
-      { name: 'Moussa Traoré', loans: 5, totalAmount: 1500000, avgAmount: 300000 },
-      { name: 'Aïcha Ouedraogo', loans: 4, totalAmount: 1200000, avgAmount: 300000 }
+      { name: 'Utilisateur A', loans: 8, totalAmount: 2500000, avgAmount: 312500 },
+      { name: 'Utilisateur B', loans: 6, totalAmount: 1800000, avgAmount: 300000 },
+      { name: 'Utilisateur C', loans: 5, totalAmount: 1500000, avgAmount: 300000 },
+      { name: 'Utilisateur F', loans: 4, totalAmount: 1200000, avgAmount: 300000 }
     ],
     recentActivity: [
-      { type: 'loan_approved', user: 'Kossi Adama', amount: 500000, date: '2024-01-20T10:30:00' },
-      { type: 'user_registered', user: 'Boubacar Sow', date: '2024-01-20T09:15:00' },
-      { type: 'loan_repaid', user: 'Fatou Diallo', amount: 300000, date: '2024-01-20T08:45:00' },
-      { type: 'loan_requested', user: 'Mariama Keita', amount: 400000, date: '2024-01-20T08:20:00' },
-      { type: 'loan_approved', user: 'Aïcha Ouedraogo', amount: 600000, date: '2024-01-20T07:30:00' }
+      { type: 'loan_approved', user: 'Utilisateur A', amount: 500000, date: '2024-01-20T10:30:00' },
+      { type: 'user_registered', user: 'Utilisateur D', date: '2024-01-20T09:15:00' },
+      { type: 'loan_repaid', user: 'Utilisateur B', amount: 300000, date: '2024-01-20T08:45:00' },
+      { type: 'loan_requested', user: 'Utilisateur E', amount: 400000, date: '2024-01-20T08:20:00' },
+      { type: 'loan_approved', user: 'Utilisateur F', amount: 600000, date: '2024-01-20T07:30:00' }
     ]
   });
 

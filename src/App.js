@@ -19,6 +19,9 @@ import Repayment from './components/Client/Repayment';
 import Profile from './components/Client/Profile';
 import Menu from './components/Client/Menu';
 import ABEpargne from './components/Client/ABEpargne';
+import ABLogement from './components/Client/ABLogement';
+import ABBienEtre from './components/Client/ABBienEtre';
+import ABCampusFinance from './components/Client/ABCampusFinance';
 import './styles/globals.css';
 
 // Composant pour protéger les routes
@@ -158,6 +161,30 @@ function App() {
                             element={
                               <ProtectedRoute>
                                 <ABEpargne />
+                              </ProtectedRoute>
+                            }
+                          />
+                          <Route
+                            path="/ab-logement"
+                            element={
+                              <ProtectedRoute>
+                                <ABLogement />
+                              </ProtectedRoute>
+                            }
+                          />
+                          <Route
+                            path="/ab-bien-etre"
+                            element={
+                              <ProtectedRoute>
+                                <ABBienEtre />
+                              </ProtectedRoute>
+                            }
+                          />
+                          <Route
+                            path="/ab-campus-finance"
+                            element={
+                              <ProtectedRoute>
+                                <ABCampusFinance />
                               </ProtectedRoute>
                             }
                           />
