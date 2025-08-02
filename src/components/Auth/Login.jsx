@@ -137,14 +137,7 @@ const Login = () => {
           </div>
         </div>
 
-        {/* Compte de test */}
-        <div className="bg-primary-50 border border-primary-200 rounded-xl p-4">
-          <h3 className="font-medium text-primary-800 mb-2 font-montserrat">Comptes de test :</h3>
-          <div className="text-sm text-primary-700 space-y-1 font-montserrat">
-            <p><strong>Client :</strong> client@test.com / password123</p>
-            <p><strong>Admin :</strong> admin@test.com / admin123</p>
-          </div>
-        </div>
+
       </div>
     </div>
   );
