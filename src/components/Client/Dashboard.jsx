@@ -422,7 +422,7 @@ const ClientDashboard = () => {
                   }}
                   className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-[length:200%_100%] bg-clip-text text-transparent"
                 >
-                  AVOCE Elodie
+                  Elise HASSI
                 </motion.span>{' '}
                 <motion.span
                   animate={{ 

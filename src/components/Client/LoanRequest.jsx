@@ -37,10 +37,12 @@ import {
   Percent,
   Award,
   Gift,
-  Rocket
+  Rocket,
+  Download
 } from 'lucide-react';
 import { LOAN_CONFIG } from '../../utils/loanConfig';
 import { formatCurrency } from '../../utils/helpers';
+import jsPDF from 'jspdf';
 
 const LoanRequest = () => {
   const { notifications, addNotification, markAsRead, showSuccess, showError } = useNotifications();
@@ -51,7 +53,7 @@ const LoanRequest = () => {
     duration: 5,
     purpose: '',
     monthlyIncome: '',
-    employmentStatus: 'employed',
+    employmentStatus: 'self-employed',
     category: '',
     documents: []
   });
@@ -59,6 +61,7 @@ const LoanRequest = () => {
   const [submitted, setSubmitted] = useState(false);
   const [errors, setErrors] = useState({});
   const [selectedCategory, setSelectedCategory] = useState('');
+  const [calculation, setCalculation] = useState(null);
 
   // Styles CSS pour les animations
   const gradientAnimation = `
@@ -189,6 +192,7 @@ const LoanRequest = () => {
       amount: result.principal.toString(),
       duration: result.duration
     }));
+    setCalculation(result);
   };
 
   // Calcul automatique quand le montant ou la durée change
@@ -297,6 +301,90 @@ const LoanRequest = () => {
       showError('Erreur lors de la soumission de la demande');
       setLoading(false);
     }
+  };
+
+  const generatePDF = () => {
+    const doc = new jsPDF();
+    
+    // Titre principal
+    doc.setFontSize(20);
+    doc.setTextColor(59, 130, 246); // Bleu
+    doc.text('Récapitulatif de Demande de Prêt', 20, 30);
+    
+    // Informations du client
+    doc.setFontSize(14);
+    doc.setTextColor(0, 0, 0);
+    doc.text('Client: Elise HASSI', 20, 50);
+    doc.text(`Date: ${new Date().toLocaleDateString('fr-FR')}`, 20, 60);
+    
+    // Détails du prêt
+    doc.setFontSize(16);
+    doc.setTextColor(59, 130, 246);
+    doc.text('Détails du Prêt', 20, 80);
+    
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`Catégorie: ${loanCategories.find(c => c.id === selectedCategory)?.name || 'Non spécifiée'}`, 20, 95);
+    doc.text(`Montant: ${formatCurrency(parseFloat(formData.amount) || 0)}`, 20, 105);
+    doc.text(`Durée: ${LOAN_CONFIG.durations.find(d => d.days === parseInt(formData.duration))?.label || 'Non spécifiée'}`, 20, 115);
+    doc.text(`Objectif: ${formData.purpose || 'Non spécifié'}`, 20, 125);
+    
+    // Informations personnelles
+    doc.setFontSize(16);
+    doc.setTextColor(59, 130, 246);
+    doc.text('Informations Personnelles', 20, 145);
+    
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    doc.text(`Revenu mensuel: ${formatCurrency(parseFloat(formData.monthlyIncome) || 0)}`, 20, 160);
+    doc.text(`Statut professionnel: ${formData.employmentStatus === 'self-employed' ? 'Indépendant' : 'Étudiant'}`, 20, 170);
+    
+    // Calculs du prêt
+    if (calculation) {
+      doc.setFontSize(16);
+      doc.setTextColor(59, 130, 246);
+      doc.text('Calculs du Prêt', 20, 190);
+      
+      doc.setFontSize(12);
+      doc.setTextColor(0, 0, 0);
+      doc.text(`Taux d'intérêt: ${calculation.interestRate}%`, 20, 205);
+      doc.text(`Intérêts: ${formatCurrency(calculation.interestAmount)}`, 20, 215);
+      doc.text(`Montant total à rembourser: ${formatCurrency(calculation.totalAmount)}`, 20, 225);
+      doc.text(`Paiement: ${formatCurrency(calculation.paymentAmount)} à la fin de la période`, 20, 235);
+    }
+    
+    // Documents requis
+    doc.setFontSize(16);
+    doc.setTextColor(59, 130, 246);
+    doc.text('Documents Requis', 20, 255);
+    
+    doc.setFontSize(12);
+    doc.setTextColor(0, 0, 0);
+    doc.text('• Pièce d\'identité', 20, 270);
+    doc.text('• Justificatif de revenus', 20, 280);
+    doc.text('• Relevé bancaire (3 mois)', 20, 290);
+    
+    // Informations importantes
+    doc.setFontSize(16);
+    doc.setTextColor(59, 130, 246);
+    doc.text('Informations Importantes', 20, 310);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(0, 0, 0);
+    doc.text('• Votre demande sera traitée dans les 24h', 20, 325);
+    doc.text('• Vous recevrez un email de confirmation', 20, 335);
+    doc.text('• Notre équipe vous contactera pour finaliser le processus', 20, 345);
+    doc.text('• Le versement sera effectué sous 48h après approbation', 20, 355);
+    
+    // Pied de page
+    doc.setFontSize(10);
+    doc.setTextColor(128, 128, 128);
+    doc.text('Document généré automatiquement par Campus Finance', 20, 380);
+    doc.text('Ce document ne constitue pas une offre de prêt', 20, 390);
+    
+    // Sauvegarder le PDF
+    const fileName = `demande_pret_${new Date().toISOString().split('T')[0]}.pdf`;
+    doc.save(fileName);
   };
 
   const getStepIcon = (step) => {
@@ -947,9 +1035,7 @@ const LoanRequest = () => {
                             onChange={handleChange}
                             required
                           >
-                            <option value="employed">Salarié</option>
-                            <option value="self-employed">Indépendant</option>
-                            <option value="business-owner">Chef d'entreprise</option>
+                                                          <option value="self-employed">Indépendant</option>
                             <option value="student">Étudiant</option>
                           </Input>
                         </div>
@@ -1073,9 +1159,7 @@ const LoanRequest = () => {
                               <div className="flex justify-between">
                                 <span className="text-secondary-600 font-montserrat">Statut:</span>
                                 <span className="font-medium text-secondary-900 font-montserrat">
-                                  {formData.employmentStatus === 'employed' ? 'Salarié' : 
-                                   formData.employmentStatus === 'self-employed' ? 'Indépendant' :
-                                   formData.employmentStatus === 'business-owner' ? 'Chef d\'entreprise' : 'Étudiant'}
+                                  {formData.employmentStatus === 'self-employed' ? 'Indépendant' : 'Étudiant'}
                                 </span>
                               </div>
                             </div>
@@ -1083,7 +1167,7 @@ const LoanRequest = () => {
                         </div>
                       </div>
                       
-                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-8">
+                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-6">
                         <div className="flex items-start space-x-3">
                           <AlertCircle className="w-6 h-6 text-blue-600 mt-1" />
                           <div>
@@ -1099,6 +1183,25 @@ const LoanRequest = () => {
                           </div>
                         </div>
                       </div>
+
+                      {/* Bouton de téléchargement PDF */}
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3 }}
+                        className="text-center mb-6"
+                      >
+                        <Button
+                          onClick={generatePDF}
+                          className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center space-x-3 mx-auto"
+                        >
+                          <Download className="w-5 h-5" />
+                          <span className="font-semibold">Télécharger le récapitulatif (PDF)</span>
+                        </Button>
+                        <p className="text-sm text-gray-600 mt-2 font-montserrat">
+                          Conservez une copie de votre demande pour vos archives
+                        </p>
+                      </motion.div>
                     </Card>
                   </motion.div>
                 )}

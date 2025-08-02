@@ -14,8 +14,8 @@ import {
 const Menu = () => {
   const navigate = useNavigate();
   const [user, setUser] = useState({
-    name: 'AVOCE Elodie',
-    email: 'elodie.avoce@example.com',
+    name: 'Elise HASSI',
+    email: 'elise.hassi@example.com',
     role: 'client',
     avatar: null
   });
