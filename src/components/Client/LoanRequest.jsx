@@ -48,7 +48,7 @@ const LoanRequest = () => {
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     amount: '',
-    duration: 1,
+    duration: 5,
     purpose: '',
     monthlyIncome: '',
     employmentStatus: 'employed',
@@ -201,7 +201,7 @@ const LoanRequest = () => {
         const interestRate = LOAN_CONFIG.getInterestRate(numDuration);
         const interestAmount = LOAN_CONFIG.calculateInterest(numAmount, numDuration);
         const totalAmount = LOAN_CONFIG.calculateTotalAmount(numAmount, numDuration);
-        const monthlyPayment = LOAN_CONFIG.calculateMonthlyPayment(totalAmount, numDuration);
+        const paymentAmount = LOAN_CONFIG.calculatePaymentAmount(totalAmount, numDuration);
 
         const result = {
           principal: numAmount,
@@ -209,8 +209,8 @@ const LoanRequest = () => {
           interestRate,
           interestAmount,
           totalAmount,
-          monthlyPayment,
-          durationLabel: LOAN_CONFIG.durations.find(d => d.weeks === numDuration)?.label
+          paymentAmount,
+          durationLabel: LOAN_CONFIG.durations.find(d => d.days === numDuration)?.label
         };
 
         handleCalculation(result);
@@ -830,7 +830,7 @@ const LoanRequest = () => {
                                 required
                               >
                                 {LOAN_CONFIG.durations.map((option) => (
-                                  <option key={option.value} value={option.weeks}>
+                                  <option key={option.value} value={option.days}>
                                     {option.label}
                                   </option>
                                 ))}
@@ -868,12 +868,24 @@ const LoanRequest = () => {
                         </div>
                         <div className="space-y-3">
                           <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                            <span className="text-sm font-medium text-green-800 font-montserrat">Prêts courts (1-2 semaines)</span>
-                            <span className="text-lg font-bold text-green-600 font-montserrat">10%</span>
+                            <span className="text-sm font-medium text-green-800 font-montserrat">5 jours</span>
+                            <span className="text-lg font-bold text-green-600 font-montserrat">6%</span>
+                          </div>
+                          <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
+                            <span className="text-sm font-medium text-blue-800 font-montserrat">10 jours</span>
+                            <span className="text-lg font-bold text-blue-600 font-montserrat">10%</span>
+                          </div>
+                          <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
+                            <span className="text-sm font-medium text-yellow-800 font-montserrat">15 jours</span>
+                            <span className="text-lg font-bold text-yellow-600 font-montserrat">15%</span>
                           </div>
                           <div className="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
-                            <span className="text-sm font-medium text-orange-800 font-montserrat">Prêts longs (&gt; 1 mois)</span>
-                            <span className="text-lg font-bold text-orange-600 font-montserrat">35%</span>
+                            <span className="text-sm font-medium text-orange-800 font-montserrat">25 jours</span>
+                            <span className="text-lg font-bold text-orange-600 font-montserrat">22%</span>
+                          </div>
+                          <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
+                            <span className="text-sm font-medium text-red-800 font-montserrat">30 jours</span>
+                            <span className="text-lg font-bold text-red-600 font-montserrat">25%</span>
                           </div>
                         </div>
                       </Card>
@@ -1041,7 +1053,7 @@ const LoanRequest = () => {
                               <div className="flex justify-between">
                                 <span className="text-secondary-600 font-montserrat">Durée:</span>
                                 <span className="font-medium text-secondary-900 font-montserrat">
-                                  {LOAN_CONFIG.durations.find(d => d.weeks === parseInt(formData.duration))?.label}
+                                  {LOAN_CONFIG.durations.find(d => d.days === parseInt(formData.duration))?.label}
                                 </span>
                               </div>
                             </div>

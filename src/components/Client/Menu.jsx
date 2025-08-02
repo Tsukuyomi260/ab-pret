@@ -7,7 +7,8 @@ import {
   ArrowRight,
   PiggyBank,
   Heart,
-  GraduationCap
+  GraduationCap,
+  Award
 } from 'lucide-react';
 
 const Menu = () => {
@@ -61,6 +62,16 @@ const Menu = () => {
       color: 'from-purple-500 to-violet-600',
       bgColor: 'bg-gradient-to-br from-purple-50 to-violet-100',
       iconBg: 'bg-gradient-to-r from-purple-500 to-violet-600'
+    },
+    {
+      icon: <Award size={24} />,
+      title: 'Score de Fidélité',
+      subtitle: 'Programme de récompenses',
+      description: 'Découvrez vos avantages et récompenses pour votre fidélité',
+      action: () => navigate('/loyalty-score'),
+      color: 'from-yellow-500 to-orange-600',
+      bgColor: 'bg-gradient-to-br from-yellow-50 to-orange-100',
+      iconBg: 'bg-gradient-to-r from-yellow-500 to-orange-600'
     }
   ];
 

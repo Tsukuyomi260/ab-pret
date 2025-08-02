@@ -7,7 +7,7 @@ const LoanCalculator = ({
   onCalculate, 
   className = '', 
   initialAmount = '', 
-  initialDuration = 1,
+  initialDuration = 5,
   syncWithForm = false 
 }) => {
   const [amount, setAmount] = useState(initialAmount);
@@ -36,7 +36,7 @@ const LoanCalculator = ({
         const interestRate = LOAN_CONFIG.getInterestRate(numDuration);
         const interestAmount = LOAN_CONFIG.calculateInterest(numAmount, numDuration);
         const totalAmount = LOAN_CONFIG.calculateTotalAmount(numAmount, numDuration);
-        const monthlyPayment = LOAN_CONFIG.calculateMonthlyPayment(totalAmount, numDuration);
+        const paymentAmount = LOAN_CONFIG.calculatePaymentAmount(totalAmount, numDuration);
 
         const result = {
           principal: numAmount,
@@ -44,8 +44,8 @@ const LoanCalculator = ({
           interestRate,
           interestAmount,
           totalAmount,
-          monthlyPayment,
-          durationLabel: LOAN_CONFIG.durations.find(d => d.weeks === numDuration)?.label
+          paymentAmount,
+          durationLabel: LOAN_CONFIG.durations.find(d => d.days === numDuration)?.label
         };
 
         setCalculation(result);
@@ -139,7 +139,7 @@ const LoanCalculator = ({
                 disabled={syncWithForm}
               >
                 {LOAN_CONFIG.durations.map((option) => (
-                  <option key={option.value} value={option.weeks}>
+                  <option key={option.value} value={option.days}>
                     {option.label}
                   </option>
                 ))}
@@ -228,10 +228,7 @@ const LoanCalculator = ({
                       Durée: {calculation.durationLabel}
                     </p>
                     <p className="text-xs text-blue-600 font-montserrat mt-1">
-                      {calculation.duration <= 4 
-                        ? 'Paiement unique à la fin de la période'
-                        : `Paiement mensuel de ${formatCurrency(calculation.monthlyPayment)}`
-                      }
+                      Paiement unique de {formatCurrency(calculation.paymentAmount)} à la fin de la période
                     </p>
                   </div>
                 </div>

@@ -22,6 +22,7 @@ import ABEpargne from './components/Client/ABEpargne';
 import ABLogement from './components/Client/ABLogement';
 import ABBienEtre from './components/Client/ABBienEtre';
 import ABCampusFinance from './components/Client/ABCampusFinance';
+import LoyaltyScore from './components/Client/LoyaltyScore';
 import './styles/globals.css';
 
 // Composant pour protéger les routes
@@ -185,6 +186,14 @@ function App() {
                             element={
                               <ProtectedRoute>
                                 <ABCampusFinance />
+                              </ProtectedRoute>
+                            }
+                          />
+                          <Route
+                            path="/loyalty-score"
+                            element={
+                              <ProtectedRoute>
+                                <LoyaltyScore />
                               </ProtectedRoute>
                             }
                           />

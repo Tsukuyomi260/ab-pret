@@ -13,8 +13,7 @@ const Repayment = () => {
   const { notifications, markAsRead } = useNotifications();
   const navigate = useNavigate();
   const location = useLocation();
-  const [activeLoans, setActiveLoans] = useState([]);
-  const [selectedLoan, setSelectedLoan] = useState(null);
+  const [currentLoan, setCurrentLoan] = useState(null);
   const [paymentAmount, setPaymentAmount] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('mobile_money');
   const [loading, setLoading] = useState(false);
@@ -73,47 +72,31 @@ const Repayment = () => {
   useEffect(() => {
     // Simulation des données (à remplacer par des appels API)
     setTimeout(() => {
-      const loans = [
-        {
-          id: 1,
-          amount: 75000,
-          monthlyPayment: 82500,
-          totalAmount: 82500,
-          paidAmount: 0,
-          remainingAmount: 82500,
-          dueDate: '2025-08-01',
-          nextPaymentDate: '2025-08-01'
-        }
-      ];
-      setActiveLoans(loans);
-      
-      // Si un loanId est passé dans l'état, sélectionner ce prêt
-      if (location.state?.loanId) {
-        const loan = loans.find(l => l.id === location.state.loanId);
-        if (loan) {
-          setSelectedLoan(loan);
-          setPaymentAmount(loan.monthlyPayment.toString());
-        }
-      }
+      const loan = {
+        id: 1,
+        amount: 75000,
+        monthlyPayment: 82500,
+        totalAmount: 82500,
+        paidAmount: 0,
+        remainingAmount: 82500,
+        dueDate: '2025-08-01',
+        nextPaymentDate: '2025-08-01'
+      };
+      setCurrentLoan(loan);
+      setPaymentAmount(loan.monthlyPayment.toString());
     }, 1000);
-  }, [location.state]);
-
-  const handleLoanSelect = (loan) => {
-    setSelectedLoan(loan);
-    setPaymentAmount(loan.monthlyPayment.toString());
-    setErrors({});
-  };
+  }, []);
 
   const validatePayment = () => {
     const newErrors = {};
 
-    if (!selectedLoan) {
-      newErrors.loan = 'Veuillez sélectionner un prêt';
+    if (!currentLoan) {
+      newErrors.loan = 'Aucun prêt actif trouvé';
     }
 
     if (!paymentAmount || parseFloat(paymentAmount) <= 0) {
       newErrors.amount = 'Veuillez entrer un montant valide';
-    } else if (parseFloat(paymentAmount) > selectedLoan?.remainingAmount) {
+    } else if (parseFloat(paymentAmount) > currentLoan?.remainingAmount) {
       newErrors.amount = 'Le montant ne peut pas dépasser le reste à payer';
     }
 
@@ -486,104 +469,95 @@ const Repayment = () => {
       </div>
 
       {/* Contenu principal centré */}
-      <div className="max-w-6xl mx-auto px-4 pb-8">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-          {/* Sélection du prêt */}
-          <div className="lg:col-span-1">
-            <Card title="Prêts actifs" className="bg-white/90 backdrop-blur-sm border-white/20">
-              {activeLoans.length > 0 ? (
-                <div className="space-y-4">
-                  {activeLoans.map((loan) => (
-                    <div 
-                      key={loan.id}
-                      className={`border rounded-2xl p-6 cursor-pointer transition-all duration-300 ${
-                        selectedLoan?.id === loan.id 
-                          ? 'border-primary-500 bg-primary-50/80 shadow-lg' 
-                          : 'border-gray-200/50 hover:border-primary-300 hover:shadow-md bg-white/60 backdrop-blur-sm'
-                      }`}
-                      onClick={() => handleLoanSelect(loan)}
-                    >
-                      <div className="flex items-center justify-between mb-4">
-                        <h3 className="font-semibold text-gray-900 text-lg font-montserrat">Prêt #{loan.id}</h3>
-                        <span className="text-sm text-primary-600 font-medium bg-primary-100/80 px-3 py-1 rounded-full">
-                          {formatCurrency(loan.remainingAmount)} restant
-                        </span>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 gap-4 text-sm">
-                        <div className="p-3 bg-accent-50/50 rounded-xl">
-                          <span className="text-gray-600 text-xs uppercase tracking-wide">Mensualité</span>
-                          <p className="font-semibold text-lg text-gray-900">{formatCurrency(loan.monthlyPayment)}</p>
-                        </div>
-                        <div className="p-3 bg-accent-50/50 rounded-xl">
-                          <span className="text-gray-600 text-xs uppercase tracking-wide">Prochain paiement</span>
-                          <p className="font-semibold text-lg text-gray-900">{new Date(loan.nextPaymentDate).toLocaleDateString('fr-FR')}</p>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
+      <div className="max-w-4xl mx-auto px-4 pb-8">
+        <div className="grid grid-cols-1 gap-8">
+          {/* Informations du prêt actif */}
+          {currentLoan ? (
+            <Card title="Votre prêt actif" className="bg-white/90 backdrop-blur-sm border-white/20">
+              <div className="border rounded-2xl p-6 bg-gradient-to-r from-primary-50/80 to-accent-50/80 border-primary-200/50 shadow-lg">
+                <div className="flex items-center justify-between mb-6">
+                  <h3 className="font-semibold text-gray-900 text-xl font-montserrat">Prêt #{currentLoan.id}</h3>
+                  <span className="text-sm text-primary-600 font-medium bg-primary-100/80 px-4 py-2 rounded-full">
+                    {formatCurrency(currentLoan.remainingAmount)} restant
+                  </span>
                 </div>
-              ) : (
-                <div className="text-center py-12">
-                  <Wallet size={64} className="mx-auto mb-6 text-gray-300" />
-                  <p className="text-gray-500 mb-6 text-lg">Aucun prêt actif à rembourser</p>
-                  <Button 
-                    onClick={() => navigate('/loan-request')}
-                    className="px-8 py-4 text-lg rounded-2xl bg-primary-500 hover:bg-primary-600"
-                  >
-                    Demander un prêt
-                  </Button>
+                
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                  <div className="p-4 bg-white/60 rounded-xl border border-white/50">
+                    <span className="text-gray-600 text-xs uppercase tracking-wide">Mensualité</span>
+                    <p className="font-semibold text-xl text-gray-900">{formatCurrency(currentLoan.monthlyPayment)}</p>
+                  </div>
+                  <div className="p-4 bg-white/60 rounded-xl border border-white/50">
+                    <span className="text-gray-600 text-xs uppercase tracking-wide">Prochain paiement</span>
+                    <p className="font-semibold text-xl text-gray-900">{new Date(currentLoan.nextPaymentDate).toLocaleDateString('fr-FR')}</p>
+                  </div>
+                  <div className="p-4 bg-white/60 rounded-xl border border-white/50">
+                    <span className="text-gray-600 text-xs uppercase tracking-wide">Montant total</span>
+                    <p className="font-semibold text-xl text-gray-900">{formatCurrency(currentLoan.totalAmount)}</p>
+                  </div>
                 </div>
-              )}
+              </div>
             </Card>
-          </div>
+          ) : (
+            <Card title="Aucun prêt actif" className="bg-white/90 backdrop-blur-sm border-white/20">
+              <div className="text-center py-12">
+                <Wallet size={64} className="mx-auto mb-6 text-gray-300" />
+                <p className="text-gray-500 mb-6 text-lg">Aucun prêt actif à rembourser</p>
+                <Button 
+                  onClick={() => navigate('/loan-request')}
+                  className="px-8 py-4 text-lg rounded-2xl bg-primary-500 hover:bg-primary-600"
+                >
+                  Demander un prêt
+                </Button>
+              </div>
+            </Card>
+          )}
 
           {/* Formulaire de paiement */}
-          <div>
+          {currentLoan && (
             <Card title="Paiement" className="bg-white/90 backdrop-blur-sm border-white/20">
-              {selectedLoan ? (
-                <form onSubmit={handleSubmit} className="space-y-6">
-                  {errors.general && (
-                    <div className="bg-red-50/80 border border-red-200/50 text-red-700 px-4 py-3 rounded-2xl flex items-center space-x-2">
-                      <AlertCircle size={20} />
-                      <span>{errors.general}</span>
-                    </div>
-                  )}
+              <form onSubmit={handleSubmit} className="space-y-6">
+                {errors.general && (
+                  <div className="bg-red-50/80 border border-red-200/50 text-red-700 px-4 py-3 rounded-2xl flex items-center space-x-2">
+                    <AlertCircle size={20} />
+                    <span>{errors.general}</span>
+                  </div>
+                )}
 
-                  {/* Informations du prêt sélectionné */}
-                  <div className="bg-blue-50/80 border border-blue-200/50 rounded-2xl p-6">
-                    <div className="flex items-center space-x-3 mb-4">
-                      <CreditCard size={24} className="text-blue-600" />
-                      <h3 className="font-semibold text-blue-900 text-lg font-montserrat">Prêt #{selectedLoan.id}</h3>
+                {/* Informations du prêt actif */}
+                <div className="bg-blue-50/80 border border-blue-200/50 rounded-2xl p-6">
+                  <div className="flex items-center space-x-3 mb-4">
+                    <CreditCard size={24} className="text-blue-600" />
+                    <h3 className="font-semibold text-blue-900 text-lg font-montserrat">Prêt #{currentLoan.id}</h3>
+                  </div>
+                  
+                  <div className="grid grid-cols-1 gap-4 text-sm">
+                    <div className="p-3 bg-blue-100/50 rounded-xl">
+                      <span className="text-blue-700 text-xs uppercase tracking-wide">Reste à payer</span>
+                      <p className="font-bold text-blue-900 text-xl">{formatCurrency(currentLoan.remainingAmount)}</p>
                     </div>
-                    
-                    <div className="grid grid-cols-1 gap-4 text-sm">
-                      <div className="p-3 bg-blue-100/50 rounded-xl">
-                        <span className="text-blue-700 text-xs uppercase tracking-wide">Reste à payer</span>
-                        <p className="font-bold text-blue-900 text-xl">{formatCurrency(selectedLoan.remainingAmount)}</p>
-                      </div>
-                      <div className="p-3 bg-blue-100/50 rounded-xl">
-                        <span className="text-blue-700 text-xs uppercase tracking-wide">Mensualité</span>
-                        <p className="font-bold text-blue-900 text-xl">{formatCurrency(selectedLoan.monthlyPayment)}</p>
-                      </div>
+                    <div className="p-3 bg-blue-100/50 rounded-xl">
+                      <span className="text-blue-700 text-xs uppercase tracking-wide">Mensualité</span>
+                      <p className="font-bold text-blue-900 text-xl">{formatCurrency(currentLoan.monthlyPayment)}</p>
                     </div>
                   </div>
+                </div>
 
-                  {/* Montant du paiement */}
-                  <div>
-                    <Input
-                      label="Montant du paiement (FCFA)"
-                      type="number"
-                      value={paymentAmount}
-                      onChange={(e) => setPaymentAmount(e.target.value)}
-                      placeholder={selectedLoan.monthlyPayment.toString()}
-                      error={errors.amount}
-                      required
-                    />
-                    <p className="text-sm text-gray-500 mt-2 text-center">
-                      Montant suggéré: <span className="font-semibold text-primary-600">{formatCurrency(selectedLoan.monthlyPayment)}</span>
-                    </p>
-                  </div>
+                {/* Montant du paiement */}
+                <div>
+                  <Input
+                    label="Montant du paiement (FCFA)"
+                    type="number"
+                    value={paymentAmount}
+                    onChange={(e) => setPaymentAmount(e.target.value)}
+                    placeholder={currentLoan.monthlyPayment.toString()}
+                    error={errors.amount}
+                    required
+                  />
+                  <p className="text-sm text-gray-500 mt-2 text-center">
+                    Montant suggéré: <span className="font-semibold text-primary-600">{formatCurrency(currentLoan.monthlyPayment)}</span>
+                  </p>
+                </div>
 
                   {/* Mode de paiement */}
                   <div>
@@ -657,15 +631,8 @@ const Repayment = () => {
                     {loading ? 'Traitement...' : 'Effectuer le paiement'}
                   </Button>
                 </form>
-              ) : (
-                <div className="text-center py-12">
-                  <CreditCard size={64} className="mx-auto mb-6 text-gray-300" />
-                  <p className="text-gray-500 text-lg">Sélectionnez un prêt pour effectuer un paiement</p>
-                </div>
-              )}
-            </Card>
-          </div>
-
+              </Card>
+            )}
 
         </div>
       </div>

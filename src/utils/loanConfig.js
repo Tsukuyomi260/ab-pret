@@ -1,16 +1,21 @@
 // Configuration des prêts AB PRET
 export const LOAN_CONFIG = {
-  // Durées disponibles (en semaines)
+  // Durées disponibles (en jours)
   durations: [
-    { value: 1, label: '1 semaine', weeks: 1 },
-    { value: 2, label: '2 semaines', weeks: 2 },
-    { value: 4, label: '1 mois', weeks: 4 }
+    { value: 5, label: '5 jours', days: 5 },
+    { value: 10, label: '10 jours', days: 10 },
+    { value: 15, label: '15 jours', days: 15 },
+    { value: 25, label: '25 jours', days: 25 },
+    { value: 30, label: '30 jours', days: 30 }
   ],
 
-  // Taux d'intérêt selon la durée
+  // Taux d'intérêt selon la durée (en jours)
   interestRates: {
-    shortTerm: 10, // 10% pour les prêts de 1-2 semaines
-    longTerm: 35   // 35% pour les prêts de plus d'un mois
+    5: 6,   // 6% pour 5 jours
+    10: 10, // 10% pour 10 jours
+    15: 15, // 15% pour 15 jours
+    25: 22, // 22% pour 25 jours
+    30: 25  // 25% pour 30 jours
   },
 
   // Montants min/max
@@ -26,34 +31,29 @@ export const LOAN_CONFIG = {
   },
 
   // Calcul du taux selon la durée
-  getInterestRate: (durationWeeks) => {
-    return durationWeeks <= 2 ? LOAN_CONFIG.interestRates.shortTerm : LOAN_CONFIG.interestRates.longTerm;
+  getInterestRate: (durationDays) => {
+    return LOAN_CONFIG.interestRates[durationDays] || 25; // 25% par défaut
   },
 
   // Calcul des intérêts
-  calculateInterest: (amount, durationWeeks) => {
-    const rate = LOAN_CONFIG.getInterestRate(durationWeeks);
+  calculateInterest: (amount, durationDays) => {
+    const rate = LOAN_CONFIG.getInterestRate(durationDays);
     return (amount * rate) / 100;
   },
 
   // Calcul du montant total à rembourser
-  calculateTotalAmount: (amount, durationWeeks) => {
-    const interest = LOAN_CONFIG.calculateInterest(amount, durationWeeks);
+  calculateTotalAmount: (amount, durationDays) => {
+    const interest = LOAN_CONFIG.calculateInterest(amount, durationDays);
     return amount + interest;
   },
 
-  // Calcul du montant mensuel (si applicable)
-  calculateMonthlyPayment: (totalAmount, durationWeeks) => {
-    if (durationWeeks <= 4) {
-      return totalAmount; // Paiement unique
-    }
-    // Pour les prêts plus longs, diviser par le nombre de mois
-    const months = Math.ceil(durationWeeks / 4);
-    return totalAmount / months;
+  // Calcul du montant à rembourser (paiement unique pour tous les prêts)
+  calculatePaymentAmount: (totalAmount, durationDays) => {
+    return totalAmount; // Paiement unique à la fin de la période
   },
 
   // Validation des données
-  validateLoan: (amount, durationWeeks) => {
+  validateLoan: (amount, durationDays) => {
     const errors = [];
 
     if (amount < LOAN_CONFIG.amounts.min) {
@@ -64,8 +64,8 @@ export const LOAN_CONFIG = {
       errors.push(`Le montant maximum est de ${LOAN_CONFIG.amounts.max.toLocaleString()} FCFA`);
     }
 
-    const validDurations = LOAN_CONFIG.durations.map(d => d.weeks);
-    if (!validDurations.includes(durationWeeks)) {
+    const validDurations = LOAN_CONFIG.durations.map(d => d.days);
+    if (!validDurations.includes(durationDays)) {
       errors.push('Durée de prêt non valide');
     }
 

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../context/NotificationContext';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import Card from '../UI/Card';
 import Button from '../UI/Button';
 import NotificationBell from '../UI/NotificationBell';
@@ -26,7 +26,12 @@ import {
   Gift,
   Rocket,
   TrendingUp,
-  DollarSign
+  DollarSign,
+  Info,
+  X,
+  Phone,
+  Zap,
+  CheckCircle2
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 
@@ -134,6 +139,7 @@ const ClientDashboard = () => {
   ];
 
   const [loading, setLoading] = useState(true);
+  const [showLoyaltyInfo, setShowLoyaltyInfo] = useState(false);
 
   useEffect(() => {
     // Simulation des données (à remplacer par des appels API)
@@ -533,10 +539,11 @@ const ClientDashboard = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.5 }}
               >
-                <Card className="bg-gradient-to-br from-secondary-900 to-secondary-800 text-white p-6 h-full">
+                <Card className="bg-gradient-to-br from-secondary-900 to-secondary-800 text-white p-6 h-full cursor-pointer hover:shadow-xl transition-all duration-300 transform hover:scale-105"
+                     onClick={() => navigate('/loyalty-score')}>
                   <div className="flex items-center justify-between mb-4">
                     <div>
-                      <p className="text-secondary-300 font-montserrat text-sm">Score de crédit</p>
+                      <p className="text-secondary-300 font-montserrat text-sm">Score de fidélité</p>
                       <div className="flex items-center space-x-2">
                         <span className="text-3xl font-bold">{stats.creditScore}</span>
                         <div className="flex space-x-1">
@@ -549,8 +556,17 @@ const ClientDashboard = () => {
                         </div>
                       </div>
                     </div>
-                    <div className="p-3 bg-white/10 rounded-full">
-                      <Award className="w-8 h-8 text-yellow-400" />
+                    <div className="flex items-center space-x-2">
+                      <div className="p-3 bg-white/10 rounded-full">
+                        <Award className="w-8 h-8 text-yellow-400" />
+                      </div>
+                      <div className="p-1 bg-white/10 rounded-full cursor-pointer hover:bg-white/20 transition-colors"
+                           onClick={(e) => {
+                             e.stopPropagation();
+                             setShowLoyaltyInfo(true);
+                           }}>
+                        <Info className="w-4 h-4 text-white" />
+                      </div>
                     </div>
                   </div>
                   <div className="space-y-2">
@@ -563,6 +579,12 @@ const ClientDashboard = () => {
                         className="bg-gradient-to-r from-green-400 to-yellow-400 h-2 rounded-full transition-all duration-500"
                         style={{ width: `${(stats.creditScore / 850) * 100}%` }}
                       />
+                    </div>
+                  </div>
+                  <div className="mt-3 pt-3 border-t border-white/10">
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-secondary-300">Cliquez pour voir les détails</span>
+                      <ArrowUpRight className="w-3 h-3" />
                     </div>
                   </div>
                 </Card>
@@ -821,6 +843,148 @@ const ClientDashboard = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal d'information sur le score de fidélité */}
+      <AnimatePresence>
+        {showLoyaltyInfo && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50"
+            onClick={() => setShowLoyaltyInfo(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-white rounded-2xl p-6 max-w-lg w-full max-h-[80vh] overflow-y-auto"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-6">
+                <div className="flex items-center space-x-3">
+                  <div className="p-2 bg-gradient-to-br from-yellow-400 to-yellow-600 rounded-lg">
+                    <Award className="w-6 h-6 text-white" />
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 font-montserrat">
+                    Programme de Fidélité
+                  </h3>
+                </div>
+                <button
+                  onClick={() => setShowLoyaltyInfo(false)}
+                  className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              
+              <div className="space-y-6">
+                {/* Comment ça marche */}
+                <div className="bg-blue-50 p-4 rounded-xl">
+                  <h4 className="font-semibold text-blue-900 mb-3 font-montserrat flex items-center">
+                    <Target className="w-5 h-5 mr-2" />
+                    Comment gagner des points ?
+                  </h4>
+                  <div className="space-y-2 text-sm text-blue-800">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-6 h-6 bg-blue-200 rounded-full flex items-center justify-center text-xs font-bold">1</div>
+                      <span>Effectuez 4 prêts consécutifs</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-6 h-6 bg-blue-200 rounded-full flex items-center justify-center text-xs font-bold">2</div>
+                      <span>Remboursez chaque prêt avant échéance</span>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <div className="w-6 h-6 bg-blue-200 rounded-full flex items-center justify-center text-xs font-bold">3</div>
+                      <span>Gagnez +5 points sur votre score</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Avantages */}
+                <div className="bg-green-50 p-4 rounded-xl">
+                  <h4 className="font-semibold text-green-900 mb-3 font-montserrat flex items-center">
+                    <Gift className="w-5 h-5 mr-2" />
+                    Avantages débloqués
+                  </h4>
+                  <div className="grid grid-cols-1 gap-3">
+                    <div className="flex items-center space-x-3">
+                      <div className="p-2 bg-green-200 rounded-lg">
+                        <Percent className="w-4 h-4 text-green-700" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-green-900 text-sm">Réduction de 2% sur les frais</p>
+                        <p className="text-green-700 text-xs">Économisez sur tous vos prêts futurs</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <div className="p-2 bg-green-200 rounded-lg">
+                        <Phone className="w-4 h-4 text-green-700" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-green-900 text-sm">Forfait d'appel gratuit</p>
+                        <p className="text-green-700 text-xs">Crédit téléphonique sur le numéro de votre choix</p>
+                      </div>
+                    </div>
+                    <div className="flex items-center space-x-3">
+                      <div className="p-2 bg-green-200 rounded-lg">
+                        <Zap className="w-4 h-4 text-green-700" />
+                      </div>
+                      <div>
+                        <p className="font-medium text-green-900 text-sm">Traitement prioritaire</p>
+                        <p className="text-green-700 text-xs">Vos demandes sont traitées en priorité</p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Votre progression */}
+                <div className="bg-purple-50 p-4 rounded-xl">
+                  <h4 className="font-semibold text-purple-900 mb-3 font-montserrat flex items-center">
+                    <TrendingUp className="w-5 h-5 mr-2" />
+                    Votre progression
+                  </h4>
+                  <div className="space-y-3">
+                    <div className="flex justify-between items-center">
+                      <span className="text-sm text-purple-800">Score actuel</span>
+                      <span className="font-bold text-purple-900">75/100</span>
+                    </div>
+                    <div className="w-full bg-purple-200 rounded-full h-2">
+                      <div 
+                        className="bg-gradient-to-r from-purple-500 to-purple-600 h-2 rounded-full transition-all duration-500"
+                        style={{ width: `75%` }}
+                      />
+                    </div>
+                    <p className="text-xs text-purple-700">
+                      Niveau Gold atteint ! Plus que 1 point pour le niveau Platinum.
+                    </p>
+                  </div>
+                </div>
+
+                {/* Call to action */}
+                <div className="flex space-x-3">
+                  <Button
+                    onClick={() => {
+                      setShowLoyaltyInfo(false);
+                      navigate('/loyalty-score');
+                    }}
+                    className="flex-1 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700"
+                  >
+                    Voir les détails complets
+                  </Button>
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowLoyaltyInfo(false)}
+                    className="flex-1"
+                  >
+                    Fermer
+                  </Button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
