@@ -566,7 +566,7 @@ const Repayment = () => {
                     </label>
                     <div className="space-y-3">
                       {[
-                        { value: 'mobile_money', label: 'Mobile Money', description: 'Moov Money, MTN Mobile Money' }
+                        { value: 'mobile_money', label: 'Mobile Money', description: 'Moov Benin, MTN Benin, Celtiis Cash' }
                       ].map((method) => (
                         <label
                           key={method.value}

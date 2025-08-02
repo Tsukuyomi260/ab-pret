@@ -180,9 +180,11 @@ const LoanRequest = () => {
 
   const handleCategorySelect = (categoryId) => {
     setSelectedCategory(categoryId);
+    const selectedCategoryData = loanCategories.find(c => c.id === categoryId);
     setFormData(prev => ({
       ...prev,
-      category: categoryId
+      category: categoryId,
+      purpose: selectedCategoryData ? selectedCategoryData.description : ''
     }));
   };
 
@@ -303,87 +305,225 @@ const LoanRequest = () => {
     }
   };
 
+  // Fonction pour formater les montants en format FCFA
+  const formatAmountFCFA = (amount) => {
+    if (!amount || isNaN(amount)) return '0F';
+    const numAmount = parseFloat(amount);
+    // Formatage sans espaces, avec points pour les milliers
+    const formatted = numAmount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+    return formatted + 'F';
+  };
+
+  // Fonction pour obtenir le texte de l'objectif basé sur la catégorie
+  const getPurposeText = () => {
+    if (formData.purpose && formData.purpose.trim() !== '') {
+      return formData.purpose;
+    }
+    
+    // Si pas d'objectif saisi, utiliser la catégorie sélectionnée
+    const selectedCategoryData = loanCategories.find(c => c.id === selectedCategory);
+    if (selectedCategoryData) {
+      return selectedCategoryData.description;
+    }
+    
+    // Valeur par défaut
+    return 'Financement personnel';
+  };
+
   const generatePDF = () => {
     const doc = new jsPDF();
     
-    // Titre principal
-    doc.setFontSize(20);
-    doc.setTextColor(59, 130, 246); // Bleu
-    doc.text('Récapitulatif de Demande de Prêt', 20, 30);
+    // Configuration de la police pour supporter les caractères français
+    doc.setFont('helvetica');
+    doc.setLanguage('fr');
     
-    // Informations du client
-    doc.setFontSize(14);
-    doc.setTextColor(0, 0, 0);
-    doc.text('Client: Elise HASSI', 20, 50);
-    doc.text(`Date: ${new Date().toLocaleDateString('fr-FR')}`, 20, 60);
+    // Configuration des couleurs
+    const primaryColor = [59, 130, 246]; // Bleu AB Pret
+    const secondaryColor = [107, 114, 128]; // Gris
+    const darkColor = [17, 24, 39]; // Noir foncé
+    const accentColor = [34, 197, 94]; // Vert pour les accents
     
-    // Détails du prêt
-    doc.setFontSize(16);
-    doc.setTextColor(59, 130, 246);
-    doc.text('Détails du Prêt', 20, 80);
-    
-    doc.setFontSize(12);
-    doc.setTextColor(0, 0, 0);
-    doc.text(`Catégorie: ${loanCategories.find(c => c.id === selectedCategory)?.name || 'Non spécifiée'}`, 20, 95);
-    doc.text(`Montant: ${formatCurrency(parseFloat(formData.amount) || 0)}`, 20, 105);
-    doc.text(`Durée: ${LOAN_CONFIG.durations.find(d => d.days === parseInt(formData.duration))?.label || 'Non spécifiée'}`, 20, 115);
-    doc.text(`Objectif: ${formData.purpose || 'Non spécifié'}`, 20, 125);
-    
-    // Informations personnelles
-    doc.setFontSize(16);
-    doc.setTextColor(59, 130, 246);
-    doc.text('Informations Personnelles', 20, 145);
-    
-    doc.setFontSize(12);
-    doc.setTextColor(0, 0, 0);
-    doc.text(`Revenu mensuel: ${formatCurrency(parseFloat(formData.monthlyIncome) || 0)}`, 20, 160);
-    doc.text(`Statut professionnel: ${formData.employmentStatus === 'self-employed' ? 'Indépendant' : 'Étudiant'}`, 20, 170);
-    
-    // Calculs du prêt
-    if (calculation) {
-      doc.setFontSize(16);
-      doc.setTextColor(59, 130, 246);
-      doc.text('Calculs du Prêt', 20, 190);
+    // Fonction pour créer un logo stylisé
+    const createStyledLogo = () => {
+      // Créer un rectangle stylisé pour le logo
+      doc.setFillColor(255, 255, 255);
+      doc.roundedRect(20, 10, 30, 20, 5, 5, 'F');
       
-      doc.setFontSize(12);
-      doc.setTextColor(0, 0, 0);
-      doc.text(`Taux d'intérêt: ${calculation.interestRate}%`, 20, 205);
-      doc.text(`Intérêts: ${formatCurrency(calculation.interestAmount)}`, 20, 215);
-      doc.text(`Montant total à rembourser: ${formatCurrency(calculation.totalAmount)}`, 20, 225);
-      doc.text(`Paiement: ${formatCurrency(calculation.paymentAmount)} à la fin de la période`, 20, 235);
+      // Ajouter les lettres "AB" dans le rectangle
+      doc.setFontSize(14);
+      doc.setTextColor(...primaryColor);
+      doc.text('AB', 35, 22, { align: 'center' });
+      
+      // Ajouter une bordure
+      doc.setDrawColor(...primaryColor);
+      doc.setLineWidth(0.5);
+      doc.roundedRect(20, 10, 30, 20, 5, 5, 'S');
+    };
+    
+    // ===== EN-TÊTE DU DOCUMENT =====
+    
+    // Logo/Header AB Pret (zone stylisée)
+    doc.setFillColor(...primaryColor);
+    doc.rect(0, 0, 210, 40, 'F');
+    
+    // Créer le logo stylisé
+    createStyledLogo();
+    
+    // Titre principal (ajusté avec le logo)
+    doc.setFontSize(28);
+    doc.setTextColor(255, 255, 255); // Blanc
+    doc.text('ENGAGEMENT DE PRÊT', 120, 20, { align: 'center' });
+    
+    doc.setFontSize(20);
+    doc.text('AB PRET', 120, 32, { align: 'center' });
+    
+    // ===== INFORMATIONS DE CONTACT =====
+    doc.setFontSize(12);
+    doc.setTextColor(...darkColor);
+    doc.text('À Mr. Le Directeur de AB Pret', 20, 55);
+    
+    doc.setFontSize(10);
+    doc.setTextColor(...secondaryColor);
+         doc.text('Telephone: +229 53463606', 20, 65);
+     doc.text('Email: abpret51@gmail.com', 20, 75);
+    
+    // Date avec style
+    doc.setFontSize(11);
+    doc.setTextColor(...darkColor);
+         doc.text(`Date: ${new Date().toLocaleDateString('fr-FR', { 
+       day: 'numeric', 
+       month: 'long', 
+       year: 'numeric' 
+     })}`, 20, 90);
+    
+    // Ligne de séparation stylisée
+    doc.setDrawColor(...primaryColor);
+    doc.setLineWidth(1);
+    doc.line(20, 100, 190, 100);
+    
+    // ===== CORPS DU DOCUMENT =====
+    
+    // Variables pour les données
+    const clientName = 'Elise HASSI';
+    const filiere = 'Informatique'; // À récupérer depuis la base de données
+    const anneeEtude = '3ème année'; // À récupérer depuis la base de données
+    const montantPret = formatAmountFCFA(parseFloat(formData.amount) || 0);
+    const dureePret = LOAN_CONFIG.durations.find(d => d.days === parseInt(formData.duration))?.label || 'Non spécifiée';
+    
+    // Texte de l'engagement avec meilleur formatage
+    doc.setFontSize(12);
+    doc.setTextColor(...darkColor);
+    
+    const engagementText = [
+      `Je soussigne(e) ${clientName}, etudiant(e) en ${filiere} en ${anneeEtude},`,
+      `reconnais avoir recu un pret de ${montantPret} de la part de AB Pret,`,
+      `a rembourser avant ${dureePret}.`,
+      '',
+      'En cas de retard, une penalite de 2% sera appliquee.'
+    ];
+    
+    let yPosition = 115;
+    engagementText.forEach((line, index) => {
+      if (line === '') {
+        yPosition += 10; // Plus d'espacement
+      } else {
+        doc.text(line, 20, yPosition);
+        yPosition += 15;
+      }
+    });
+    
+    // ===== INFORMATIONS DÉTAILLÉES =====
+    
+    // Section Informations du crédit avec fond coloré
+    yPosition += 10;
+    doc.setFillColor(240, 248, 255); // Bleu très clair
+    doc.rect(15, yPosition - 5, 180, 80, 'F');
+    
+    doc.setFontSize(16);
+    doc.setTextColor(...primaryColor);
+         doc.text('INFORMATIONS DU CREDIT', 20, yPosition);
+    
+    yPosition += 20;
+    doc.setFontSize(11);
+    doc.setTextColor(...darkColor);
+    
+    if (calculation) {
+             const creditInfo = [
+         `Montant du pret: ${formatAmountFCFA(calculation.principal)}`,
+         `Taux d'interet: ${calculation.interestRate}%`,
+         `Interets: ${formatAmountFCFA(calculation.interestAmount)}`,
+         `Montant total a rembourser: ${formatAmountFCFA(calculation.totalAmount)}`,
+         `Duree: ${calculation.durationLabel}`,
+         `Objectif: ${getPurposeText()}`
+       ];
+      
+      creditInfo.forEach((info, index) => {
+        doc.text(info, 25, yPosition + (index * 12));
+      });
     }
     
-    // Documents requis
+    // Section Informations du client
+    yPosition += 100;
+    doc.setFillColor(240, 255, 244); // Vert très clair
+    doc.rect(15, yPosition - 5, 180, 60, 'F');
+    
     doc.setFontSize(16);
-    doc.setTextColor(59, 130, 246);
-    doc.text('Documents Requis', 20, 255);
+    doc.setTextColor(...accentColor);
+         doc.text('INFORMATIONS DU CLIENT', 20, yPosition);
     
-    doc.setFontSize(12);
-    doc.setTextColor(0, 0, 0);
-    doc.text('• Pièce d\'identité', 20, 270);
-    doc.text('• Justificatif de revenus', 20, 280);
-    doc.text('• Relevé bancaire (3 mois)', 20, 290);
+    yPosition += 20;
+    doc.setFontSize(11);
+    doc.setTextColor(...darkColor);
     
-    // Informations importantes
+         const clientInfo = [
+       `Nom et prenom: ${clientName}`,
+       `Filiere: ${filiere}`,
+       `Annee d'etude: ${anneeEtude}`,
+       `Revenu mensuel: ${formatAmountFCFA(parseFloat(formData.monthlyIncome) || 0)}`,
+       `Statut: ${formData.employmentStatus === 'self-employed' ? 'Independent' : 'Etudiant'}`
+     ];
+    
+    clientInfo.forEach((info, index) => {
+      doc.text(info, 25, yPosition + (index * 12));
+    });
+    
+    // ===== SIGNATURES =====
+    yPosition += 80;
     doc.setFontSize(16);
-    doc.setTextColor(59, 130, 246);
-    doc.text('Informations Importantes', 20, 310);
+    doc.setTextColor(...primaryColor);
+         doc.text('SIGNATURES', 20, yPosition);
     
-    doc.setFontSize(10);
-    doc.setTextColor(0, 0, 0);
-    doc.text('• Votre demande sera traitée dans les 24h', 20, 325);
-    doc.text('• Vous recevrez un email de confirmation', 20, 335);
-    doc.text('• Notre équipe vous contactera pour finaliser le processus', 20, 345);
-    doc.text('• Le versement sera effectué sous 48h après approbation', 20, 355);
+    yPosition += 20;
+    doc.setFontSize(11);
+    doc.setTextColor(...darkColor);
     
-    // Pied de page
-    doc.setFontSize(10);
-    doc.setTextColor(128, 128, 128);
-    doc.text('Document généré automatiquement par Campus Finance', 20, 380);
-    doc.text('Ce document ne constitue pas une offre de prêt', 20, 390);
+    // Lignes de signature stylisées
+    doc.setDrawColor(...primaryColor);
+    doc.setLineWidth(0.5);
+    
+         // Signature de l'emprunteur
+     doc.text('Emprunteur:', 20, yPosition);
+     doc.text('Nom et prenom: ', 20, yPosition + 12);
+     doc.line(60, yPosition + 12, 110, yPosition + 12);
+     doc.text('Signature: ', 20, yPosition + 24);
+     doc.line(50, yPosition + 24, 110, yPosition + 24);
+     
+     // Signature du temoin
+     doc.text('Temoin:', 120, yPosition);
+     doc.text('Nom et prenom: ', 120, yPosition + 12);
+     doc.line(160, yPosition + 12, 210, yPosition + 12);
+     doc.text('Signature: ', 120, yPosition + 24);
+     doc.line(150, yPosition + 24, 210, yPosition + 24);
+    
+    // ===== PIED DE PAGE =====
+    doc.setFontSize(9);
+    doc.setTextColor(...secondaryColor);
+         doc.text('Document genere automatiquement par AB Pret', 20, 280);
+     doc.text('Ce document constitue un engagement de pret officiel', 20, 285);
+     doc.text('Validite: Ce document est valide pour la duree du pret', 20, 290);
     
     // Sauvegarder le PDF
-    const fileName = `demande_pret_${new Date().toISOString().split('T')[0]}.pdf`;
+    const fileName = `engagement_pret_abpret_${new Date().toISOString().split('T')[0]}.pdf`;
     doc.save(fileName);
   };
 
@@ -1184,6 +1324,20 @@ const LoanRequest = () => {
                         </div>
                       </div>
 
+                      {/* Notice de téléchargement */}
+                      <div className="bg-gray-50 border-l-4 border-blue-500 p-4 mb-6">
+                        <div className="flex items-start space-x-3">
+                          <div className="flex-shrink-0">
+                            <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
+                          </div>
+                          <div>
+                            <p className="text-gray-700 font-montserrat text-sm">
+                              <span className="font-semibold text-blue-600">Note :</span> Télécharger le récapitulatif avant de soumettre la demande
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+
                       {/* Bouton de téléchargement PDF */}
                       <motion.div
                         initial={{ opacity: 0, y: 20 }}
@@ -1196,10 +1350,10 @@ const LoanRequest = () => {
                           className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center space-x-3 mx-auto"
                         >
                           <Download className="w-5 h-5" />
-                          <span className="font-semibold">Télécharger le récapitulatif (PDF)</span>
+                          <span className="font-semibold">Télécharger l'Engagement de Prêt (PDF)</span>
                         </Button>
                         <p className="text-sm text-gray-600 mt-2 font-montserrat">
-                          Conservez une copie de votre demande pour vos archives
+                          Téléchargez votre engagement de prêt officiel
                         </p>
                       </motion.div>
                     </Card>
