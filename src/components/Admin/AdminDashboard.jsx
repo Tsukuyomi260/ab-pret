@@ -243,7 +243,7 @@ const AdminDashboard = () => {
   }
 
   return (
-    <div className="flex min-h-screen bg-accent-50 w-full overflow-x-hidden">
+    <div className="flex bg-accent-50 w-full overflow-x-hidden">
       {/* Contenu du dashboard */}
       <main className="w-full overflow-x-hidden">
           {/* Hero Section */}
@@ -263,17 +263,7 @@ const AdminDashboard = () => {
               <div className="max-w-7xl mx-auto">
                 {/* En-tête avec salutation */}
                 <div className="text-center mb-8 lg:mb-12">
-                  <motion.div
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6 }}
-                    className="inline-flex items-center space-x-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full border border-white/30 mb-6"
-                  >
-                    <div className="w-2 h-2 bg-green-400 rounded-full animate-pulse"></div>
-                    <span className="text-sm font-medium text-secondary-700 font-montserrat">
-                      Dashboard Administrateur
-              </span>
-                  </motion.div>
+
 
                   <motion.h1
                     initial={{ opacity: 0, y: 20 }}
@@ -284,14 +274,7 @@ const AdminDashboard = () => {
                     {getGreeting()}, <span className="text-primary-600">Abel</span> ! 👋
                   </motion.h1>
 
-                  <motion.p
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.2 }}
-                    className="text-lg lg:text-xl text-neutral-600 font-montserrat max-w-3xl mx-auto leading-relaxed"
-                  >
-                    Bienvenue dans votre espace de gestion. Supervisez les prêts, gérez vos clients et prenez des décisions éclairées pour AB PRET.
-                  </motion.p>
+
             </div>
             
                 {/* Statistiques rapides */}
@@ -495,14 +478,14 @@ const AdminDashboard = () => {
 
           {/* Contenu principal après Hero */}
           <div className="px-4 lg:px-8 py-8 lg:py-12">
-            <div className="max-w-7xl mx-auto space-y-8 lg:space-y-12">
+            <div className="max-w-7xl mx-auto space-y-6 lg:space-y-8">
               
               {/* Section Activité Récente */}
               <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.5 }}
-                className="space-y-6"
+                className="space-y-4"
               >
                 <div className="flex items-center justify-between">
                   <div>

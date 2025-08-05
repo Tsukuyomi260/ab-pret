@@ -45,24 +45,15 @@ const Menu = () => {
     },
     {
       icon: <Heart size={24} />,
-      title: 'AB Bien-Être',
-      subtitle: 'Santé et bien-être',
+          title: 'AB Nutrition',
+    subtitle: 'Santé et nutrition',
       description: 'Prenez soin de votre santé avec nos solutions de financement médical',
-      action: () => navigate('/ab-bien-etre'),
+              action: () => navigate('/ab-nutrition'),
       color: 'from-pink-500 to-rose-600',
       bgColor: 'bg-gradient-to-br from-pink-50 to-rose-100',
       iconBg: 'bg-gradient-to-r from-pink-500 to-rose-600'
     },
-    {
-      icon: <GraduationCap size={24} />,
-      title: 'AB Campus-Finance',
-      subtitle: 'Financement étudiant',
-      description: 'Solutions de financement spécialement conçues pour les étudiants',
-      action: () => navigate('/ab-campus-finance'),
-      color: 'from-purple-500 to-violet-600',
-      bgColor: 'bg-gradient-to-br from-purple-50 to-violet-100',
-      iconBg: 'bg-gradient-to-r from-purple-500 to-violet-600'
-    },
+
     {
       icon: <Award size={24} />,
       title: 'Score de Fidélité',
@@ -76,7 +67,7 @@ const Menu = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-accent-50 to-secondary-50 pt-0">
+    <div className="bg-gradient-to-br from-primary-50 via-accent-50 to-secondary-50 pt-0">
       {/* Section Hero - En-tête principal */}
       <div className="relative overflow-hidden">
         {/* Background avec gradient animé */}
@@ -87,18 +78,7 @@ const Menu = () => {
           <div className="max-w-7xl mx-auto">
             {/* Section Hero - En-tête principal */}
             <div className="text-center mb-8 lg:mb-12">
-              {/* Badge animé */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                className="inline-flex items-center space-x-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full border border-white/30 mb-6 shadow-lg"
-              >
-                <div className="w-2 h-2 bg-blue-400 rounded-full"></div>
-                <span className="text-sm font-medium text-blue-700 font-montserrat">
-                  📱 Menu Principal
-                </span>
-              </motion.div>
+
 
               {/* Titre principal */}
               <motion.h1

@@ -151,7 +151,7 @@ const ABEpargne = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 pt-0">
+    <div className="bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 pt-0">
       {/* Section Hero */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-green-500 via-emerald-600 to-teal-600 opacity-15"></div>

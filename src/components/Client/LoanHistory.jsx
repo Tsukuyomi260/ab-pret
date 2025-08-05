@@ -265,7 +265,7 @@ const LoanHistory = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-accent-50 to-secondary-50">
+    <div className="bg-gradient-to-br from-primary-50 via-accent-50 to-secondary-50">
       <style>{gradientAnimation}</style>
       
       {/* Section Hero - En-tête principal */}
@@ -410,52 +410,7 @@ const LoanHistory = () => {
           <div className="max-w-7xl mx-auto">
             {/* Section Hero - En-tête principal */}
             <div className="text-center mb-8 lg:mb-12">
-              {/* Badge animé */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                className="inline-flex items-center space-x-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full border border-white/30 mb-6 shadow-lg relative overflow-hidden"
-              >
-                {/* Effet de brillance sur le badge */}
-                <motion.div
-                  animate={{ 
-                    x: ['-100%', '100%']
-                  }}
-                  transition={{ 
-                    duration: 2, 
-                    repeat: Infinity, 
-                    ease: "linear",
-                    delay: 1
-                  }}
-                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
-                />
-                <motion.div 
-                  animate={{ 
-                    scale: [1, 1.2, 1],
-                    opacity: [0.6, 1, 0.6]
-                  }}
-                  transition={{ 
-                    duration: 2, 
-                    repeat: Infinity, 
-                    ease: "easeInOut" 
-                  }}
-                  className="w-2 h-2 bg-purple-400 rounded-full"
-                />
-                <motion.span 
-                  animate={{ 
-                    backgroundPosition: ['0% 50%', '100% 50%', '0% 50%']
-                  }}
-                  transition={{ 
-                    duration: 3, 
-                    repeat: Infinity, 
-                    ease: "linear" 
-                  }}
-                  className="text-sm font-medium text-purple-700 font-montserrat bg-gradient-to-r from-purple-600 via-blue-600 to-purple-600 bg-[length:200%_100%] bg-clip-text text-transparent"
-                >
-                  📊 Historique des Prêts
-                </motion.span>
-              </motion.div>
+
 
               {/* Titre principal */}
               <motion.h1
@@ -834,7 +789,7 @@ const LoanHistory = () => {
         >
           <Card className="bg-white/90 backdrop-blur-sm border-white/20">
             {filteredLoans.length > 0 ? (
-              <div className="space-y-6">
+              <div className="space-y-4">
                 <AnimatePresence>
                   {filteredLoans.map((loan, index) => (
                     <motion.div 

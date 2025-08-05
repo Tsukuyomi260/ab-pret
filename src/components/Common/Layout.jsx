@@ -7,9 +7,9 @@ import { DockProvider } from '../../context/DockContext';
 const Layout = ({ children }) => {
   return (
     <DockProvider>
-      <div className="min-h-screen bg-gray-50 w-full overflow-x-hidden">
+      <div className="bg-gray-50 w-full overflow-x-hidden">
         <Header />
-        <main className="w-full overflow-x-hidden pb-24 pt-20">
+        <main className="w-full overflow-x-hidden pt-20">
           {children}
         </main>
         <Footer />

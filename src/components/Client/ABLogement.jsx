@@ -43,7 +43,7 @@ const ABLogement = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
+    <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50">
       {/* Header avec navigation */}
       <div className="relative overflow-hidden">
         <div className="absolute inset-0 bg-gradient-to-br from-blue-500 via-indigo-600 to-purple-600 opacity-10"></div>
@@ -64,16 +64,7 @@ const ABLogement = () => {
 
             {/* Contenu principal */}
             <div className="text-center max-w-4xl mx-auto">
-              {/* Badge */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                className="inline-flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full shadow-lg mb-8"
-              >
-                <Clock size={20} className="text-white" />
-                <span className="text-white font-semibold">Bientôt Disponible</span>
-              </motion.div>
+
 
               {/* Titre principal */}
               <motion.h1

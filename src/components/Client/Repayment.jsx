@@ -145,7 +145,7 @@ const Repayment = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-primary-50 via-accent-50 to-secondary-50">
+    <div className="bg-gradient-to-br from-primary-50 via-accent-50 to-secondary-50">
       <style>{gradientAnimation}</style>
       
       {/* Section Hero - En-tête principal */}
@@ -312,52 +312,7 @@ const Repayment = () => {
 
             {/* Section Hero - En-tête principal */}
             <div className="text-center mb-8 lg:mb-12">
-              {/* Badge animé */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                className="inline-flex items-center space-x-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full border border-white/30 mb-6 shadow-lg relative overflow-hidden"
-              >
-                {/* Effet de brillance sur le badge */}
-                <motion.div
-                  animate={{ 
-                    x: ['-100%', '100%']
-                  }}
-                  transition={{ 
-                    duration: 2, 
-                    repeat: Infinity, 
-                    ease: "linear",
-                    delay: 1
-                  }}
-                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
-                />
-                <motion.div 
-                  animate={{ 
-                    scale: [1, 1.2, 1],
-                    opacity: [0.6, 1, 0.6]
-                  }}
-                  transition={{ 
-                    duration: 2, 
-                    repeat: Infinity, 
-                    ease: "easeInOut" 
-                  }}
-                  className="w-2 h-2 bg-green-400 rounded-full"
-                />
-                <motion.span 
-                  animate={{ 
-                    backgroundPosition: ['0% 50%', '100% 50%', '0% 50%']
-                  }}
-                  transition={{ 
-                    duration: 3, 
-                    repeat: Infinity, 
-                    ease: "linear" 
-                  }}
-                  className="text-sm font-medium text-green-700 font-montserrat bg-gradient-to-r from-green-600 via-emerald-600 to-green-600 bg-[length:200%_100%] bg-clip-text text-transparent"
-                >
-                  💰 Remboursement de Prêt
-                </motion.span>
-              </motion.div>
+
 
               {/* Titre principal */}
               <motion.h1
@@ -396,73 +351,7 @@ const Repayment = () => {
                 </motion.span>
               </motion.h1>
 
-              {/* Description */}
-              <motion.p
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="text-lg lg:text-xl text-neutral-600 font-montserrat max-w-3xl mx-auto leading-relaxed"
-              >
-                Effectuez vos paiements de prêt en toute simplicité et sécurité
-              </motion.p>
 
-              {/* Sous-titre avec icônes animées */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.3 }}
-                className="flex items-center justify-center space-x-6 mt-6"
-              >
-                <motion.div
-                  animate={{ 
-                    y: [0, -5, 0],
-                    rotate: [0, 5, 0]
-                  }}
-                  transition={{ 
-                    duration: 3, 
-                    repeat: Infinity, 
-                    ease: "easeInOut" 
-                  }}
-                  className="flex items-center space-x-2 text-sm text-neutral-500"
-                >
-                  <Wallet size={16} className="text-green-500" />
-                  <span>Paiement sécurisé</span>
-                </motion.div>
-                
-                <motion.div
-                  animate={{ 
-                    y: [0, -5, 0],
-                    rotate: [0, -5, 0]
-                  }}
-                  transition={{ 
-                    duration: 3, 
-                    repeat: Infinity, 
-                    ease: "easeInOut",
-                    delay: 1
-                  }}
-                  className="flex items-center space-x-2 text-sm text-neutral-500"
-                >
-                  <Shield size={16} className="text-emerald-500" />
-                  <span>Transactions protégées</span>
-                </motion.div>
-                
-                <motion.div
-                  animate={{ 
-                    y: [0, -5, 0],
-                    rotate: [0, 5, 0]
-                  }}
-                  transition={{ 
-                    duration: 3, 
-                    repeat: Infinity, 
-                    ease: "easeInOut",
-                    delay: 2
-                  }}
-                  className="flex items-center space-x-2 text-sm text-neutral-500"
-                >
-                  <CheckCircle size={16} className="text-orange-500" />
-                  <span>Confirmation instantanée</span>
-                </motion.div>
-              </motion.div>
             </div>
           </div>
         </div>
@@ -516,7 +405,7 @@ const Repayment = () => {
           {/* Formulaire de paiement */}
           {currentLoan && (
             <Card title="Paiement" className="bg-white/90 backdrop-blur-sm border-white/20">
-              <form onSubmit={handleSubmit} className="space-y-6">
+              <form onSubmit={handleSubmit} className="space-y-4">
                 {errors.general && (
                   <div className="bg-red-50/80 border border-red-200/50 text-red-700 px-4 py-3 rounded-2xl flex items-center space-x-2">
                     <AlertCircle size={20} />

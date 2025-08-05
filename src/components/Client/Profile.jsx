@@ -185,7 +185,7 @@ const Profile = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden">
+    <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 relative overflow-hidden">
       {/* CSS Animations */}
       <style>
         {`
@@ -281,25 +281,7 @@ const Profile = () => {
           className="relative text-center py-16 px-4"
         >
           <div className="max-w-5xl mx-auto">
-            {/* Badge animé */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.5 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.6, delay: 0.2 }}
-              className="inline-flex items-center space-x-2 bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white px-6 py-3 rounded-full mb-8 relative overflow-hidden"
-            >
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 20, repeat: Infinity, ease: "linear" }}
-                className="w-2 h-2 bg-white rounded-full"
-              />
-              <span className="font-semibold text-sm">👤 Mon Profil Personnel</span>
-              <motion.div
-                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
-                animate={{ x: [-100, 100] }}
-                transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-              />
-            </motion.div>
+
 
             {/* Titre principal */}
             <motion.h1
@@ -320,62 +302,7 @@ const Profile = () => {
               </motion.span>
             </motion.h1>
 
-            {/* Description */}
-            <motion.p
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.6 }}
-              className="text-xl lg:text-2xl text-gray-600 font-montserrat leading-relaxed mb-8 max-w-3xl mx-auto"
-            >
-              Gérez vos informations personnelles et consultez vos statistiques détaillées
-            </motion.p>
 
-            {/* Sous-titre avec icônes animées */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.8, delay: 0.8 }}
-              className="flex items-center justify-center space-x-6 text-gray-500"
-            >
-              <motion.div
-                whileHover={{ scale: 1.1, rotate: 5 }}
-                className="flex items-center space-x-2"
-              >
-                <motion.div
-                  animate={{ scale: [1, 1.2, 1] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut" }}
-                >
-                  <User size={20} className="text-blue-500" />
-                </motion.div>
-                <span className="text-sm font-medium">Informations</span>
-              </motion.div>
-              
-              <motion.div
-                whileHover={{ scale: 1.1, rotate: -5 }}
-                className="flex items-center space-x-2"
-              >
-                <motion.div
-                  animate={{ scale: [1, 1.2, 1] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 0.5 }}
-                >
-                  <Shield size={20} className="text-indigo-500" />
-                </motion.div>
-                <span className="text-sm font-medium">Sécurité</span>
-              </motion.div>
-              
-              <motion.div
-                whileHover={{ scale: 1.1, rotate: 5 }}
-                className="flex items-center space-x-2"
-              >
-                <motion.div
-                  animate={{ scale: [1, 1.2, 1] }}
-                  transition={{ duration: 2, repeat: Infinity, ease: "easeInOut", delay: 1 }}
-                >
-                  <Activity size={20} className="text-purple-500" />
-                </motion.div>
-                <span className="text-sm font-medium">Statistiques</span>
-              </motion.div>
-            </motion.div>
           </div>
         </motion.div>
       </div>
@@ -394,7 +321,7 @@ const Profile = () => {
             initial={{ opacity: 0, x: -20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.3 }}
-            className="lg:col-span-2 space-y-6"
+                            className="lg:col-span-2 space-y-4"
           >
             {/* Carte principale du profil */}
             {/* Formulaire Interactif avec animations sophistiquées */}
@@ -1078,7 +1005,7 @@ const Profile = () => {
             initial={{ opacity: 0, x: 20 }}
             animate={{ opacity: 1, x: 0 }}
             transition={{ delay: 0.6 }}
-            className="space-y-6"
+            className="space-y-4"
           >
             {/* Avatar et infos de base avec animations sophistiquées */}
             <motion.div

@@ -57,8 +57,8 @@ const Dock = ({
         duration: 0.3
       }}
     >
-      {/* Fond avec glassmorphism très transparent */}
-      <div className="absolute inset-0 bg-white/30 backdrop-blur-3xl border border-white/30 rounded-3xl shadow-2xl" />
+      {/* Fond blanc */}
+      <div className="absolute inset-0 bg-white border border-accent-200 rounded-3xl shadow-2xl" />
       
       {/* Container du dock */}
       <div 
@@ -84,12 +84,12 @@ const Dock = ({
                 {/* Item principal */}
                 <motion.div
                   className={`
-                    flex flex-col items-center justify-center rounded-2xl cursor-pointer backdrop-blur-xl
+                    flex flex-col items-center justify-center rounded-2xl cursor-pointer
                     ${isActive 
-                      ? 'bg-primary-100/60 shadow-lg' 
+                      ? 'bg-primary-100 shadow-lg' 
                       : isHovered 
-                        ? 'bg-primary-100/50 shadow-lg' 
-                        : 'bg-white/40 hover:bg-white/60'
+                        ? 'bg-accent-100 shadow-lg' 
+                        : 'bg-transparent hover:bg-accent-50'
                     }
                     transition-all duration-300 ease-out
                   `}

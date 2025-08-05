@@ -20,8 +20,8 @@ import Profile from './components/Client/Profile';
 import Menu from './components/Client/Menu';
 import ABEpargne from './components/Client/ABEpargne';
 import ABLogement from './components/Client/ABLogement';
-import ABBienEtre from './components/Client/ABBienEtre';
-import ABCampusFinance from './components/Client/ABCampusFinance';
+import ABNutrition from './components/Client/ABNutrition';
+
 import LoyaltyScore from './components/Client/LoyaltyScore';
 import './styles/globals.css';
 
@@ -174,21 +174,14 @@ function App() {
                             }
                           />
                           <Route
-                            path="/ab-bien-etre"
+                            path="/ab-nutrition"
                             element={
                               <ProtectedRoute>
-                                <ABBienEtre />
+                                <ABNutrition />
                               </ProtectedRoute>
                             }
                           />
-                          <Route
-                            path="/ab-campus-finance"
-                            element={
-                              <ProtectedRoute>
-                                <ABCampusFinance />
-                              </ProtectedRoute>
-                            }
-                          />
+                          
                           <Route
                             path="/loyalty-score"
                             element={

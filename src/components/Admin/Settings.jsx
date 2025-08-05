@@ -464,7 +464,7 @@ const Settings = () => {
   ];
 
   return (
-    <div className="min-h-screen bg-accent-50">
+    <div className="bg-accent-50">
       <style>{gradientAnimation}</style>
       {/* Header avec design moderne */}
       <div className="relative overflow-hidden">
@@ -561,38 +561,7 @@ const Settings = () => {
           <div className="max-w-7xl mx-auto">
             {/* En-tête avec salutation */}
             <div className="text-center mb-8 lg:mb-12">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                className="inline-flex items-center space-x-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full border border-white/30 mb-6"
-              >
-                <motion.div 
-                  animate={{ 
-                    scale: [1, 1.2, 1],
-                    opacity: [0.6, 1, 0.6]
-                  }}
-                  transition={{ 
-                    duration: 2, 
-                    repeat: Infinity, 
-                    ease: "easeInOut" 
-                  }}
-                  className="w-2 h-2 bg-blue-400 rounded-full"
-                />
-                <motion.span 
-                  animate={{ 
-                    backgroundPosition: ['0% 50%', '100% 50%', '0% 50%']
-                  }}
-                  transition={{ 
-                    duration: 3, 
-                    repeat: Infinity, 
-                    ease: "linear" 
-                  }}
-                  className="text-sm font-medium text-blue-700 font-montserrat bg-gradient-to-r from-blue-600 via-purple-600 to-blue-600 bg-[length:200%_100%] bg-clip-text text-transparent"
-                >
-                  Configuration & Paramètres
-                </motion.span>
-              </motion.div>
+
 
               <motion.h1
                 initial={{ opacity: 0, y: 20 }}
@@ -629,14 +598,7 @@ const Settings = () => {
                 </motion.span>
               </motion.h1>
 
-              <motion.p
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="text-lg lg:text-xl text-neutral-600 font-montserrat max-w-3xl mx-auto leading-relaxed"
-              >
-                Personnalisez votre expérience, sécurisez votre compte et optimisez les performances du système.
-              </motion.p>
+
             </div>
 
             {/* Indicateur de connexion temps réel */}

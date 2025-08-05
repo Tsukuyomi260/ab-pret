@@ -264,7 +264,7 @@ const UserManagement = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-accent-50 flex items-center justify-center">
+      <div className="bg-accent-50 flex items-center justify-center">
         <motion.div
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
@@ -278,7 +278,7 @@ const UserManagement = () => {
   }
 
   return (
-    <div className="min-h-screen bg-accent-50">
+    <div className="bg-accent-50">
       {/* Header avec design moderne */}
       <div className="relative overflow-hidden">
         {/* Background avec gradient */}
@@ -296,17 +296,7 @@ const UserManagement = () => {
           <div className="max-w-7xl mx-auto">
             {/* En-tête avec salutation */}
             <div className="text-center mb-8 lg:mb-12">
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                className="inline-flex items-center space-x-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full border border-white/30 mb-6"
-              >
-                <div className="w-2 h-2 bg-blue-400 rounded-full animate-pulse"></div>
-                <span className="text-sm font-medium text-blue-700 font-montserrat">
-                Gestion des Utilisateurs
-                </span>
-              </motion.div>
+
 
               <motion.h1
                 initial={{ opacity: 0, y: 20 }}
@@ -317,14 +307,7 @@ const UserManagement = () => {
                 Gestion des <span className="text-blue-600">Utilisateurs</span> 👥
               </motion.h1>
 
-              <motion.p
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="text-lg lg:text-xl text-neutral-600 font-montserrat max-w-3xl mx-auto leading-relaxed"
-              >
-                Supervisez et gérez tous les utilisateurs de AB PRET avec des outils avancés et des insights détaillés.
-              </motion.p>
+
             </div>
 
             {/* Statistiques avec design moderne */}
@@ -776,7 +759,7 @@ const UserManagement = () => {
                   </button>
                 </div>
 
-                <div className="space-y-6">
+                <div className="space-y-4">
                   {/* En-tête utilisateur */}
                   <div className="flex items-center space-x-4">
                     <div className="w-20 h-20 bg-gradient-to-br from-blue-500 to-purple-600 rounded-full flex items-center justify-center text-white font-bold text-xl">

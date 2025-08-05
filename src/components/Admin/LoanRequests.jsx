@@ -304,7 +304,7 @@ const LoanRequests = () => {
 
   if (loading) {
     return (
-      <div className="min-h-screen bg-gradient-to-br from-accent-50 to-accent-100 flex items-center justify-center">
+      <div className="bg-gradient-to-br from-accent-50 to-accent-100 flex items-center justify-center">
         <motion.div
           initial={{ opacity: 0, scale: 0.8 }}
           animate={{ opacity: 1, scale: 1 }}
@@ -318,7 +318,7 @@ const LoanRequests = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-accent-50 to-accent-100">
+    <div className="bg-gradient-to-br from-accent-50 to-accent-100">
       <style>{gradientAnimation}</style>
       
       {/* Section Hero - En-tête principal */}
@@ -463,52 +463,7 @@ const LoanRequests = () => {
           <div className="max-w-7xl mx-auto">
             {/* Section Hero - En-tête principal */}
             <div className="text-center mb-8 lg:mb-12">
-              {/* Badge animé */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                className="inline-flex items-center space-x-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full border border-white/30 mb-6 shadow-lg relative overflow-hidden"
-              >
-                {/* Effet de brillance sur le badge */}
-                <motion.div
-                  animate={{ 
-                    x: ['-100%', '100%']
-                  }}
-                  transition={{ 
-                    duration: 2, 
-                    repeat: Infinity, 
-                    ease: "linear",
-                    delay: 1
-                  }}
-                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
-                />
-                <motion.div 
-                  animate={{ 
-                    scale: [1, 1.2, 1],
-                    opacity: [0.6, 1, 0.6]
-                  }}
-                  transition={{ 
-                    duration: 2, 
-                    repeat: Infinity, 
-                    ease: "easeInOut" 
-                  }}
-                  className="w-2 h-2 bg-orange-400 rounded-full"
-                />
-                <motion.span 
-                  animate={{ 
-                    backgroundPosition: ['0% 50%', '100% 50%', '0% 50%']
-                  }}
-                  transition={{ 
-                    duration: 3, 
-                    repeat: Infinity, 
-                    ease: "linear" 
-                  }}
-                  className="text-sm font-medium text-orange-700 font-montserrat bg-gradient-to-r from-orange-600 via-red-600 to-orange-600 bg-[length:200%_100%] bg-clip-text text-transparent"
-                >
-                  🎯 Gestion des Demandes
-                </motion.span>
-              </motion.div>
+
 
               {/* Titre principal */}
               <motion.h1
@@ -547,73 +502,7 @@ const LoanRequests = () => {
                 </motion.span>
               </motion.h1>
 
-              {/* Description */}
-              <motion.p
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="text-lg lg:text-xl text-neutral-600 font-montserrat max-w-3xl mx-auto leading-relaxed"
-              >
-                Gérez et validez les demandes de prêt des clients avec efficacité et précision.
-              </motion.p>
 
-              {/* Sous-titre avec icônes animées */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.3 }}
-                className="flex items-center justify-center space-x-6 mt-6"
-              >
-                <motion.div
-                  animate={{ 
-                    y: [0, -5, 0],
-                    rotate: [0, 5, 0]
-                  }}
-                  transition={{ 
-                    duration: 3, 
-                    repeat: Infinity, 
-                    ease: "easeInOut" 
-                  }}
-                  className="flex items-center space-x-2 text-sm text-neutral-500"
-                >
-                  <CheckCircle size={16} className="text-green-500" />
-                  <span>Validation rapide</span>
-                </motion.div>
-                
-                <motion.div
-                  animate={{ 
-                    y: [0, -5, 0],
-                    rotate: [0, -5, 0]
-                  }}
-                  transition={{ 
-                    duration: 3, 
-                    repeat: Infinity, 
-                    ease: "easeInOut",
-                    delay: 1
-                  }}
-                  className="flex items-center space-x-2 text-sm text-neutral-500"
-                >
-                  <Shield size={16} className="text-blue-500" />
-                  <span>Sécurité garantie</span>
-                </motion.div>
-                
-                <motion.div
-                  animate={{ 
-                    y: [0, -5, 0],
-                    rotate: [0, 5, 0]
-                  }}
-                  transition={{ 
-                    duration: 3, 
-                    repeat: Infinity, 
-                    ease: "easeInOut",
-                    delay: 2
-                  }}
-                  className="flex items-center space-x-2 text-sm text-neutral-500"
-                >
-                  <Activity size={16} className="text-purple-500" />
-                  <span>Suivi en temps réel</span>
-                </motion.div>
-              </motion.div>
             </div>
 
             {/* Actions principales */}

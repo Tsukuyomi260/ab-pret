@@ -21,8 +21,8 @@ const Footer = () => {
   };
 
   return (
-    <footer className="bg-white/80 backdrop-blur-sm border-t border-accent-200 mt-8">
-      <div className="max-w-7xl mx-auto px-4 py-4">
+    <footer className="bg-white/80 backdrop-blur-sm border-t border-accent-200">
+      <div className="max-w-7xl mx-auto px-4 pt-2 pb-4">
         {/* Version mobile compacte */}
         <div className="lg:hidden">
           <div className="flex items-center justify-between">

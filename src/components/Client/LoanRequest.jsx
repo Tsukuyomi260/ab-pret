@@ -15,7 +15,6 @@ import {
   Calendar, 
   DollarSign, 
   TrendingUp, 
-  Shield, 
   Clock, 
   Star,
   Zap,
@@ -31,7 +30,6 @@ import {
   User,
   FileText,
   ArrowRight,
-  Sparkles,
   Activity,
   BarChart3,
   Percent,
@@ -548,7 +546,7 @@ const LoanRequest = () => {
   };
 
   return (
-    <div id="loan-request-page" className="min-h-screen bg-accent-50">
+    <div id="loan-request-page" className="bg-accent-50">
       <style>{gradientAnimation}</style>
       
       {/* Header avec design moderne */}
@@ -693,52 +691,7 @@ const LoanRequest = () => {
           <div className="max-w-7xl mx-auto">
             {/* Section Hero - En-tête principal */}
             <div className="text-center mb-8 lg:mb-12">
-              {/* Badge animé */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6 }}
-                className="inline-flex items-center space-x-2 px-4 py-2 bg-white/20 backdrop-blur-sm rounded-full border border-white/30 mb-6 shadow-lg relative overflow-hidden"
-              >
-                {/* Effet de brillance sur le badge */}
-                <motion.div
-                  animate={{ 
-                    x: ['-100%', '100%']
-                  }}
-                  transition={{ 
-                    duration: 2, 
-                    repeat: Infinity, 
-                    ease: "linear",
-                    delay: 1
-                  }}
-                  className="absolute inset-0 bg-gradient-to-r from-transparent via-white/30 to-transparent"
-                />
-                <motion.div 
-                  animate={{ 
-                    scale: [1, 1.2, 1],
-                    opacity: [0.6, 1, 0.6]
-                  }}
-                  transition={{ 
-                    duration: 2, 
-                    repeat: Infinity, 
-                    ease: "easeInOut" 
-                  }}
-                  className="w-2 h-2 bg-green-400 rounded-full"
-                />
-                <motion.span 
-                  animate={{ 
-                    backgroundPosition: ['0% 50%', '100% 50%', '0% 50%']
-                  }}
-                  transition={{ 
-                    duration: 3, 
-                    repeat: Infinity, 
-                    ease: "linear" 
-                  }}
-                  className="text-sm font-medium text-green-700 font-montserrat bg-gradient-to-r from-green-600 via-blue-600 to-green-600 bg-[length:200%_100%] bg-clip-text text-transparent"
-                >
-                  🚀 Demande de Prêt
-                </motion.span>
-              </motion.div>
+
 
               {/* Titre principal */}
               <motion.h1
@@ -777,74 +730,7 @@ const LoanRequest = () => {
                 </motion.span>
               </motion.h1>
 
-              {/* Description */}
-              <motion.p
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="text-lg lg:text-xl text-neutral-600 font-montserrat max-w-3xl mx-auto leading-relaxed"
-              >
-                Remplissez les étapes ci-dessous pour demander votre prêt. 
-                Notre processus est simple, rapide et sécurisé.
-              </motion.p>
 
-              {/* Sous-titre avec icônes animées */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.3 }}
-                className="flex items-center justify-center space-x-6 mt-6"
-              >
-                <motion.div
-                  animate={{ 
-                    y: [0, -5, 0],
-                    rotate: [0, 5, 0]
-                  }}
-                  transition={{ 
-                    duration: 3, 
-                    repeat: Infinity, 
-                    ease: "easeInOut" 
-                  }}
-                  className="flex items-center space-x-2 text-sm text-neutral-500"
-                >
-                  <CheckCircle size={16} className="text-green-500" />
-                  <span>Processus simple</span>
-                </motion.div>
-                
-                <motion.div
-                  animate={{ 
-                    y: [0, -5, 0],
-                    rotate: [0, -5, 0]
-                  }}
-                  transition={{ 
-                    duration: 3, 
-                    repeat: Infinity, 
-                    ease: "easeInOut",
-                    delay: 1
-                  }}
-                  className="flex items-center space-x-2 text-sm text-neutral-500"
-                >
-                  <Clock size={16} className="text-blue-500" />
-                  <span>Réponse rapide</span>
-                </motion.div>
-                
-                <motion.div
-                  animate={{ 
-                    y: [0, -5, 0],
-                    rotate: [0, 5, 0]
-                  }}
-                  transition={{ 
-                    duration: 3, 
-                    repeat: Infinity, 
-                    ease: "easeInOut",
-                    delay: 2
-                  }}
-                  className="flex items-center space-x-2 text-sm text-neutral-500"
-                >
-                  <Shield size={16} className="text-purple-500" />
-                  <span>100% sécurisé</span>
-                </motion.div>
-              </motion.div>
             </div>
 
             {/* Indicateur de progression */}
@@ -902,16 +788,16 @@ const LoanRequest = () => {
                   >
                     {/* Sélection de catégorie */}
                     <Card className="bg-white">
-                      <div className="mb-6">
-                        <h3 className="text-2xl font-bold text-secondary-900 font-montserrat mb-2">
+                      <div className="mb-4">
+                        <h3 className="text-xl font-bold text-secondary-900 font-montserrat mb-1">
                           Choisissez votre catégorie
                         </h3>
-                        <p className="text-secondary-600 font-montserrat">
+                        <p className="text-sm text-secondary-600 font-montserrat">
                           Sélectionnez la catégorie qui correspond le mieux à votre besoin
                         </p>
                       </div>
                       
-                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                         {loanCategories.map((category, index) => (
                           <motion.div
                             key={category.id}
@@ -919,16 +805,16 @@ const LoanRequest = () => {
                             animate={{ opacity: 1, y: 0 }}
                             transition={{ delay: index * 0.1 }}
                             whileHover={{ 
-                              scale: 1.05, 
-                              y: -5,
-                              boxShadow: "0 25px 50px -12px rgba(0, 0, 0, 0.25)"
+                              scale: 1.02, 
+                              y: -2,
+                              boxShadow: "0 8px 20px -4px rgba(0, 0, 0, 0.1)"
                             }}
-                            whileTap={{ scale: 0.95 }}
-                            className={`p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 relative overflow-hidden ${
+                            whileTap={{ scale: 0.98 }}
+                            className={`group cursor-pointer relative overflow-hidden ${
                               selectedCategory === category.id
-                                ? 'border-primary-500 bg-primary-50 shadow-lg'
-                                : 'border-gray-200 hover:border-primary-300 hover:shadow-md'
-                            }`}
+                                ? 'bg-gradient-to-r from-primary-500 to-primary-600 shadow-lg'
+                                : 'bg-gradient-to-r from-gray-50 to-gray-100 hover:from-primary-50 hover:to-primary-100'
+                            } rounded-xl border border-gray-200 hover:border-primary-300 transition-all duration-300`}
                             onClick={() => handleCategorySelect(category.id)}
                           >
                             {/* Effet de brillance */}
@@ -937,24 +823,40 @@ const LoanRequest = () => {
                                 x: ['-100%', '100%']
                               }}
                               transition={{ 
-                                duration: 3, 
+                                duration: 2, 
                                 repeat: Infinity, 
                                 ease: "linear",
-                                delay: index * 0.5
+                                delay: index * 0.3
                               }}
-                              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
+                              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full"
                             />
-                            <div className="flex items-center space-x-3 mb-2">
-                              <div className={`p-2 bg-gradient-to-r ${category.color} rounded-lg text-white`}>
-                                {category.icon}
+                            
+                            <div className="p-3 h-24 flex flex-col justify-center relative z-10">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className={`w-10 h-10 ${selectedCategory === category.id ? 'bg-white/20' : 'bg-primary-100'} backdrop-blur-sm rounded-lg flex items-center justify-center`}>
+                                  <div className={`${selectedCategory === category.id ? 'text-white' : 'text-primary-600'}`}>
+                                    {category.icon}
+                                  </div>
+                                </div>
+                                {selectedCategory === category.id && (
+                                  <div className="w-5 h-5 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
+                                    <CheckCircle size={14} className="text-white" />
+                                  </div>
+                                )}
                               </div>
-                              <h4 className="font-semibold text-secondary-900 font-montserrat">
+                              
+                              <h4 className={`font-semibold text-base font-montserrat mb-1 ${
+                                selectedCategory === category.id ? 'text-white' : 'text-secondary-900'
+                              }`}>
                                 {category.name}
                               </h4>
+                              
+                              <p className={`text-xs font-montserrat leading-tight line-clamp-2 ${
+                                selectedCategory === category.id ? 'text-white/90' : 'text-secondary-600'
+                              }`}>
+                                {category.description}
+                              </p>
                             </div>
-                            <p className="text-sm text-secondary-600 font-montserrat relative z-10">
-                              {category.description}
-                            </p>
                           </motion.div>
                         ))}
                       </div>
@@ -967,47 +869,7 @@ const LoanRequest = () => {
                       )}
                     </Card>
 
-                    {/* Informations sur les catégories */}
-                    <div className="space-y-6">
-                      <Card className="bg-gradient-to-br from-primary-500 to-primary-600 text-white">
-                        <div className="flex items-center space-x-3 mb-4">
-                          <Sparkles className="w-8 h-8" />
-                          <h3 className="text-xl font-bold font-montserrat">
-                            Pourquoi choisir AB PRET ?
-                          </h3>
-                        </div>
-                        <div className="space-y-3">
-                          <div className="flex items-center space-x-3">
-                            <CheckCircle className="w-5 h-5 text-green-300" />
-                            <span className="font-montserrat">Traitement rapide en 24h</span>
-                          </div>
-                          <div className="flex items-center space-x-3">
-                            <CheckCircle className="w-5 h-5 text-green-300" />
-                            <span className="font-montserrat">Taux d'intérêt compétitifs</span>
-                          </div>
-                          <div className="flex items-center space-x-3">
-                            <CheckCircle className="w-5 h-5 text-green-300" />
-                            <span className="font-montserrat">Processus simplifié</span>
-                          </div>
-                          <div className="flex items-center space-x-3">
-                            <CheckCircle className="w-5 h-5 text-green-300" />
-                            <span className="font-montserrat">Support client 24/7</span>
-                          </div>
-                        </div>
-                      </Card>
 
-                      <Card className="bg-white">
-                        <div className="flex items-center space-x-3 mb-4">
-                          <Shield className="w-6 h-6 text-primary-600" />
-                          <h3 className="text-lg font-semibold text-secondary-900 font-montserrat">
-                            Sécurité garantie
-                          </h3>
-                        </div>
-                        <p className="text-secondary-600 font-montserrat text-sm">
-                          Vos données sont protégées et sécurisées. Nous respectons les normes de sécurité les plus strictes.
-                        </p>
-                      </Card>
-                    </div>
                   </motion.div>
                 )}
 
@@ -1063,15 +925,7 @@ const LoanRequest = () => {
                                   </option>
                                 ))}
                               </Input>
-                              {formData.amount && formData.duration && (
-                                <div className="mt-2 p-2 bg-blue-50 rounded-lg">
-                                  <p className="text-xs text-blue-700 font-montserrat">
-                                    💰 Taux d'intérêt: <span className="font-semibold">
-                                      {LOAN_CONFIG.getInterestRate(parseInt(formData.duration))}%
-                                    </span>
-                                  </p>
-                                </div>
-                              )}
+
                             </div>
                           </div>
                         </div>
@@ -1087,36 +941,7 @@ const LoanRequest = () => {
                         syncWithForm={true}
                       />
                       
-                      <Card className="bg-white">
-                        <div className="flex items-center space-x-3 mb-4">
-                          <TrendingUp className="w-6 h-6 text-primary-600" />
-                          <h3 className="text-lg font-semibold text-secondary-900 font-montserrat">
-                            Taux d'intérêt
-                          </h3>
-                        </div>
-                        <div className="space-y-3">
-                          <div className="flex justify-between items-center p-3 bg-green-50 rounded-lg">
-                            <span className="text-sm font-medium text-green-800 font-montserrat">5 jours</span>
-                            <span className="text-lg font-bold text-green-600 font-montserrat">6%</span>
-                          </div>
-                          <div className="flex justify-between items-center p-3 bg-blue-50 rounded-lg">
-                            <span className="text-sm font-medium text-blue-800 font-montserrat">10 jours</span>
-                            <span className="text-lg font-bold text-blue-600 font-montserrat">10%</span>
-                          </div>
-                          <div className="flex justify-between items-center p-3 bg-yellow-50 rounded-lg">
-                            <span className="text-sm font-medium text-yellow-800 font-montserrat">15 jours</span>
-                            <span className="text-lg font-bold text-yellow-600 font-montserrat">15%</span>
-                          </div>
-                          <div className="flex justify-between items-center p-3 bg-orange-50 rounded-lg">
-                            <span className="text-sm font-medium text-orange-800 font-montserrat">25 jours</span>
-                            <span className="text-lg font-bold text-orange-600 font-montserrat">22%</span>
-                          </div>
-                          <div className="flex justify-between items-center p-3 bg-red-50 rounded-lg">
-                            <span className="text-sm font-medium text-red-800 font-montserrat">30 jours</span>
-                            <span className="text-lg font-bold text-red-600 font-montserrat">25%</span>
-                          </div>
-                        </div>
-                      </Card>
+
                     </div>
                   </motion.div>
                 )}
@@ -1207,32 +1032,7 @@ const LoanRequest = () => {
                         </div>
                       </Card>
 
-                      <Card className="bg-white">
-                        <div className="flex items-center space-x-3 mb-4">
-                          <Shield className="w-6 h-6 text-primary-600" />
-                          <h3 className="text-lg font-semibold text-secondary-900 font-montserrat">
-                            Documents requis
-                          </h3>
-                        </div>
-                        <div className="space-y-2 text-sm text-secondary-600 font-montserrat">
-                          <div className="flex items-center space-x-2">
-                            <CheckCircle className="w-4 h-4 text-green-500" />
-                            <span>Pièce d'identité valide</span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <CheckCircle className="w-4 h-4 text-green-500" />
-                            <span>Justificatif de domicile</span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <CheckCircle className="w-4 h-4 text-green-500" />
-                            <span>Justificatif de revenus</span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <CheckCircle className="w-4 h-4 text-green-500" />
-                            <span>Relevé bancaire (3 mois)</span>
-                          </div>
-                        </div>
-                      </Card>
+
                     </div>
                   </motion.div>
                 )}
