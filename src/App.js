@@ -1,10 +1,12 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
+import { testAllConnections } from './utils/supabaseAPI';
 import Layout from './components/Common/Layout';
 import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
+import CreateAccount from './components/Auth/CreateAccount';
 import PendingApproval from './components/Auth/PendingApproval';
 import VerifyOTP from './components/Auth/VerifyOTP';
 import ClientDashboard from './components/Client/Dashboard';
@@ -68,6 +70,19 @@ const PublicRoute = ({ children }) => {
 };
 
 function App() {
+  // Test de connexion au démarrage (uniquement en développement)
+  useEffect(() => {
+    if (process.env.NODE_ENV === 'development') {
+      testAllConnections().then(result => {
+        if (result.success) {
+          console.log('[APP] ✅ Configuration Supabase validée');
+        } else {
+          console.error('[APP] ❌ Erreur de configuration Supabase:', result.error);
+        }
+      });
+    }
+  }, []);
+
   return (
     <AuthProvider>
       <NotificationProvider>
@@ -80,6 +95,14 @@ function App() {
                 element={
                   <PublicRoute>
                     <Login />
+                  </PublicRoute>
+                } 
+              />
+              <Route 
+                path="/create-account" 
+                element={
+                  <PublicRoute>
+                    <CreateAccount />
                   </PublicRoute>
                 } 
               />

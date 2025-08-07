@@ -431,7 +431,7 @@ const LoanHistory = () => {
                   }}
                   className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-[length:200%_100%] bg-clip-text text-transparent"
                 >
-                  Prêts
+                  Prêt
                 </motion.span>{' '}
                 <motion.span
                   animate={{ 
@@ -456,7 +456,7 @@ const LoanHistory = () => {
                 transition={{ duration: 0.6, delay: 0.2 }}
                 className="text-lg lg:text-xl text-neutral-600 font-montserrat max-w-3xl mx-auto leading-relaxed"
               >
-                Consultez l'historique complet de vos prêts et paiements
+                Consultez l'historique de votre prêt et paiements
               </motion.p>
 
               {/* Sous-titre avec icônes animées */}
@@ -573,7 +573,7 @@ const LoanHistory = () => {
                   >
                     {stats.totalLoans}
                   </motion.p>
-                  <p className="text-xs sm:text-sm text-secondary-600">Total prêts</p>
+                  <p className="text-xs sm:text-sm text-secondary-600">Total prêt</p>
                 </div>
               </motion.div>
 
@@ -732,7 +732,7 @@ const LoanHistory = () => {
                   >
                     {stats.activeLoans}
                   </motion.p>
-                  <p className="text-xs sm:text-sm text-secondary-600">Prêts actifs</p>
+                  <p className="text-xs sm:text-sm text-secondary-600">Prêt actif</p>
                 </div>
               </motion.div>
             </motion.div>
@@ -781,7 +781,7 @@ const LoanHistory = () => {
           </Card>
         </motion.div>
 
-        {/* Liste des prêts modernisée */}
+        {/* Liste du prêt modernisée */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -937,7 +937,7 @@ const LoanHistory = () => {
                 <p className="text-gray-500 mb-6 text-lg">
                   {searchTerm || statusFilter !== 'all' 
                     ? 'Aucun prêt ne correspond à vos critères de recherche'
-                    : 'Vous n\'avez pas encore de prêts'
+                    : 'Vous n\'avez pas encore de prêt'
                   }
                 </p>
                 {!searchTerm && statusFilter === 'all' && (

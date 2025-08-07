@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { registerUser } from '../../utils/supabaseClient';
@@ -11,18 +11,22 @@ import { Mail, Lock, Phone, Eye, EyeOff, Camera, GraduationCap, Building, User, 
 import { validateEmail, validatePhone } from '../../utils/helpers';
 
 const Register = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+  const { basicInfo, fromCreateAccount } = location.state || {};
+  
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     // Informations personnelles
-    firstName: '',
-    lastName: '',
+    firstName: basicInfo?.firstName || '',
+    lastName: basicInfo?.lastName || '',
     filiere: '',
     anneeEtude: '',
     entite: '',
     phone: '',
-    email: '',
-    password: '',
-    confirmPassword: '',
+    email: basicInfo?.email || '',
+    password: basicInfo?.password || '',
+    confirmPassword: basicInfo?.confirmPassword || '',
     userIdentityCard: null,
     // Informations du témoin
     temoinName: '',
@@ -41,7 +45,6 @@ const Register = () => {
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState({});
 
-  const navigate = useNavigate();
   const { showSuccess, showError } = useNotifications();
 
   const steps = [
@@ -171,7 +174,7 @@ const Register = () => {
       }
 
     } catch (error) {
-      console.error('Erreur lors de l\'inscription:', error);
+              console.error('[AUTH] Erreur lors de l\'inscription:', error.message);
       setErrors({ general: 'Erreur lors de l\'inscription. Veuillez réessayer.' });
       showError('Inscription échouée', 'Une erreur est survenue lors de l\'inscription.');
     } finally {
@@ -661,7 +664,7 @@ const Register = () => {
             Créer votre compte étudiant
           </h1>
           <p className="text-lg text-neutral-600 font-montserrat max-w-2xl mx-auto">
-            Rejoignez la communauté AB PRET et accédez à nos services de prêt étudiant
+            Rejoignez la communauté AB CAMPUS FINANCE et accédez à nos services de prêt étudiant
           </p>
         </div>
 

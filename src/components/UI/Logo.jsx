@@ -17,16 +17,16 @@ const Logo = ({ className = '', size = 'md', showText = true }) => {
   };
 
   const handleAnimationComplete = () => {
-    console.log('AB PRET animation completed!');
+            console.log('[UI] Animation logo terminée');
   };
 
   return (
     <div className={`flex items-center space-x-3 ${className}`}>
-      {/* Logo AB PRET avec image PNG */}
+      {/* Logo AB CAMPUS FINANCE avec image PNG */}
       <div className={`${sizes[size]} flex-shrink-0`}>
         <img 
           src="/logo-campus-finance.png" 
-          alt="AB PRET Logo"
+          alt="AB CAMPUS FINANCE Logo"
           className="w-full h-full object-contain"
         />
       </div>
@@ -34,7 +34,7 @@ const Logo = ({ className = '', size = 'md', showText = true }) => {
       {showText && (
         <div className="flex flex-col">
           <BlurText
-            text="AB PRET"
+            text="AB CAMPUS FINANCE"
             delay={150}
             className={`font-semibold text-secondary-900 font-montserrat ${textSizes[size]}`}
             animateBy="letters"

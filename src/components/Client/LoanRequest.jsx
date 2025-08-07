@@ -50,7 +50,6 @@ const LoanRequest = () => {
     amount: '',
     duration: 5,
     purpose: '',
-    monthlyIncome: '',
     employmentStatus: 'self-employed',
     category: '',
     documents: []
@@ -246,15 +245,6 @@ const LoanRequest = () => {
         if (!formData.purpose.trim()) {
           newErrors.purpose = 'Veuillez préciser l\'objet du prêt';
         }
-        if (!formData.monthlyIncome) {
-          newErrors.monthlyIncome = 'Le revenu mensuel est requis';
-        } else {
-          const income = parseFloat(formData.monthlyIncome);
-          const incomeValidation = LOAN_CONFIG.validateMonthlyIncome(income);
-          if (!incomeValidation.isValid) {
-            newErrors.monthlyIncome = incomeValidation.errors[0];
-          }
-        }
         break;
     }
 
@@ -336,7 +326,7 @@ const LoanRequest = () => {
     doc.setLanguage('fr');
     
     // Configuration des couleurs
-    const primaryColor = [59, 130, 246]; // Bleu AB Pret
+    const primaryColor = [59, 130, 246]; // Bleu AB Campus Finance
     const secondaryColor = [107, 114, 128]; // Gris
     const darkColor = [17, 24, 39]; // Noir foncé
     const accentColor = [34, 197, 94]; // Vert pour les accents
@@ -360,7 +350,7 @@ const LoanRequest = () => {
     
     // ===== EN-TÊTE DU DOCUMENT =====
     
-    // Logo/Header AB Pret (zone stylisée)
+          // Logo/Header AB Campus Finance (zone stylisée)
     doc.setFillColor(...primaryColor);
     doc.rect(0, 0, 210, 40, 'F');
     
@@ -373,12 +363,12 @@ const LoanRequest = () => {
     doc.text('ENGAGEMENT DE PRÊT', 120, 20, { align: 'center' });
     
     doc.setFontSize(20);
-    doc.text('AB PRET', 120, 32, { align: 'center' });
+            doc.text('AB CAMPUS FINANCE', 120, 32, { align: 'center' });
     
     // ===== INFORMATIONS DE CONTACT =====
     doc.setFontSize(12);
     doc.setTextColor(...darkColor);
-    doc.text('À Mr. Le Directeur de AB Pret', 20, 55);
+          doc.text('À Mr. Le Directeur de AB Campus Finance', 20, 55);
     
     doc.setFontSize(10);
     doc.setTextColor(...secondaryColor);
@@ -414,7 +404,7 @@ const LoanRequest = () => {
     
     const engagementText = [
       `Je soussigne(e) ${clientName}, etudiant(e) en ${filiere} en ${anneeEtude},`,
-      `reconnais avoir recu un pret de ${montantPret} de la part de AB Pret,`,
+              `reconnais avoir recu un pret de ${montantPret} de la part de AB Campus Finance,`,
       `a rembourser avant ${dureePret}.`,
       '',
       'En cas de retard, une penalite de 2% sera appliquee.'
@@ -477,7 +467,6 @@ const LoanRequest = () => {
        `Nom et prenom: ${clientName}`,
        `Filiere: ${filiere}`,
        `Annee d'etude: ${anneeEtude}`,
-       `Revenu mensuel: ${formatAmountFCFA(parseFloat(formData.monthlyIncome) || 0)}`,
        `Statut: ${formData.employmentStatus === 'self-employed' ? 'Independent' : 'Etudiant'}`
      ];
     
@@ -516,7 +505,7 @@ const LoanRequest = () => {
     // ===== PIED DE PAGE =====
     doc.setFontSize(9);
     doc.setTextColor(...secondaryColor);
-         doc.text('Document genere automatiquement par AB Pret', 20, 280);
+         doc.text('Document genere automatiquement par AB Campus Finance', 20, 280);
      doc.text('Ce document constitue un engagement de pret officiel', 20, 285);
      doc.text('Validite: Ce document est valide pour la duree du pret', 20, 290);
     
@@ -939,6 +928,7 @@ const LoanRequest = () => {
                         initialAmount={formData.amount}
                         initialDuration={formData.duration}
                         syncWithForm={true}
+                        showResults={false}
                       />
                       
 
@@ -978,32 +968,17 @@ const LoanRequest = () => {
                           required
                         />
 
-                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                          <Input
-                            label="Revenu mensuel (FCFA)"
-                            type="number"
-                            name="monthlyIncome"
-                            value={formData.monthlyIncome}
-                            onChange={handleChange}
-                            placeholder={`${LOAN_CONFIG.monthlyIncome.min.toLocaleString()} - ${LOAN_CONFIG.monthlyIncome.max.toLocaleString()}`}
-                            min={LOAN_CONFIG.monthlyIncome.min}
-                            max={LOAN_CONFIG.monthlyIncome.max}
-                            error={errors.monthlyIncome}
-                            required
-                          />
-
-                          <Input
-                            label="Statut professionnel"
-                            type="select"
-                            name="employmentStatus"
-                            value={formData.employmentStatus}
-                            onChange={handleChange}
-                            required
-                          >
-                                                          <option value="self-employed">Indépendant</option>
-                            <option value="student">Étudiant</option>
-                          </Input>
-                        </div>
+                        <Input
+                          label="Statut professionnel"
+                          type="select"
+                          name="employmentStatus"
+                          value={formData.employmentStatus}
+                          onChange={handleChange}
+                          required
+                        >
+                          <option value="self-employed">Indépendant</option>
+                          <option value="student">Étudiant</option>
+                        </Input>
                       </div>
                     </Card>
 
@@ -1085,43 +1060,41 @@ const LoanRequest = () => {
                             </div>
                           </div>
                         </div>
-                        
-                        <div className="space-y-4">
-                          <div className="p-4 bg-accent-50 rounded-xl">
-                            <h4 className="font-semibold text-secondary-900 font-montserrat mb-2">Informations personnelles</h4>
-                            <div className="space-y-2 text-sm">
-                              <div className="flex justify-between">
-                                <span className="text-secondary-600 font-montserrat">Revenu mensuel:</span>
-                                <span className="font-medium text-secondary-900 font-montserrat">
-                                  {formatCurrency(parseFloat(formData.monthlyIncome) || 0)}
+
+                        {/* Détails du calcul */}
+                        {calculation && (
+                          <div className="p-4 bg-green-50 rounded-xl border border-green-200">
+                            <h4 className="font-semibold text-green-900 font-montserrat mb-3 flex items-center">
+                              <BarChart3 className="w-5 h-5 mr-2" />
+                              Détails du calcul
+                            </h4>
+                            <div className="space-y-3 text-sm">
+                              <div className="flex justify-between items-center p-2 bg-white/60 rounded-lg">
+                                <span className="text-green-700 font-montserrat">Taux d'intérêt:</span>
+                                <span className="font-bold text-green-900 font-montserrat">
+                                  {calculation.interestRate}%
                                 </span>
                               </div>
-                              <div className="flex justify-between">
-                                <span className="text-secondary-600 font-montserrat">Statut:</span>
-                                <span className="font-medium text-secondary-900 font-montserrat">
-                                  {formData.employmentStatus === 'self-employed' ? 'Indépendant' : 'Étudiant'}
+                              <div className="flex justify-between items-center p-2 bg-white/60 rounded-lg">
+                                <span className="text-green-700 font-montserrat">Intérêts:</span>
+                                <span className="font-bold text-green-900 font-montserrat">
+                                  {formatCurrency(calculation.interestAmount)}
+                                </span>
+                              </div>
+                              <div className="flex justify-between items-center p-2 bg-green-100 rounded-lg border border-green-300">
+                                <span className="text-green-800 font-semibold font-montserrat">Total à rembourser:</span>
+                                <span className="font-bold text-green-900 text-lg font-montserrat">
+                                  {formatCurrency(calculation.totalAmount)}
+                                </span>
+                              </div>
+                              <div className="text-center p-2 bg-blue-50 rounded-lg border border-blue-200">
+                                <span className="text-blue-700 text-xs font-montserrat">
+                                  Paiement unique de <span className="font-bold">{formatCurrency(calculation.paymentAmount)}</span> à la fin de la période
                                 </span>
                               </div>
                             </div>
                           </div>
-                        </div>
-                      </div>
-                      
-                      <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 mb-6">
-                        <div className="flex items-start space-x-3">
-                          <AlertCircle className="w-6 h-6 text-blue-600 mt-1" />
-                          <div>
-                            <h4 className="font-semibold text-blue-900 font-montserrat mb-2">
-                              Important à savoir
-                            </h4>
-                            <ul className="text-blue-800 font-montserrat text-sm space-y-1">
-                              <li>• Votre demande sera traitée dans les 24h</li>
-                              <li>• Vous recevrez un email de confirmation</li>
-                              <li>• Notre équipe vous contactera pour finaliser le processus</li>
-                              <li>• Le versement sera effectué sous 48h après approbation</li>
-                            </ul>
-                          </div>
-                        </div>
+                        )}
                       </div>
 
                       {/* Notice de téléchargement */}

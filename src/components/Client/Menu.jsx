@@ -93,15 +93,7 @@ const Menu = () => {
                 </span>
               </motion.h1>
 
-              {/* Description */}
-              <motion.p
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="text-lg lg:text-xl text-neutral-600 font-montserrat max-w-3xl mx-auto leading-relaxed"
-              >
-                Accédez rapidement à toutes les fonctionnalités de Campus Finance
-              </motion.p>
+
             </div>
 
             {/* Cartes Bento */}
@@ -119,34 +111,34 @@ const Menu = () => {
                   className="group cursor-pointer"
                   onClick={card.action}
                 >
-                  <div className={`${card.bgColor} p-6 rounded-3xl border border-white/50 shadow-lg hover:shadow-xl transition-all duration-300 relative overflow-hidden`}>
+                  <div className={`${card.bgColor} p-4 rounded-2xl border border-white/50 shadow-lg hover:shadow-xl transition-all duration-300 relative overflow-hidden`}>
                     {/* Effet de brillance au survol */}
                     <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
                     
                     {/* En-tête de la carte */}
-                    <div className="flex items-start justify-between mb-4">
+                    <div className="flex items-start justify-between mb-3">
                       <div className="flex-1">
-                        <h3 className={`text-xl font-bold bg-gradient-to-r ${card.color} bg-clip-text text-transparent mb-1`}>
+                        <h3 className={`text-lg font-bold bg-gradient-to-r ${card.color} bg-clip-text text-transparent mb-1`}>
                           {card.title}
                         </h3>
-                        <p className="text-sm text-gray-600 font-medium">
+                        <p className="text-xs text-gray-600 font-medium">
                           {card.subtitle}
                         </p>
                       </div>
-                      <div className={`p-3 rounded-2xl ${card.iconBg} text-white shadow-lg`}>
+                      <div className={`p-2 rounded-xl ${card.iconBg} text-white shadow-lg`}>
                         {card.icon}
                       </div>
                     </div>
                     
                     {/* Description */}
-                    <p className="text-sm text-gray-600 leading-relaxed mb-4">
+                    <p className="text-xs text-gray-600 leading-relaxed mb-3">
                       {card.description}
                     </p>
                     
                     {/* Indicateur d'action */}
                     <div className="flex items-center justify-between">
-                      <div className={`w-8 h-8 rounded-full ${card.iconBg} flex items-center justify-center`}>
-                        <ArrowRight size={16} className="text-white" />
+                      <div className={`w-6 h-6 rounded-full ${card.iconBg} flex items-center justify-center`}>
+                        <ArrowRight size={12} className="text-white" />
                       </div>
                       <div className={`text-xs font-medium bg-gradient-to-r ${card.color} bg-clip-text text-transparent`}>
                         Découvrir

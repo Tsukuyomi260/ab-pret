@@ -112,7 +112,7 @@ const VerifyOTP = () => {
       }
 
     } catch (error) {
-      console.error('Erreur lors de la vérification:', error);
+              console.error('[AUTH] Erreur lors de la vérification OTP:', error.message);
       setErrors({ otp: 'Code OTP incorrect. Veuillez réessayer.' });
       showError('Vérification échouée', 'Le code OTP saisi est incorrect.');
     } finally {
@@ -131,7 +131,7 @@ const VerifyOTP = () => {
       showSuccess('Code OTP renvoyé avec succès !');
       
     } catch (error) {
-      console.error('Erreur lors du renvoi:', error);
+              console.error('[AUTH] Erreur lors du renvoi OTP:', error.message);
       showError('Erreur de renvoi', 'Impossible de renvoyer le code OTP.');
     } finally {
       setResendLoading(false);

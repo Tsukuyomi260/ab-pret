@@ -6,7 +6,7 @@ module.exports = {
     theme: {
       extend: {
         colors: {
-          // Couleurs AB PRET selon la charte graphique
+          // Couleurs AB CAMPUS FINANCE selon la charte graphique
           primary: {
             // Jaune doré (Golden Yellow)
             50: '#fefbf0',

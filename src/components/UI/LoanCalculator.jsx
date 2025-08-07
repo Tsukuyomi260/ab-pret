@@ -8,7 +8,8 @@ const LoanCalculator = ({
   className = '', 
   initialAmount = '', 
   initialDuration = 5,
-  syncWithForm = false 
+  syncWithForm = false,
+  showResults = true
 }) => {
   const [amount, setAmount] = useState(initialAmount);
   const [duration, setDuration] = useState(initialDuration);
@@ -166,7 +167,7 @@ const LoanCalculator = ({
         )}
 
         {/* Résultats */}
-        {calculation && (
+        {calculation && showResults && (
           <div className="space-y-4">
             <div className="border-t border-accent-200 pt-4">
               <h4 className="text-lg font-semibold text-secondary-900 font-montserrat mb-4">

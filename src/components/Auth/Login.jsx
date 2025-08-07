@@ -54,7 +54,7 @@ const Login = () => {
         <div className="bg-white rounded-2xl shadow-large p-8 border border-accent-200">
           {/* Header */}
           <div className="text-center mb-8">
-            {/* Logo AB PRET animé */}
+            {/* Logo AB CAMPUS FINANCE animé */}
             <div className="flex justify-center mb-6">
               <Logo size="xl" showText={true} />
             </div>
@@ -128,7 +128,7 @@ const Login = () => {
             <p className="text-neutral-600 font-montserrat">
               Pas encore de compte ?{' '}
               <Link 
-                to="/register" 
+                to="/create-account" 
                 className="text-primary-600 hover:text-primary-700 font-medium"
               >
                 S'inscrire

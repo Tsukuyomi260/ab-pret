@@ -1,5 +1,7 @@
 import React from 'react';
-import { Mail, Phone, MapPin, ExternalLink } from 'lucide-react';
+import { MapPin, ExternalLink } from 'lucide-react';
+import WhatsAppIcon from '../UI/WhatsAppIcon';
+import GmailIcon from '../UI/GmailIcon';
 
 const Footer = () => {
   const handleEmailClick = () => {
@@ -31,7 +33,7 @@ const Footer = () => {
                 <span className="text-primary-600 font-bold text-sm">AB</span>
               </div>
               <div>
-                <p className="text-xs font-medium text-secondary-900 font-montserrat">AB PRET</p>
+                <p className="text-xs font-medium text-secondary-900 font-montserrat">AB CAMPUS FINANCE</p>
                 <p className="text-xs text-neutral-600 font-montserrat">Cotonou, Bénin</p>
               </div>
             </div>
@@ -39,10 +41,10 @@ const Footer = () => {
             <div className="flex items-center space-x-2">
               <button
                 onClick={handleEmailClick}
-                className="p-2 bg-accent-100 rounded-full hover:bg-accent-200 transition-colors duration-200"
+                className="p-2 bg-red-100 rounded-full hover:bg-red-200 transition-colors duration-200"
                 title="Envoyer un email"
               >
-                <Mail size={14} className="text-secondary-600" />
+                <GmailIcon size={14} className="text-red-600" />
               </button>
               
               <button
@@ -50,7 +52,7 @@ const Footer = () => {
                 className="p-2 bg-green-100 rounded-full hover:bg-green-200 transition-colors duration-200"
                 title="Contacter sur WhatsApp"
               >
-                <Phone size={14} className="text-green-600" />
+                <WhatsAppIcon size={14} className="text-green-600" />
               </button>
               
               <button
@@ -65,7 +67,7 @@ const Footer = () => {
           
           <div className="mt-3 pt-3 border-t border-accent-200">
             <div className="flex items-center justify-between text-xs text-neutral-600 font-montserrat">
-              <span>&copy; 2025 AB PRET</span>
+              <span>&copy; 2025 AB CAMPUS FINANCE</span>
               <span className="text-primary-600">Votre succès, notre mission</span>
             </div>
           </div>
@@ -80,7 +82,7 @@ const Footer = () => {
                   <span className="text-primary-600 font-bold">AB</span>
                 </div>
                 <div>
-                  <p className="font-semibold text-secondary-900 font-montserrat">AB PRET</p>
+                  <p className="font-semibold text-secondary-900 font-montserrat">AB CAMPUS FINANCE</p>
                   <p className="text-sm text-neutral-600 font-montserrat">Votre succès, notre mission</p>
                 </div>
               </div>
@@ -88,9 +90,9 @@ const Footer = () => {
               <div className="flex items-center space-x-4 text-sm">
                 <button
                   onClick={handleEmailClick}
-                  className="flex items-center space-x-2 text-neutral-600 hover:text-primary-600 transition-colors duration-200 font-montserrat"
+                  className="flex items-center space-x-2 text-neutral-600 hover:text-red-600 transition-colors duration-200 font-montserrat"
                 >
-                  <Mail size={16} />
+                  <GmailIcon size={16} />
                   <span>abpret51@gmail.com</span>
                   <ExternalLink size={12} />
                 </button>
@@ -99,7 +101,7 @@ const Footer = () => {
                   onClick={handleWhatsAppClick}
                   className="flex items-center space-x-2 text-neutral-600 hover:text-green-600 transition-colors duration-200 font-montserrat"
                 >
-                  <Phone size={16} />
+                  <WhatsAppIcon size={16} />
                   <span>+229 53463606</span>
                   <ExternalLink size={12} />
                 </button>
@@ -116,7 +118,7 @@ const Footer = () => {
             </div>
             
             <div className="text-sm text-neutral-600 font-montserrat">
-              &copy; 2025 AB PRET. Tous droits réservés.
+              &copy; 2025 AB CAMPUS FINANCE. Tous droits réservés.
             </div>
           </div>
         </div>

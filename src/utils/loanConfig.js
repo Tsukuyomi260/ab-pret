@@ -1,4 +1,4 @@
-// Configuration des prêts AB PRET
+// Configuration des prêts AB CAMPUS FINANCE
 export const LOAN_CONFIG = {
   // Durées disponibles (en jours)
   durations: [

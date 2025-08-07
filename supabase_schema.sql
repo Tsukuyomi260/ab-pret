@@ -1,4 +1,4 @@
--- Création de la table users pour AB PRET
+-- Création de la table users pour AB CAMPUS FINANCE
 CREATE TABLE IF NOT EXISTS public.users (
     id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
     first_name VARCHAR(100) NOT NULL,
@@ -63,7 +63,7 @@ CREATE POLICY "Allow update for admin" ON public.users
 --     role
 -- ) VALUES (
 --     'Admin',
---     'AB PRET',
+--     'AB CAMPUS FINANCE',
 --     'admin@abpret.com',
 --     '+228 90 00 00 00',
 --     'admin123', -- À changer en production

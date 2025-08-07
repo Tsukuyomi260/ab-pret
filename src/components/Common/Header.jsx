@@ -75,7 +75,7 @@ const Header = () => {
     <header className="fixed top-0 left-0 right-0 bg-white shadow-soft border-b border-accent-200 w-full z-50">
       <div className="w-full">
         <div className="flex justify-between items-center py-4 w-full px-4 lg:px-8">
-          {/* Logo AB PRET */}
+          {/* Logo AB CAMPUS FINANCE */}
           <button 
             onClick={handleLogoClick}
             className="flex items-center space-x-3 hover:opacity-80 transition-opacity duration-200"
@@ -165,7 +165,7 @@ const Header = () => {
                   {getDisplayName()}
                 </span>
                 <span className="text-xs text-neutral-600 font-montserrat">
-                  {user?.role === 'admin' ? 'Administrateur' : 'Client AB PRET'}
+                  {user?.role === 'admin' ? 'Administrateur' : 'Client AB CAMPUS FINANCE'}
                 </span>
               </div>
               <button

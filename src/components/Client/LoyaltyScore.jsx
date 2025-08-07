@@ -134,8 +134,8 @@ const LoyaltyScore = () => {
   const howItWorks = [
     {
       step: 1,
-      title: 'Effectuez 4 prêts',
-      description: 'Demandez et obtenez 4 prêts consécutifs',
+      title: 'Effectuez 4 cycles de prêt',
+      description: 'Demandez et obtenez 4 prêts consécutifs (un seul à la fois)',
       icon: Target,
       color: 'from-blue-500 to-blue-600'
     },
@@ -594,7 +594,7 @@ const LoyaltyScore = () => {
                 <div className="bg-blue-50 p-4 rounded-lg">
                   <h4 className="font-semibold text-blue-900 mb-2">Comment gagner des points :</h4>
                   <ul className="space-y-1 text-blue-800">
-                    <li>• Rembourser 4 prêts consécutifs avant échéance</li>
+                    <li>• Rembourser 4 prêts consécutifs avant échéance (un seul prêt à la fois)</li>
                     <li>• +5 points par cycle de 4 prêts</li>
                     <li>• Score maximum : 100 points</li>
                   </ul>
