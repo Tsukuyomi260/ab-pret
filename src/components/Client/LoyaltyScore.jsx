@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../context/NotificationContext';
@@ -20,15 +20,7 @@ import {
   Zap,
   Crown,
   Diamond,
-  Heart,
-  Calendar,
-  DollarSign,
-  Users,
-  Shield,
   Sparkles,
-  ArrowUpRight,
-  ChevronRight,
-  Play,
   BookOpen,
   Lightbulb,
   X
@@ -37,12 +29,12 @@ import { formatCurrency } from '../../utils/helpers';
 
 const LoyaltyScore = () => {
   const navigate = useNavigate();
-  const { showSuccess } = useNotifications();
+  const { } = useNotifications();
   const [activeTab, setActiveTab] = useState('overview');
   const [showInfoModal, setShowInfoModal] = useState(false);
 
   // Données du score de fidélité
-  const [loyaltyData, setLoyaltyData] = useState({
+  const [loyaltyData] = useState({
     currentScore: 75,
     maxScore: 100,
     level: 'Gold',

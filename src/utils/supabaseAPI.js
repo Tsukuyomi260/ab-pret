@@ -1,10 +1,17 @@
 import { supabase, testSupabaseConnection } from './supabaseClient';
+import { sendOTPSMS, sendWelcomeSMS } from './smsService';
 
 // ===== TESTS ET VÉRIFICATIONS =====
 
 export const testAllConnections = async () => {
   try {
     console.log('[TEST] Vérification de la connexion Supabase...');
+    
+    // Vérifier si le client Supabase est initialisé
+    if (!supabase) {
+      console.warn('[TEST] ⚠️ Client Supabase non initialisé - configuration manquante');
+      return { success: false, error: 'Configuration Supabase manquante' };
+    }
     
     // Test de connexion de base
     const connectionTest = await testSupabaseConnection();
@@ -42,16 +49,23 @@ export const testAllConnections = async () => {
 
 // ===== AUTHENTIFICATION =====
 
-export const signUpWithEmail = async (email, password, userData) => {
+export const signUpWithPhone = async (phoneNumber, password, userData) => {
+  if (!supabase) {
+    console.error('[SUPABASE] Client non initialisé - configuration manquante');
+    return { success: false, error: 'Configuration Supabase manquante' };
+  }
+
   try {
-    // Créer l'utilisateur avec Supabase Auth
+    // Créer l'utilisateur avec Supabase Auth (on utilise un email temporaire)
+    const tempEmail = `${phoneNumber.replace(/[^0-9]/g, '')}@campusfinance.bj`;
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      email,
+      email: tempEmail,
       password,
       options: {
         data: {
           first_name: userData.firstName,
           last_name: userData.lastName,
+          phone_number: phoneNumber,
           role: 'client'
         }
       }
@@ -64,7 +78,7 @@ export const signUpWithEmail = async (email, password, userData) => {
       .from('users')
       .insert([{
         id: authData.user.id,
-        email,
+        phone_number: phoneNumber,
         first_name: userData.firstName,
         last_name: userData.lastName,
         role: 'client',
@@ -72,6 +86,61 @@ export const signUpWithEmail = async (email, password, userData) => {
       }]);
 
     if (userError) throw userError;
+
+    // Envoyer un SMS de bienvenue
+    const userName = `${userData.firstName} ${userData.lastName}`;
+    await sendWelcomeSMS(phoneNumber, userName);
+
+    return { success: true, user: authData.user };
+  } catch (error) {
+    console.error('[SUPABASE] Erreur lors de l\'inscription:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+export const signUpWithEmail = async (email, password, userData) => {
+  if (!supabase) {
+    console.error('[SUPABASE] Client non initialisé - configuration manquante');
+    return { success: false, error: 'Configuration Supabase manquante' };
+  }
+
+  try {
+    // Créer l'utilisateur avec Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signUp({
+      email,
+      password,
+      options: {
+        data: {
+          first_name: userData.firstName,
+          last_name: userData.lastName,
+          phone_number: userData.phoneNumber || '',
+          role: 'client'
+        }
+      }
+    });
+
+    if (authError) throw authError;
+
+    // Insérer les données utilisateur dans notre table users
+    const { error: userError } = await supabase
+      .from('users')
+      .insert([{
+        id: authData.user.id,
+        email: email,
+        phone_number: userData.phoneNumber || '',
+        first_name: userData.firstName,
+        last_name: userData.lastName,
+        role: 'client',
+        status: 'pending'
+      }]);
+
+    if (userError) throw userError;
+
+    // Envoyer un SMS de bienvenue si un numéro de téléphone est fourni
+    if (userData.phoneNumber) {
+      const userName = `${userData.firstName} ${userData.lastName}`;
+      await sendWelcomeSMS(userData.phoneNumber, userName);
+    }
 
     return { success: true, user: authData.user };
   } catch (error) {
@@ -81,6 +150,11 @@ export const signUpWithEmail = async (email, password, userData) => {
 };
 
 export const signInWithEmail = async (email, password) => {
+  if (!supabase) {
+    console.error('[SUPABASE] Client non initialisé - configuration manquante');
+    return { success: false, error: 'Configuration Supabase manquante' };
+  }
+
   try {
     const { data, error } = await supabase.auth.signInWithPassword({
       email,
@@ -109,7 +183,12 @@ export const signOut = async () => {
 
 // ===== OTP =====
 
-export const generateOTP = async (email, type = 'registration') => {
+export const generateOTP = async (phoneNumber, type = 'registration') => {
+  if (!supabase) {
+    console.error('[SUPABASE] Client non initialisé - configuration manquante');
+    return { success: false, error: 'Configuration Supabase manquante' };
+  }
+
   try {
     // Générer un code OTP à 6 chiffres
     const otp = Math.floor(100000 + Math.random() * 900000).toString();
@@ -122,7 +201,7 @@ export const generateOTP = async (email, type = 'registration') => {
     const { error } = await supabase
       .from('otp_codes')
       .insert([{
-        email,
+        phone_number: phoneNumber, // Changé de email à phone_number
         code: otp,
         type,
         expires_at: expiresAt.toISOString()
@@ -130,24 +209,36 @@ export const generateOTP = async (email, type = 'registration') => {
 
     if (error) throw error;
 
-    // Ici, vous devriez envoyer l'OTP par email
-    // Pour l'instant, on simule l'envoi
-    console.log(`[OTP] Code pour ${email}: ${otp}`);
+    // Envoyer l'OTP par SMS
+    const smsResult = await sendOTPSMS(phoneNumber, otp, 'Utilisateur');
+    
+    if (!smsResult.success) {
+      console.error('[OTP] Erreur lors de l\'envoi SMS:', smsResult.error);
+      // On retourne quand même le succès car l'OTP est enregistré en base
+      // L'utilisateur peut demander un nouveau code
+      return { success: true, otp: null, smsError: smsResult.error };
+    }
 
-    return { success: true, otp };
+    console.log(`[OTP] SMS envoyé avec succès pour ${phoneNumber}`);
+    return { success: true, otp: null }; // On ne retourne plus l'OTP pour la sécurité
   } catch (error) {
     console.error('[SUPABASE] Erreur lors de la génération OTP:', error.message);
     return { success: false, error: error.message };
   }
 };
 
-export const verifyOTP = async (email, code) => {
+export const verifyOTP = async (phoneNumber, code) => {
+  if (!supabase) {
+    console.error('[SUPABASE] Client non initialisé - configuration manquante');
+    return { success: false, error: 'Configuration Supabase manquante' };
+  }
+
   try {
     // Récupérer le code OTP
     const { data, error } = await supabase
       .from('otp_codes')
       .select('*')
-      .eq('email', email)
+      .eq('phone_number', phoneNumber) // Changé de email à phone_number
       .eq('code', code)
       .eq('used', false)
       .gt('expires_at', new Date().toISOString())

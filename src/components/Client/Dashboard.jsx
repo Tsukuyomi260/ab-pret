@@ -20,11 +20,6 @@ import {
   Bell,
   BookOpen,
   Eye,
-  Activity,
-  BarChart3,
-  Percent,
-  Gift,
-  Rocket,
   TrendingUp,
   DollarSign,
   Info,
@@ -32,14 +27,13 @@ import {
   Phone,
   Zap,
   CheckCircle2,
-  Heart,
-  GraduationCap
+  Heart
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 
 const ClientDashboard = () => {
   const navigate = useNavigate();
-  const { notifications, addNotification, markAsRead, showSuccess } = useNotifications();
+  const { notifications } = useNotifications();
   const [stats, setStats] = useState({
     totalLoaned: 0,
     totalRepaid: 0,

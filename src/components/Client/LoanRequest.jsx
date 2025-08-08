@@ -40,7 +40,7 @@ import {
 } from 'lucide-react';
 import { LOAN_CONFIG } from '../../utils/loanConfig';
 import { formatCurrency } from '../../utils/helpers';
-import jsPDF from 'jspdf';
+import { jsPDF } from 'jspdf/dist/jspdf.umd.min.js'
 
 const LoanRequest = () => {
   const { notifications, addNotification, markAsRead, showSuccess, showError } = useNotifications();

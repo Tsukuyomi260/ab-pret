@@ -12,19 +12,37 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
 const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
 
-// Vérification de sécurité
+// Vérification de sécurité avec fallback pour le développement
 if (!supabaseUrl || !supabaseAnonKey) {
   console.error('[SUPABASE] Configuration manquante:', {
     hasUrl: !!supabaseUrl,
-    hasKey: !!supabaseAnonKey
+    hasKey: !!supabaseAnonKey,
+    environment: process.env.NODE_ENV
   });
-  throw new Error('Configuration Supabase manquante. Vérifiez vos variables d\'environnement dans le fichier .env');
+  
+  // En développement, on peut utiliser des valeurs par défaut ou afficher un message
+  if (process.env.NODE_ENV === 'development') {
+    console.warn('[SUPABASE] Mode développement - configuration manquante');
+  }
+  
+  // En production, on ne plante pas l'app mais on affiche un message d'erreur
+  if (process.env.NODE_ENV === 'production') {
+    console.error('[SUPABASE] Configuration manquante en production - vérifiez Vercel');
+  }
 }
 
-export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+// Créer le client Supabase seulement si les variables sont disponibles
+export const supabase = supabaseUrl && supabaseAnonKey 
+  ? createClient(supabaseUrl, supabaseAnonKey)
+  : null;
 
 // Fonction de test de connexion Supabase
 export const testSupabaseConnection = async () => {
+  if (!supabase) {
+    console.error('[SUPABASE] Client non initialisé - configuration manquante');
+    return { success: false, error: 'Configuration Supabase manquante' };
+  }
+
   try {
     const { data, error } = await supabase
       .from('users')
@@ -46,6 +64,11 @@ export const testSupabaseConnection = async () => {
 
 // Fonction pour écouter les nouvelles inscriptions en temps réel
 export const subscribeToNewUsers = (callback) => {
+  if (!supabase) {
+    console.error('[SUPABASE] Client non initialisé - configuration manquante');
+    return null;
+  }
+
   return supabase
     .channel('users')
     .on('postgres_changes', 
@@ -67,6 +90,11 @@ export const subscribeToNewUsers = (callback) => {
 
 // Fonction pour enregistrer un nouvel utilisateur
 export const registerUser = async (userData) => {
+  if (!supabase) {
+    console.error('[SUPABASE] Client non initialisé - configuration manquante');
+    return { success: false, error: 'Configuration Supabase manquante' };
+  }
+
   try {
     const { data, error } = await supabase
       .from('users')
@@ -88,6 +116,11 @@ export const registerUser = async (userData) => {
 
 // Fonction pour récupérer tous les utilisateurs
 export const getUsers = async () => {
+  if (!supabase) {
+    console.error('[SUPABASE] Client non initialisé - configuration manquante');
+    return [];
+  }
+
   try {
     const { data, error } = await supabase
       .from('users')
@@ -108,6 +141,11 @@ export const getUsers = async () => {
 
 // Fonction pour récupérer les données de prêts depuis Supabase
 export const getLoans = async () => {
+  if (!supabase) {
+    console.error('[SUPABASE] Client non initialisé - configuration manquante');
+    return { success: true, data: [] };
+  }
+
   try {
     const { data, error } = await supabase
       .from('loans')
@@ -151,6 +189,23 @@ export const getLoans = async () => {
 
 // Fonction pour récupérer les statistiques d'analytics
 export const getAnalyticsData = async () => {
+  if (!supabase) {
+    console.error('[SUPABASE] Client non initialisé - configuration manquante');
+    return {
+      totalLoans: 0,
+      totalAmount: 0,
+      activeLoans: 0,
+      totalUsers: 0,
+      pendingUsers: 0,
+      approvedUsers: 0,
+      rejectedUsers: 0,
+      monthlyGrowth: 0,
+      loanGrowth: 0,
+      userGrowth: 0,
+      recentActivity: []
+    };
+  }
+
   try {
     // Récupérer les utilisateurs
     const usersResult = await getUsers();

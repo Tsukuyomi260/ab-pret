@@ -21,6 +21,7 @@ import {
 } from 'lucide-react';
 import { validateEmail } from '../../utils/helpers';
 import { generateOTP, verifyOTP } from '../../utils/supabaseAPI';
+import { validateBeninPhoneNumber } from '../../utils/smsService';
 
 const CreateAccount = () => {
   const navigate = useNavigate();
@@ -34,7 +35,7 @@ const CreateAccount = () => {
   const [basicInfo, setBasicInfo] = useState({
     firstName: '',
     lastName: '',
-    email: '',
+    phoneNumber: '',
     password: '',
     confirmPassword: ''
   });
@@ -81,8 +82,10 @@ const CreateAccount = () => {
       newErrors.lastName = 'Le nom est requis';
     }
 
-    if (!validateEmail(basicInfo.email)) {
-      newErrors.email = 'Email invalide';
+    // Validation du numéro de téléphone béninois
+    const phoneValidation = validateBeninPhoneNumber(basicInfo.phoneNumber);
+    if (!phoneValidation.valid) {
+      newErrors.phoneNumber = phoneValidation.error;
     }
 
     if (basicInfo.password.length < 6) {
@@ -122,7 +125,7 @@ const CreateAccount = () => {
     try {
       setLoading(true);
       
-      const result = await generateOTP(basicInfo.email, 'registration');
+      const result = await generateOTP(basicInfo.phoneNumber, 'registration');
       
       if (result.success) {
         setOtpSent(true);
@@ -138,7 +141,12 @@ const CreateAccount = () => {
           });
         }, 1000);
 
-        showSuccess('Code OTP envoyé avec succès');
+        // Afficher un message de succès
+        if (result.smsError) {
+          showError(`Code OTP généré mais erreur d'envoi SMS: ${result.smsError}`);
+        } else {
+          showSuccess('Code OTP envoyé avec succès par SMS');
+        }
       } else {
         showError(result.error || 'Erreur lors de l\'envoi du code OTP');
       }
@@ -160,7 +168,7 @@ const CreateAccount = () => {
     try {
       setLoading(true);
       
-      const result = await verifyOTP(basicInfo.email, otpString);
+      const result = await verifyOTP(basicInfo.phoneNumber, otpString);
       
       if (result.success) {
         setCurrentStep(3);
@@ -243,13 +251,14 @@ const CreateAccount = () => {
         </div>
 
         <Input
-          label="Email"
-          type="email"
-          name="email"
-          value={basicInfo.email}
+          label="Numéro de téléphone"
+          type="tel"
+          name="phoneNumber"
+          value={basicInfo.phoneNumber}
           onChange={handleBasicInfoChange}
-          error={errors.email}
-          icon={Mail}
+          error={errors.phoneNumber}
+          icon={Phone}
+          placeholder="Ex: 0123456789 ou +229 12345678"
         />
 
         <Input
@@ -286,13 +295,13 @@ const CreateAccount = () => {
     >
       <div className="text-center mb-8">
         <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Mail size={24} className="text-primary-600" />
+          <Phone size={24} className="text-primary-600" />
         </div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">
-          Vérification par email
+          Vérification par SMS
         </h2>
         <p className="text-gray-600">
-          Nous avons envoyé un code à <span className="font-semibold">{basicInfo.email}</span>
+          Nous avons envoyé un code à <span className="font-semibold">{basicInfo.phoneNumber}</span>
         </p>
       </div>
 
