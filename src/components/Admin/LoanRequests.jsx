@@ -35,39 +35,39 @@ const LoanRequests = () => {
     try {
       setLoading(true);
       // Simulation du chargement
-      setTimeout(() => {
-        const mockRequests = [
-          {
-            id: 1,
+    setTimeout(() => {
+      const mockRequests = [
+        {
+          id: 1,
             user: { firstName: 'Utilisateur', lastName: 'A', email: 'utilisateur.a@email.com' },
-            amount: 75000,
+          amount: 75000,
             purpose: 'Achat de matériel informatique',
-            status: 'pending',
-            requestDate: '2025-01-15',
-            priority: 'high'
-          },
-          {
-            id: 2,
+          status: 'pending',
+          requestDate: '2025-01-15',
+          priority: 'high'
+        },
+        {
+          id: 2,
             user: { firstName: 'Utilisateur', lastName: 'B', email: 'utilisateur.b@email.com' },
-            amount: 120000,
+          amount: 120000,
             purpose: 'Rénovation de boutique',
-            status: 'approved',
-            requestDate: '2025-01-14',
-            priority: 'medium'
-          },
-          {
-            id: 3,
+          status: 'approved',
+          requestDate: '2025-01-14',
+          priority: 'medium'
+        },
+        {
+          id: 3,
             user: { firstName: 'Utilisateur', lastName: 'C', email: 'utilisateur.c@email.com' },
-            amount: 50000,
+          amount: 50000,
             purpose: 'Frais de scolarité',
-            status: 'rejected',
-            requestDate: '2025-01-13',
-            priority: 'low'
+          status: 'rejected',
+          requestDate: '2025-01-13',
+          priority: 'low'
           }
         ];
-        setLoanRequests(mockRequests);
-        setLoading(false);
-      }, 1000);
+      setLoanRequests(mockRequests);
+      setLoading(false);
+    }, 1000);
     } catch (error) {
       console.error('[ADMIN] Erreur lors du chargement des demandes:', error.message);
       setLoading(false);
@@ -137,8 +137,8 @@ const LoanRequests = () => {
 
   const filteredRequests = loanRequests.filter(request => {
     const matchesSearch = request.user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         request.user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         request.purpose.toLowerCase().includes(searchTerm.toLowerCase());
+      request.user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      request.purpose.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || request.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
@@ -209,39 +209,39 @@ const LoanRequests = () => {
         {/* Liste des demandes */}
         <div className="space-y-4">
           {filteredRequests.map((request) => (
-            <motion.div
-              key={request.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
+                  <motion.div
+                    key={request.id}
+                    initial={{ opacity: 0, y: 20 }}
+                    animate={{ opacity: 1, y: 0 }}
               className="bg-white/90 backdrop-blur-sm rounded-xl border border-white/50 shadow-soft hover:shadow-lg transition-all duration-300"
-            >
-              <div className="p-6">
+                  >
+                    <div className="p-6">
                 <div className="flex items-start justify-between">
                   <div className="flex-1">
                     <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-3">
-                      <div className="flex items-center space-x-3">
+                        <div className="flex items-center space-x-3">
                         <div className="w-10 h-10 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0">
                           <User size={20} className="text-primary-600" />
-                        </div>
+                          </div>
                         <div className="min-w-0 flex-1">
                           <h3 className="font-semibold text-gray-900 text-sm sm:text-base">
-                            {request.user.firstName} {request.user.lastName}
+                              {request.user.firstName} {request.user.lastName}
                           </h3>
                           <p className="text-sm text-gray-600 truncate">{request.user.email}</p>
                         </div>
                       </div>
                       <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center justify-center space-x-1 w-fit ${getStatusColor(request.status)}`}>
-                        {getStatusIcon(request.status)}
-                        <span>{getStatusText(request.status)}</span>
-                      </span>
+                            {getStatusIcon(request.status)}
+                            <span>{getStatusText(request.status)}</span>
+                          </span>
                     </div>
-                    
+
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4">
-                      <div>
+                    <div>
                         <p className="text-sm text-gray-600">Montant demandé</p>
                         <p className="font-semibold text-gray-900 text-sm sm:text-base">{formatCurrency(request.amount)}</p>
-                      </div>
-                      <div>
+                    </div>
+                    <div>
                         <p className="text-sm text-gray-600">Objet</p>
                         <p className="font-medium text-gray-900 text-sm sm:text-base break-words">{request.purpose}</p>
                       </div>
@@ -251,26 +251,26 @@ const LoanRequests = () => {
                           {new Date(request.requestDate).toLocaleDateString('fr-FR')}
                         </p>
                       </div>
+                            </div>
                     </div>
                   </div>
-                </div>
-
+                  
                 {/* Actions */}
-                {request.status === 'pending' && (
+                  {request.status === 'pending' && (
                   <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2 sm:gap-3 pt-4 border-t border-gray-100">
-                    <Button
-                      onClick={() => handleApprove(request.id)}
+                      <Button
+                        onClick={() => handleApprove(request.id)}
                       className="flex items-center justify-center space-x-2 bg-green-500 hover:bg-green-600 text-sm"
-                    >
-                      <UserCheck size={16} />
+                      >
+                        <UserCheck size={16} />
                       <span>Approuver</span>
-                    </Button>
-                    <Button
-                      onClick={() => handleReject(request.id)}
+                      </Button>
+                      <Button
+                        onClick={() => handleReject(request.id)}
                       variant="outline"
                       className="flex items-center justify-center space-x-2 border-red-200 text-red-600 hover:bg-red-50 text-sm"
-                    >
-                      <UserX size={16} />
+                      >
+                        <UserX size={16} />
                       <span>Rejeter</span>
                     </Button>
                     <Button
@@ -279,11 +279,11 @@ const LoanRequests = () => {
                     >
                       <Eye size={16} />
                       <span>Voir détails</span>
-                    </Button>
+                      </Button>
                   </div>
-                )}
-              </div>
-            </motion.div>
+                  )}
+                    </div>
+                  </motion.div>
           ))}
 
           {filteredRequests.length === 0 && !loading && (
@@ -291,7 +291,7 @@ const LoanRequests = () => {
               <div className="p-12 text-center">
                 <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
                   <FileText size={24} className="text-gray-400" />
-                </div>
+              </div>
                 <h3 className="text-lg font-semibold text-gray-900 mb-2">Aucune demande trouvée</h3>
                 <p className="text-gray-600">
                   {searchTerm || statusFilter !== 'all' 

@@ -39,50 +39,50 @@ const UserManagement = () => {
       setLoading(true);
       // Simulation du chargement
       setTimeout(() => {
-        const mockUsers = [
-          {
-            id: 1,
-            firstName: 'Utilisateur',
-            lastName: 'A',
-            email: 'utilisateur.a@student.bj',
-            phone: '+229 90123456',
-            status: 'active',
-            registrationDate: '2023-09-01',
-            totalLoans: 3,
-            activeLoans: 1,
-            totalAmount: 1500000,
+  const mockUsers = [
+    {
+      id: 1,
+              firstName: 'Utilisateur',
+        lastName: 'A',
+        email: 'utilisateur.a@student.bj',
+      phone: '+229 90123456',
+      status: 'active',
+      registrationDate: '2023-09-01',
+      totalLoans: 3,
+      activeLoans: 1,
+      totalAmount: 1500000,
             verified: true
-          },
-          {
-            id: 2,
-            firstName: 'Utilisateur',
-            lastName: 'B',
-            email: 'utilisateur.b@student.bj',
-            phone: '+229 90234567',
-            status: 'active',
-            registrationDate: '2023-10-15',
-            totalLoans: 2,
-            activeLoans: 0,
-            totalAmount: 800000,
+    },
+    {
+      id: 2,
+              firstName: 'Utilisateur',
+        lastName: 'B',
+        email: 'utilisateur.b@student.bj',
+      phone: '+229 90234567',
+      status: 'active',
+      registrationDate: '2023-10-15',
+      totalLoans: 2,
+      activeLoans: 0,
+      totalAmount: 800000,
             verified: true
-          },
-          {
-            id: 3,
-            firstName: 'Utilisateur',
-            lastName: 'C',
-            email: 'utilisateur.c@student.bj',
-            phone: '+229 90345678',
-            status: 'pending',
-            registrationDate: '2024-01-05',
-            totalLoans: 0,
-            activeLoans: 0,
-            totalAmount: 0,
+    },
+    {
+      id: 3,
+              firstName: 'Utilisateur',
+        lastName: 'C',
+        email: 'utilisateur.c@student.bj',
+      phone: '+229 90345678',
+      status: 'pending',
+      registrationDate: '2024-01-05',
+      totalLoans: 0,
+      activeLoans: 0,
+      totalAmount: 0,
             verified: false
           }
         ];
-        setUsers(mockUsers);
+      setUsers(mockUsers);
         setLoading(false);
-      }, 1000);
+    }, 1000);
     } catch (error) {
       console.error('[ADMIN] Erreur lors du chargement des utilisateurs:', error.message);
       setLoading(false);
@@ -185,7 +185,7 @@ const UserManagement = () => {
                   {filteredUsers.length} utilisateur{filteredUsers.length > 1 ? 's' : ''} trouvé{filteredUsers.length > 1 ? 's' : ''}
                 </p>
               </div>
-            </div>
+                  </div>
             <button
               onClick={loadUsers}
               disabled={loading}
@@ -193,7 +193,7 @@ const UserManagement = () => {
             >
               <RefreshCw size={16} className={loading ? 'animate-spin' : ''} />
               <span>Actualiser</span>
-            </button>
+                </button>
           </div>
         </div>
       </div>
@@ -205,26 +205,26 @@ const UserManagement = () => {
             <div className="flex flex-col md:flex-row gap-4">
               <div className="flex-1 relative">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-                <input
-                  type="text"
+                  <input
+                    type="text"
                   placeholder="Rechercher par nom ou email..."
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
                   className="w-full pl-10 pr-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-                />
+                  />
               </div>
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
                 className="px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
-              >
-                <option value="all">Tous les statuts</option>
-                <option value="active">Actifs</option>
-                <option value="pending">En attente</option>
-                <option value="suspended">Suspendus</option>
-              </select>
-            </div>
-          </div>
+                  >
+                    <option value="all">Tous les statuts</option>
+                    <option value="active">Actifs</option>
+                    <option value="pending">En attente</option>
+                    <option value="suspended">Suspendus</option>
+                  </select>
+                </div>
+              </div>
         </Card>
 
         {/* Liste des utilisateurs */}
@@ -261,17 +261,17 @@ const UserManagement = () => {
                           <div className="flex items-center space-x-1">
                             <Phone size={14} />
                             <span>{user.phone}</span>
-                          </div>
+                      </div>
                         </div>
                       </div>
                     </div>
                     
                     <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mb-4">
-                      <div>
+                        <div>
                         <p className="text-sm text-gray-600">Prêts totaux</p>
                         <p className="font-semibold text-gray-900">{user.totalLoans}</p>
                       </div>
-                      <div>
+                        <div>
                         <p className="text-sm text-gray-600">Prêts actifs</p>
                         <p className="font-semibold text-gray-900">{user.activeLoans}</p>
                       </div>
@@ -283,11 +283,11 @@ const UserManagement = () => {
                         <p className="text-sm text-gray-600">Inscription</p>
                         <p className="font-semibold text-gray-900">{formatDate(user.registrationDate)}</p>
                       </div>
+                      </div>
                     </div>
                   </div>
-                </div>
 
-                {/* Actions */}
+                  {/* Actions */}
                 <div className="flex items-center space-x-3 pt-4 border-t border-gray-100">
                   {user.status === 'pending' && (
                     <Button
@@ -306,15 +306,15 @@ const UserManagement = () => {
                     >
                       <UserX size={16} />
                       <span>Suspendre</span>
-                    </Button>
-                  )}
-                  <Button
+                      </Button>
+                    )}
+                      <Button
                     variant="outline"
                     className="flex items-center space-x-2"
                   >
                     <Eye size={16} />
                     <span>Voir détails</span>
-                  </Button>
+                      </Button>
                 </div>
               </div>
             </motion.div>

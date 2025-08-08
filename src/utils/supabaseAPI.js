@@ -197,11 +197,17 @@ export const generateOTP = async (phoneNumber, type = 'registration') => {
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + 15);
 
+    // Certains schémas exigent un email non nul dans la table otp_codes
+    // On génère un email temporaire basé sur le numéro de téléphone pour satisfaire la contrainte
+    const normalizedPhone = (phoneNumber || '').toString().replace(/[^0-9]/g, '');
+    const tempEmail = `${normalizedPhone}@campusfinance.bj`;
+
     // Insérer le code OTP dans la base de données
     const { error } = await supabase
       .from('otp_codes')
       .insert([{
         phone_number: phoneNumber, // Changé de email à phone_number
+        email: tempEmail, // Respecter la contrainte NOT NULL sur email si présente
         code: otp,
         type,
         expires_at: expiresAt.toISOString()

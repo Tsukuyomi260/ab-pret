@@ -116,25 +116,25 @@ const Analytics = () => {
             </button>
           </div>
         </div>
-      </div>
+              </div>
 
       {/* Contenu principal */}
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Statistiques principales */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
-        >
+            >
           <Card className="bg-white/90 backdrop-blur-sm">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-purple-100 rounded-xl">
-                  <CreditCard size={20} className="text-purple-600" />
+                  <div className="p-3 bg-purple-100 rounded-xl">
+                    <CreditCard size={20} className="text-purple-600" />
                 </div>
                 <span className="text-xs font-medium text-purple-600 bg-purple-100 px-2 py-1 rounded-full">
-                  +{analyticsData.trends.loanGrowth}%
-                </span>
+                    +{analyticsData.trends.loanGrowth}%
+                  </span>
               </div>
               <p className="text-2xl font-bold text-gray-900 mb-1">
                 {formatNumber(analyticsData.overview.totalLoans)}
@@ -146,12 +146,12 @@ const Analytics = () => {
           <Card className="bg-white/90 backdrop-blur-sm">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-green-100 rounded-xl">
-                  <DollarSign size={20} className="text-green-600" />
+                  <div className="p-3 bg-green-100 rounded-xl">
+                    <DollarSign size={20} className="text-green-600" />
                 </div>
                 <span className="text-xs font-medium text-green-600 bg-green-100 px-2 py-1 rounded-full">
-                  +{analyticsData.trends.monthlyGrowth}%
-                </span>
+                    +{analyticsData.trends.monthlyGrowth}%
+                  </span>
               </div>
               <p className="text-2xl font-bold text-gray-900 mb-1">
                 {formatCurrency(analyticsData.overview.totalAmount)}
@@ -163,12 +163,12 @@ const Analytics = () => {
           <Card className="bg-white/90 backdrop-blur-sm">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-blue-100 rounded-xl">
-                  <Users size={20} className="text-blue-600" />
+                  <div className="p-3 bg-blue-100 rounded-xl">
+                    <Users size={20} className="text-blue-600" />
                 </div>
                 <span className="text-xs font-medium text-blue-600 bg-blue-100 px-2 py-1 rounded-full">
-                  +{analyticsData.trends.userGrowth}%
-                </span>
+                    +{analyticsData.trends.userGrowth}%
+                  </span>
               </div>
               <p className="text-2xl font-bold text-gray-900 mb-1">
                 {formatNumber(analyticsData.overview.totalUsers)}
@@ -180,25 +180,25 @@ const Analytics = () => {
           <Card className="bg-white/90 backdrop-blur-sm">
             <div className="p-6">
               <div className="flex items-center justify-between mb-4">
-                <div className="p-3 bg-orange-100 rounded-xl">
-                  <Activity size={20} className="text-orange-600" />
-                </div>
+                  <div className="p-3 bg-orange-100 rounded-xl">
+                    <Activity size={20} className="text-orange-600" />
+                  </div>
                 <span className="text-xs font-medium text-orange-600 bg-orange-100 px-2 py-1 rounded-full">
-                  Actifs
-                </span>
-              </div>
+                    Actifs
+                  </span>
+                </div>
               <p className="text-2xl font-bold text-gray-900 mb-1">
-                {formatNumber(analyticsData.overview.activeLoans)}
-              </p>
+                  {formatNumber(analyticsData.overview.activeLoans)}
+                </p>
               <p className="text-sm text-gray-600">Prêts actifs</p>
-            </div>
+                </div>
           </Card>
-        </motion.div>
+            </motion.div>
 
         {/* Statuts des utilisateurs */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.2 }}
           className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
         >
@@ -213,25 +213,25 @@ const Analytics = () => {
                     {formatNumber(analyticsData.overview.approvedUsers)}
                   </p>
                   <p className="text-sm text-gray-600">Approuvés</p>
-                </div>
               </div>
-            </div>
+              </div>
+          </div>
           </Card>
 
           <Card className="bg-white/90 backdrop-blur-sm">
-            <div className="p-6">
+                  <div className="p-6">
               <div className="flex items-center space-x-3 mb-4">
                 <div className="p-2 bg-yellow-100 rounded-lg">
                   <Clock size={16} className="text-yellow-600" />
-                </div>
-                <div>
+                            </div>
+                            <div>
                   <p className="text-lg font-bold text-gray-900">
                     {formatNumber(analyticsData.overview.pendingUsers)}
-                  </p>
+                              </p>
                   <p className="text-sm text-gray-600">En attente</p>
-                </div>
-              </div>
-            </div>
+                            </div>
+                          </div>
+                          </div>
           </Card>
 
           <Card className="bg-white/90 backdrop-blur-sm">
@@ -245,19 +245,19 @@ const Analytics = () => {
                     {formatNumber(analyticsData.overview.rejectedUsers)}
                   </p>
                   <p className="text-sm text-gray-600">Rejetés</p>
-                </div>
-              </div>
-            </div>
+                          </div>
+                        </div>
+                      </div>
           </Card>
-        </motion.div>
+              </motion.div>
 
         {/* Top performeurs */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
           transition={{ delay: 0.3 }}
           className="mb-8"
-        >
+          >
           <Card className="bg-white/90 backdrop-blur-sm">
             <div className="p-6">
               <div className="flex items-center justify-between mb-6">
@@ -276,7 +276,7 @@ const Analytics = () => {
                       <div>
                         <p className="font-medium text-gray-900">{performer.name}</p>
                         <p className="text-sm text-gray-600">{performer.loans} prêts</p>
-                      </div>
+                    </div>
                     </div>
                     <div className="text-right">
                       <p className="font-bold text-gray-900">{formatCurrency(performer.totalAmount)}</p>
@@ -287,7 +287,7 @@ const Analytics = () => {
               </div>
             </div>
           </Card>
-        </motion.div>
+          </motion.div>
       </div>
     </div>
   );

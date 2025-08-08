@@ -167,46 +167,46 @@ const Settings = () => {
               >
                 <ArrowLeft size={20} />
               </button>
-              <div>
+                    <div>
                 <h1 className="text-2xl font-bold text-gray-900 font-montserrat">
                   Paramètres
                 </h1>
                 <p className="text-sm text-gray-600">Configuration de l'application</p>
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+                    </div>
+                  </div>
+                    </div>
+                  </div>
+                    </div>
 
       {/* Contenu principal */}
       <div className="max-w-7xl mx-auto px-4 py-8">
-        <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+          <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
           {/* Navigation des onglets */}
-          <div className="lg:col-span-1">
+            <div className="lg:col-span-1">
             <Card className="bg-white/90 backdrop-blur-sm">
               <div className="p-4">
                 <nav className="space-y-2">
                   {tabs.map((tab) => {
-                    const Icon = tab.icon;
-                    return (
+                      const Icon = tab.icon;
+                      return (
                       <button
-                        key={tab.id}
-                        onClick={() => setActiveTab(tab.id)}
+                          key={tab.id}
+                          onClick={() => setActiveTab(tab.id)}
                         className={`w-full flex items-center space-x-3 px-4 py-3 rounded-lg text-left transition-all duration-200 ${
-                          activeTab === tab.id
+                            activeTab === tab.id
                             ? 'bg-primary-100 text-primary-700 border border-primary-200'
                             : 'text-gray-600 hover:bg-gray-50'
                         }`}
-                      >
-                        <Icon size={20} />
+                          >
+                            <Icon size={20} />
                         <span className="font-medium">{tab.label}</span>
                       </button>
-                    );
-                  })}
-                </nav>
-              </div>
+                      );
+                    })}
+                  </nav>
+                </div>
             </Card>
-          </div>
+            </div>
 
           {/* Contenu des onglets */}
           <div className="lg:col-span-3">
@@ -221,27 +221,27 @@ const Settings = () => {
                       exit={{ opacity: 0, x: -20 }}
                       className="space-y-6"
                     >
-                      <div>
+                          <div>
                         <h2 className="text-xl font-bold text-gray-900 mb-4">Informations du profil</h2>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                          <Input
-                            label="Prénom"
+                        <Input
+                          label="Prénom"
                             value={profileData.firstName}
                             onChange={(e) => setProfileData({...profileData, firstName: e.target.value})}
                           />
-                          <Input
-                            label="Nom"
+                        <Input
+                          label="Nom"
                             value={profileData.lastName}
                             onChange={(e) => setProfileData({...profileData, lastName: e.target.value})}
                           />
-                          <Input
-                            label="Email"
-                            type="email"
+                        <Input
+                          label="Email"
+                          type="email"
                             value={profileData.email}
                             onChange={(e) => setProfileData({...profileData, email: e.target.value})}
                           />
-                          <Input
-                            label="Téléphone"
+                        <Input
+                          label="Téléphone"
                             value={profileData.phone}
                             onChange={(e) => setProfileData({...profileData, phone: e.target.value})}
                           />
@@ -256,74 +256,74 @@ const Settings = () => {
                             <span>{loading ? 'Mise à jour...' : 'Mettre à jour'}</span>
                           </Button>
                         </div>
-                      </div>
-                    </motion.div>
-                  )}
+                    </div>
+                  </motion.div>
+                )}
 
-                  {activeTab === 'security' && (
-                    <motion.div
+                {activeTab === 'security' && (
+                  <motion.div
                       key="security"
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: -20 }}
-                      className="space-y-6"
-                    >
-                      <div>
+                    className="space-y-6"
+                  >
+                        <div>
                         <h2 className="text-xl font-bold text-gray-900 mb-4">Sécurité</h2>
                         <div className="space-y-4">
-                          <Input
-                            label="Mot de passe actuel"
+                        <Input
+                          label="Mot de passe actuel"
                             type={showPassword ? 'text' : 'password'}
                             value={securityData.currentPassword}
                             onChange={(e) => setSecurityData({...securityData, currentPassword: e.target.value})}
                             icon={showPassword ? EyeOff : Eye}
                             onIconClick={() => setShowPassword(!showPassword)}
                           />
-                          <Input
-                            label="Nouveau mot de passe"
+                        <Input
+                          label="Nouveau mot de passe"
                             type={showPassword ? 'text' : 'password'}
                             value={securityData.newPassword}
                             onChange={(e) => setSecurityData({...securityData, newPassword: e.target.value})}
                             icon={showPassword ? EyeOff : Eye}
                             onIconClick={() => setShowPassword(!showPassword)}
                           />
-                          <Input
-                            label="Confirmer le nouveau mot de passe"
+                        <Input
+                          label="Confirmer le nouveau mot de passe"
                             type={showConfirmPassword ? 'text' : 'password'}
                             value={securityData.confirmPassword}
                             onChange={(e) => setSecurityData({...securityData, confirmPassword: e.target.value})}
                             icon={showConfirmPassword ? EyeOff : Eye}
                             onIconClick={() => setShowConfirmPassword(!showConfirmPassword)}
-                          />
-                        </div>
+                        />
+                      </div>
                         <div className="mt-6">
-                          <Button
+                      <Button
                             onClick={handleSecurityUpdate}
-                            disabled={loading}
-                            className="flex items-center space-x-2"
-                          >
+                        disabled={loading}
+                        className="flex items-center space-x-2"
+                      >
                             <Shield size={16} />
                             <span>{loading ? 'Mise à jour...' : 'Mettre à jour'}</span>
-                          </Button>
-                        </div>
-                      </div>
-                    </motion.div>
-                  )}
+                      </Button>
+                    </div>
+                    </div>
+                  </motion.div>
+                )}
 
                   {activeTab === 'notifications' && (
-                    <motion.div
+                  <motion.div
                       key="notifications"
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: -20 }}
-                      className="space-y-6"
-                    >
-                      <div>
+                    className="space-y-6"
+                  >
+                        <div>
                         <h2 className="text-xl font-bold text-gray-900 mb-4">Notifications</h2>
-                        <div className="space-y-4">
+                    <div className="space-y-4">
                           {Object.entries(notificationData).map(([key, value]) => (
                             <div key={key} className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
-                              <div>
+                        <div>
                                 <p className="font-medium text-gray-900 capitalize">
                                   {key === 'emailNotifications' ? 'Notifications par email' :
                                    key === 'loanAlerts' ? 'Alertes de prêts' : key.replace(/([A-Z])/g, ' $1').toLowerCase()}
@@ -332,7 +332,7 @@ const Settings = () => {
                                   {key === 'emailNotifications' ? 'Recevoir les notifications par email' :
                                    key === 'loanAlerts' ? 'Alertes pour les nouvelles demandes de prêt' : ''}
                                 </p>
-                              </div>
+                        </div>
                               <button
                                 onClick={() => setNotificationData({...notificationData, [key]: !value})}
                                 className={`w-12 h-6 rounded-full transition-colors ${
@@ -343,32 +343,32 @@ const Settings = () => {
                                   value ? 'transform translate-x-6' : 'transform translate-x-1'
                                 }`} />
                               </button>
-                            </div>
+                        </div>
                           ))}
                         </div>
                         <div className="mt-6">
-                          <Button
+                      <Button
                             onClick={handleNotificationUpdate}
-                            disabled={loading}
+                        disabled={loading}
                             className="flex items-center space-x-2"
-                          >
+                      >
                             <Bell size={16} />
                             <span>{loading ? 'Mise à jour...' : 'Mettre à jour'}</span>
-                          </Button>
-                        </div>
+                      </Button>
                       </div>
-                    </motion.div>
-                  )}
+                    </div>
+                  </motion.div>
+                )}
 
                   {activeTab === 'system' && (
-                    <motion.div
+                  <motion.div
                       key="system"
                       initial={{ opacity: 0, x: 20 }}
                       animate={{ opacity: 1, x: 0 }}
                       exit={{ opacity: 0, x: -20 }}
-                      className="space-y-6"
-                    >
-                      <div>
+                    className="space-y-6"
+                  >
+                        <div>
                         <h2 className="text-xl font-bold text-gray-900 mb-4">Paramètres système</h2>
                         <div className="space-y-4">
                           {Object.entries(systemData).map(([key, value]) => (
@@ -379,8 +379,8 @@ const Settings = () => {
                                 </p>
                                 <p className="text-sm text-gray-600">
                                   {key === 'maintenanceMode' ? 'Activer le mode maintenance pour les utilisateurs' : ''}
-                                </p>
-                              </div>
+                          </p>
+                        </div>
                               {typeof value === 'boolean' ? (
                                 <button
                                   onClick={() => setSystemData({...systemData, [key]: !value})}
@@ -403,7 +403,7 @@ const Settings = () => {
                                   <option value="5 years">5 ans</option>
                                 </select>
                               )}
-                            </div>
+                        </div>
                           ))}
                         </div>
                         <div className="mt-6">
@@ -415,10 +415,10 @@ const Settings = () => {
                             <Cog size={16} />
                             <span>{loading ? 'Mise à jour...' : 'Mettre à jour'}</span>
                           </Button>
-                        </div>
                       </div>
-                    </motion.div>
-                  )}
+                    </div>
+                  </motion.div>
+                )}
                 </AnimatePresence>
               </div>
             </Card>
