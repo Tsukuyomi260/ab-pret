@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../context/NotificationContext';
+import { useAuth } from '../../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import Card from '../UI/Card';
 import Button from '../UI/Button';
 import NotificationBell from '../UI/NotificationBell';
+import { getLoans, getPayments } from '../../utils/supabaseAPI';
 import { 
   CreditCard, 
   Clock, 
@@ -34,6 +36,7 @@ import { formatCurrency } from '../../utils/helpers';
 const ClientDashboard = () => {
   const navigate = useNavigate();
   const { notifications } = useNotifications();
+  const { user } = useAuth();
   const [stats, setStats] = useState({
     totalLoaned: 0,
     totalRepaid: 0,
@@ -43,6 +46,7 @@ const ClientDashboard = () => {
     nextPayment: 0,
     daysUntilNextPayment: 0
   });
+  const [recentLoans, setRecentLoans] = useState([]);
   const [loading, setLoading] = useState(true);
 
   // Animations CSS personnalisées
@@ -95,67 +99,118 @@ const ClientDashboard = () => {
     }
   `;
 
-  // Données simulées pour le développement
-  const recentLoans = [
-    {
-      id: 1,
-      purpose: 'Frais de scolarité',
-      amount: 150000,
-      status: 'active',
-      requestDate: '2025-01-15',
-      category: 'education',
-      monthlyPayment: 25000,
-      totalAmount: 150000,
-      paidAmount: 50000,
-      progress: 33,
-      nextPaymentDate: '2025-02-15'
-    },
-    {
-      id: 2,
-      purpose: 'Achat de matériel informatique',
-      amount: 75000,
-      status: 'active',
-      requestDate: '2025-01-10',
-      category: 'equipment',
-      monthlyPayment: 15000,
-      totalAmount: 75000,
-      paidAmount: 30000,
-      progress: 40,
-      nextPaymentDate: '2025-02-10'
-    },
-    {
-      id: 3,
-      purpose: 'Frais de logement',
-      amount: 120000,
-      status: 'repaid',
-      requestDate: '2024-12-01',
-      category: 'housing',
-      monthlyPayment: 20000,
-      totalAmount: 120000,
-      paidAmount: 120000,
-      progress: 100,
-      nextPaymentDate: null
-    }
-  ];
+
 
   useEffect(() => {
-    // Simulation de chargement des données
     const loadStats = async () => {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      if (!user?.id) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        
+        // Récupérer les prêts de l'utilisateur
+        const loansResult = await getLoans(user.id);
+        const paymentsResult = await getPayments(user.id);
+
+        if (loansResult.success && paymentsResult.success) {
+          const loans = loansResult.data || [];
+          const payments = paymentsResult.data || [];
+
+          // Calculer les statistiques
+          const totalLoaned = loans.reduce((sum, loan) => sum + (loan.amount || 0), 0);
+          const totalRepaid = payments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+          const activeLoans = loans.filter(loan => loan.status === 'active').length;
+          const amountToRepay = totalLoaned - totalRepaid;
+
+          // Calculer le prochain paiement (si des prêts actifs existent)
+          let nextPayment = 0;
+          let daysUntilNextPayment = 0;
+          
+          const activeLoan = loans.find(loan => loan.status === 'active');
+          if (activeLoan && activeLoan.monthly_payment) {
+            nextPayment = activeLoan.monthly_payment;
+            
+            // Calculer les jours jusqu'au prochain paiement (simulation basée sur la date de création)
+            const loanDate = new Date(activeLoan.created_at);
+            const now = new Date();
+            const daysSinceLoan = Math.floor((now - loanDate) / (1000 * 60 * 60 * 24));
+            const daysInMonth = 30;
+            const daysUntilNext = daysInMonth - (daysSinceLoan % daysInMonth);
+            daysUntilNextPayment = Math.max(0, daysUntilNext);
+          }
+
+          // Calculer le score de crédit basé sur l'historique
+          let creditScore = 750; // Score de base
+          const completedLoans = loans.filter(loan => loan.status === 'completed').length;
+          const onTimePayments = payments.filter(payment => payment.status === 'completed').length;
+          
+          // Ajuster le score selon l'historique
+          creditScore += completedLoans * 20; // +20 points par prêt complété
+          creditScore += onTimePayments * 10; // +10 points par paiement à temps
+          creditScore = Math.min(850, Math.max(300, creditScore)); // Limiter entre 300 et 850
+
       setStats({
-        totalLoaned: 345000,
-        totalRepaid: 200000,
-        amountToRepay: 145000,
-        activeLoans: 2,
-        creditScore: 750,
-        nextPayment: 25000,
-        daysUntilNextPayment: 5
-      });
+            totalLoaned,
+            totalRepaid,
+            amountToRepay,
+            activeLoans,
+            creditScore,
+            nextPayment,
+            daysUntilNextPayment
+          });
+
+          // Formater les prêts récents pour l'affichage
+          const formattedLoans = loans.slice(0, 3).map(loan => {
+            // Calculer le montant payé pour ce prêt
+            const loanPayments = payments.filter(payment => payment.loan_id === loan.id);
+            const paidAmount = loanPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+            const progress = loan.amount > 0 ? Math.round((paidAmount / loan.amount) * 100) : 0;
+
+            // Calculer la date du prochain paiement
+            let nextPaymentDate = null;
+            if (loan.status === 'active' && loan.monthly_payment) {
+              const loanDate = new Date(loan.created_at);
+              const now = new Date();
+              const daysSinceLoan = Math.floor((now - loanDate) / (1000 * 60 * 60 * 24));
+              const daysInMonth = 30;
+              const nextPaymentDay = daysSinceLoan + daysInMonth - (daysSinceLoan % daysInMonth);
+              nextPaymentDate = new Date(loanDate.getTime() + (nextPaymentDay * 24 * 60 * 60 * 1000));
+            }
+
+            return {
+              id: loan.id,
+              purpose: loan.purpose || 'Non spécifié',
+              amount: loan.amount || 0,
+              status: loan.status || 'pending',
+              requestDate: loan.created_at,
+              category: loan.loan_type || 'other',
+              monthlyPayment: loan.monthly_payment || 0,
+              totalAmount: loan.amount || 0,
+              paidAmount,
+              progress,
+              nextPaymentDate: nextPaymentDate ? nextPaymentDate.toISOString().split('T')[0] : null
+            };
+          });
+
+          setRecentLoans(formattedLoans);
+        } else {
+          console.error('[DASHBOARD] Erreur lors du chargement des données:', {
+            loans: loansResult.error,
+            payments: paymentsResult.error
+          });
+        }
+      } catch (error) {
+        console.error('[DASHBOARD] Erreur lors du chargement des statistiques:', error.message);
+      } finally {
       setLoading(false);
+      }
     };
 
     loadStats();
-  }, []);
+  }, [user?.id]);
 
   const getStatusColor = (status) => {
     switch (status) {
@@ -223,7 +278,7 @@ const ClientDashboard = () => {
           >
             Bonjour,{' '}
             <span className="bg-gradient-to-r from-primary-500 to-primary-600 bg-clip-text text-transparent">
-              Elise
+              {user?.user_metadata?.first_name || user?.first_name || 'Utilisateur'}
             </span>
             {' '}👋
           </motion.h1>

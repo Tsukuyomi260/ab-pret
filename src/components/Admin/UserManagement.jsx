@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../context/NotificationContext';
+import { getAllUsers, updateUserStatus } from '../../utils/supabaseAPI';
 import { motion } from 'framer-motion';
 import { 
   ArrowLeft, 
@@ -37,66 +38,52 @@ const UserManagement = () => {
   const loadUsers = async () => {
     try {
       setLoading(true);
-      // Simulation du chargement
-      setTimeout(() => {
-  const mockUsers = [
-    {
-      id: 1,
-              firstName: 'Utilisateur',
-        lastName: 'A',
-        email: 'utilisateur.a@student.bj',
-      phone: '+229 90123456',
-      status: 'active',
-      registrationDate: '2023-09-01',
-      totalLoans: 3,
-      activeLoans: 1,
-      totalAmount: 1500000,
-            verified: true
-    },
-    {
-      id: 2,
-              firstName: 'Utilisateur',
-        lastName: 'B',
-        email: 'utilisateur.b@student.bj',
-      phone: '+229 90234567',
-      status: 'active',
-      registrationDate: '2023-10-15',
-      totalLoans: 2,
-      activeLoans: 0,
-      totalAmount: 800000,
-            verified: true
-    },
-    {
-      id: 3,
-              firstName: 'Utilisateur',
-        lastName: 'C',
-        email: 'utilisateur.c@student.bj',
-      phone: '+229 90345678',
-      status: 'pending',
-      registrationDate: '2024-01-05',
-      totalLoans: 0,
-      activeLoans: 0,
-      totalAmount: 0,
-            verified: false
-          }
-        ];
-      setUsers(mockUsers);
-        setLoading(false);
-    }, 1000);
+      
+      const result = await getAllUsers();
+      
+      if (result.success) {
+        // Transformer les données pour correspondre au format attendu
+        const formattedUsers = result.data.map(user => ({
+          id: user.id,
+          firstName: user.first_name || 'Utilisateur',
+          lastName: user.last_name || 'Inconnu',
+          email: user.email || 'email@inconnu.com',
+          phone: user.phone_number || 'Non renseigné',
+          status: user.status || 'pending',
+          registrationDate: user.created_at || new Date().toISOString(),
+          totalLoans: 0, // À calculer si nécessaire
+          activeLoans: 0, // À calculer si nécessaire
+          totalAmount: 0, // À calculer si nécessaire
+          verified: user.status === 'approved'
+        }));
+        
+        setUsers(formattedUsers);
+      } else {
+        console.error('[ADMIN] Erreur lors du chargement des utilisateurs:', result.error);
+        showError('Erreur lors du chargement des utilisateurs');
+      }
     } catch (error) {
       console.error('[ADMIN] Erreur lors du chargement des utilisateurs:', error.message);
+      showError('Erreur lors du chargement des utilisateurs');
+    } finally {
       setLoading(false);
     }
   };
 
   const handleApproveUser = async (userId) => {
     try {
-      setUsers(prev => 
-        prev.map(user => 
-          user.id === userId ? { ...user, status: 'active' } : user
-        )
-      );
-      showSuccess('Utilisateur approuvé avec succès');
+      const result = await updateUserStatus(userId, 'approved');
+      
+      if (result.success) {
+        setUsers(prev => 
+          prev.map(user => 
+            user.id === userId ? { ...user, status: 'approved', verified: true } : user
+          )
+        );
+        showSuccess('Utilisateur approuvé avec succès');
+      } else {
+        showError('Erreur lors de l\'approbation');
+      }
     } catch (error) {
       console.error('[ADMIN] Erreur lors de l\'approbation:', error.message);
       showError('Erreur lors de l\'approbation');
@@ -105,15 +92,21 @@ const UserManagement = () => {
 
   const handleSuspendUser = async (userId) => {
     try {
-      setUsers(prev => 
-        prev.map(user => 
-          user.id === userId ? { ...user, status: 'suspended' } : user
-        )
-      );
-      showSuccess('Utilisateur suspendu');
+      const result = await updateUserStatus(userId, 'rejected');
+      
+      if (result.success) {
+        setUsers(prev => 
+          prev.map(user => 
+            user.id === userId ? { ...user, status: 'rejected', verified: false } : user
+          )
+        );
+        showSuccess('Utilisateur rejeté');
+      } else {
+        showError('Erreur lors du rejet');
+      }
     } catch (error) {
-      console.error('[ADMIN] Erreur lors de la suspension:', error.message);
-      showError('Erreur lors de la suspension');
+      console.error('[ADMIN] Erreur lors du rejet:', error.message);
+      showError('Erreur lors du rejet');
     }
   };
 
@@ -299,7 +292,7 @@ const UserManagement = () => {
                     </Button>
                   )}
                   {user.status === 'active' && (
-                    <Button
+                      <Button
                       onClick={() => handleSuspendUser(user.id)}
                       variant="outline"
                       className="flex items-center space-x-2 border-red-200 text-red-600 hover:bg-red-50"

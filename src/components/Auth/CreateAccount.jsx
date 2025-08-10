@@ -35,6 +35,7 @@ const CreateAccount = () => {
   const [basicInfo, setBasicInfo] = useState({
     firstName: '',
     lastName: '',
+    email: '', // Ajouter l'email
     phoneNumber: '',
     password: '',
     confirmPassword: ''
@@ -44,6 +45,7 @@ const CreateAccount = () => {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
   const [otpSent, setOtpSent] = useState(false);
   const [otpTimer, setOtpTimer] = useState(0);
+  const [requestId, setRequestId] = useState(null);
 
   // Étape 3 - Confirmation
   const [isConfirmed, setIsConfirmed] = useState(false);
@@ -80,6 +82,11 @@ const CreateAccount = () => {
 
     if (!basicInfo.lastName.trim()) {
       newErrors.lastName = 'Le nom est requis';
+    }
+
+    // Validation de l'email (optionnel mais doit être valide si fourni)
+    if (basicInfo.email && !validateEmail(basicInfo.email)) {
+      newErrors.email = 'Email invalide';
     }
 
     // Validation du numéro de téléphone béninois
@@ -129,6 +136,7 @@ const CreateAccount = () => {
       
       if (result.success) {
         setOtpSent(true);
+        setRequestId(result.requestId);
         setOtpTimer(60);
         
         const timer = setInterval(() => {
@@ -141,12 +149,7 @@ const CreateAccount = () => {
           });
         }, 1000);
 
-        // Afficher un message de succès
-        if (result.smsError) {
-          showError(`Code OTP généré mais erreur d'envoi SMS: ${result.smsError}`);
-        } else {
-          showSuccess('Code OTP envoyé avec succès par SMS');
-        }
+        showSuccess(result.message || 'Code OTP envoyé avec succès par SMS');
       } else {
         showError(result.error || 'Erreur lors de l\'envoi du code OTP');
       }
@@ -168,7 +171,7 @@ const CreateAccount = () => {
     try {
       setLoading(true);
       
-      const result = await verifyOTP(basicInfo.phoneNumber, otpString);
+      const result = await verifyOTP(basicInfo.phoneNumber, otpString, requestId);
       
       if (result.success) {
         setCurrentStep(3);
@@ -199,9 +202,17 @@ const CreateAccount = () => {
       }, 2000);
     } else if (currentStep === 4) {
       // Rediriger vers l'inscription complète
+      console.log('[CREATEACCOUNT] Données transmises:', basicInfo);
       navigate('/register', { 
         state: { 
-          basicInfo,
+          basicInfo: {
+            firstName: basicInfo.firstName,
+            lastName: basicInfo.lastName,
+            email: basicInfo.email, // Ajouter l'email
+            phoneNumber: basicInfo.phoneNumber,
+            password: basicInfo.password,
+            confirmPassword: basicInfo.confirmPassword
+          },
           fromCreateAccount: true 
         } 
       });
@@ -249,6 +260,17 @@ const CreateAccount = () => {
             icon={User}
           />
         </div>
+
+        <Input
+          label="Adresse email (optionnel)"
+          type="email"
+          name="email"
+          value={basicInfo.email}
+          onChange={handleBasicInfoChange}
+          error={errors.email}
+          icon={Mail}
+          placeholder="votre@email.com (optionnel)"
+        />
 
         <Input
           label="Numéro de téléphone"
@@ -525,7 +547,7 @@ const CreateAccount = () => {
             </Button>
           )}
           
-          {currentStep < steps.length && currentStep !== 3 && (
+          {currentStep < steps.length && (
             <Button
               onClick={handleNext}
               disabled={loading}
@@ -534,6 +556,7 @@ const CreateAccount = () => {
               <span>
                 {currentStep === 1 ? 'Continuer' :
                  currentStep === 2 ? 'Vérifier' :
+                 currentStep === 3 ? 'Continuer' :
                  'Suivant'}
               </span>
               <ArrowRight size={16} />

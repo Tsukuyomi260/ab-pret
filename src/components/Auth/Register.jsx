@@ -2,20 +2,29 @@ import React, { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
-import { registerUser } from '../../utils/supabaseClient';
+// Finalisation côté Supabase (auth + profil)
+import { signUpWithPhone, updateUserProfile } from '../../utils/supabaseAPI';
 import Button from '../UI/Button';
 import Input from '../UI/Input';
 import Logo from '../UI/Logo';
 import StarBorder from '../UI/StarBorder';
 import { Mail, Lock, Phone, Eye, EyeOff, Camera, GraduationCap, Building, User, Shield, CheckCircle, Upload, ArrowRight, ArrowLeft } from 'lucide-react';
 import { validateEmail, validatePhone } from '../../utils/helpers';
+import { uploadIdentityCard } from '../../utils/fileUpload';
 
 const Register = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { basicInfo, fromCreateAccount } = location.state || {};
   
-  const [currentStep, setCurrentStep] = useState(1);
+  // Debug: Afficher les données reçues
+  console.log('[REGISTER] Données reçues:', { basicInfo, fromCreateAccount });
+  console.log('[REGISTER] Location state:', location.state);
+  console.log('[REGISTER] basicInfo.firstName:', basicInfo?.firstName);
+  console.log('[REGISTER] basicInfo.lastName:', basicInfo?.lastName);
+  console.log('[REGISTER] basicInfo.phoneNumber:', basicInfo?.phoneNumber);
+  
+  const [currentStep, setCurrentStep] = useState(5);
   const [formData, setFormData] = useState({
     // Informations personnelles
     firstName: basicInfo?.firstName || '',
@@ -23,8 +32,8 @@ const Register = () => {
     filiere: '',
     anneeEtude: '',
     entite: '',
-    phone: '',
-    email: basicInfo?.email || '',
+    phone: basicInfo?.phoneNumber || '',
+    email: basicInfo?.email || '', // Utiliser l'email fourni
     password: basicInfo?.password || '',
     confirmPassword: basicInfo?.confirmPassword || '',
     userIdentityCard: null,
@@ -48,10 +57,10 @@ const Register = () => {
   const { showSuccess, showError } = useNotifications();
 
   const steps = [
-    { id: 1, title: 'Informations personnelles', icon: User },
-    { id: 2, title: 'Informations du témoin', icon: Shield },
-    { id: 3, title: 'Contact d\'urgence', icon: Phone },
-    { id: 4, title: 'Validation', icon: CheckCircle }
+    { id: 5, title: 'Informations personnelles', icon: User },
+    { id: 6, title: 'Informations du témoin', icon: Shield },
+    { id: 7, title: 'Contact d\'urgence', icon: Phone },
+    { id: 8, title: 'Validation', icon: CheckCircle }
   ];
 
   const handleChange = (e) => {
@@ -81,20 +90,20 @@ const Register = () => {
     const newErrors = {};
 
     switch (currentStep) {
-      case 1:
+      case 5:
         if (!formData.firstName.trim()) newErrors.firstName = 'Le prénom est requis';
         if (!formData.lastName.trim()) newErrors.lastName = 'Le nom est requis';
         if (!formData.filiere.trim()) newErrors.filiere = 'La filière est requise';
         if (!formData.anneeEtude.trim()) newErrors.anneeEtude = "L'année d'étude est requise";
         if (!formData.entite.trim()) newErrors.entite = "L'entité est requise";
-        if (!validateEmail(formData.email)) newErrors.email = 'Email invalide';
+        if (formData.email && !validateEmail(formData.email)) newErrors.email = 'Email invalide';
         if (!validatePhone(formData.phone)) newErrors.phone = 'Numéro de téléphone invalide';
         if (formData.password.length < 6) newErrors.password = 'Le mot de passe doit contenir au moins 6 caractères';
         if (formData.password !== formData.confirmPassword) newErrors.confirmPassword = 'Les mots de passe ne correspondent pas';
         if (!formData.userIdentityCard) newErrors.userIdentityCard = 'La photo de votre carte d\'identité est requise';
         break;
 
-      case 2:
+      case 6:
         if (!formData.temoinName.trim()) newErrors.temoinName = 'Le nom du témoin est requis';
         if (!formData.temoinQuartier.trim()) newErrors.temoinQuartier = 'Le quartier du témoin est requis';
         if (!validatePhone(formData.temoinPhone)) newErrors.temoinPhone = 'Numéro de téléphone invalide';
@@ -102,7 +111,7 @@ const Register = () => {
         if (!formData.temoinIdentityCard) newErrors.temoinIdentityCard = 'La photo de la carte d\'identité du témoin est requise';
         break;
 
-      case 3:
+      case 7:
         if (!formData.emergencyName.trim()) newErrors.emergencyName = 'Le nom du contact d\'urgence est requis';
         if (!formData.emergencyRelation.trim()) newErrors.emergencyRelation = 'La relation est requise';
         if (!validatePhone(formData.emergencyPhone)) newErrors.emergencyPhone = 'Numéro de téléphone invalide';
@@ -122,7 +131,9 @@ const Register = () => {
   };
 
   const handlePrevious = () => {
-    setCurrentStep(currentStep - 1);
+    if (currentStep > 5) {
+      setCurrentStep(currentStep - 1);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -133,45 +144,72 @@ const Register = () => {
     setLoading(true);
     
     try {
-      const         userData = {
-          firstName: formData.firstName,
-          lastName: formData.lastName,
-          filiere: formData.filiere,
-          anneeEtude: formData.anneeEtude,
-          entite: formData.entite,
-          phone: formData.phone,
-          email: formData.email,
-          password: formData.password,
-          userIdentityCardName: formData.userIdentityCard?.name || 'Carte d\'identité utilisateur',
-          temoinName: formData.temoinName,
-          temoinQuartier: formData.temoinQuartier,
-          temoinPhone: formData.temoinPhone,
-          temoinEmail: formData.temoinEmail,
-          temoinIdentityCardName: formData.temoinIdentityCard?.name || 'Carte d\'identité témoin',
-          emergencyName: formData.emergencyName,
-          emergencyRelation: formData.emergencyRelation,
-          emergencyPhone: formData.emergencyPhone,
-          emergencyEmail: formData.emergencyEmail,
-          emergencyAddress: formData.emergencyAddress,
-          status: 'pending',
-          created_at: new Date().toISOString(),
-          role: 'client'
-        };
+      console.log('[REGISTER] Données pour inscription:', {
+        phone: formData.phone,
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email
+      });
       
-      const result = await registerUser(userData);
-      
-      if (result.success) {
-        navigate('/verify-otp', { 
-          state: { 
-            user: result.data[0],
-            email: formData.email 
-          } 
-        });
-        
-        showSuccess('Compte créé avec succès ! Veuillez vérifier votre email pour le code OTP.');
-      } else {
-        throw new Error(result.error?.message || 'Erreur lors de l\'enregistrement');
+          // 1) Créer l'utilisateur Auth via téléphone (OTP déjà validé en étape précédente)
+    const signUp = await signUpWithPhone(formData.phone, formData.password, {
+      firstName: formData.firstName,
+      lastName: formData.lastName,
+      email: formData.email // Ajouter l'email si fourni
+    });
+
+      if (!signUp.success || !signUp.user?.id) {
+        throw new Error(signUp.error || 'Création du compte échouée');
       }
+
+      // 2) Uploader les photos si fournies
+      let userIdentityCardUrl = null;
+      let temoinIdentityCardUrl = null;
+
+      if (formData.userIdentityCard) {
+        console.log('[REGISTER] Upload carte d\'identité utilisateur...');
+        const uploadResult = await uploadIdentityCard(formData.userIdentityCard, signUp.user.id, 'user');
+        if (uploadResult.success) {
+          userIdentityCardUrl = uploadResult.url;
+          console.log('[REGISTER] ✅ Carte d\'identité utilisateur uploadée');
+        } else {
+          console.error('[REGISTER] ❌ Erreur upload carte d\'identité utilisateur:', uploadResult.error);
+        }
+      }
+
+      if (formData.temoinIdentityCard) {
+        console.log('[REGISTER] Upload carte d\'identité témoin...');
+        const uploadResult = await uploadIdentityCard(formData.temoinIdentityCard, signUp.user.id, 'temoin');
+        if (uploadResult.success) {
+          temoinIdentityCardUrl = uploadResult.url;
+          console.log('[REGISTER] ✅ Carte d\'identité témoin uploadée');
+        } else {
+          console.error('[REGISTER] ❌ Erreur upload carte d\'identité témoin:', uploadResult.error);
+        }
+      }
+
+      // 3) Enregistrer/compléter le profil utilisateur
+      await updateUserProfile(signUp.user.id, {
+        filiere: formData.filiere,
+        annee_etude: formData.anneeEtude,
+        entite: formData.entite,
+        temoin_name: formData.temoinName,
+        temoin_quartier: formData.temoinQuartier,
+        temoin_phone: formData.temoinPhone,
+        temoin_email: formData.temoinEmail,
+        emergency_name: formData.emergencyName,
+        emergency_relation: formData.emergencyRelation,
+        emergency_phone: formData.emergencyPhone,
+        emergency_email: formData.emergencyEmail,
+        emergency_address: formData.emergencyAddress,
+        user_identity_card_url: userIdentityCardUrl,
+        temoin_identity_card_url: temoinIdentityCardUrl,
+        user_identity_card_name: formData.userIdentityCard?.name || null,
+        temoin_identity_card_name: formData.temoinIdentityCard?.name || null
+      });
+
+      showSuccess('Inscription complétée ! Votre compte a été créé avec succès.');
+      navigate('/dashboard');
 
     } catch (error) {
               console.error('[AUTH] Erreur lors de l\'inscription:', error.message);
@@ -184,7 +222,7 @@ const Register = () => {
 
   const renderStepContent = () => {
     switch (currentStep) {
-      case 1:
+      case 5:
         return (
           <div className="space-y-6 animate-fade-in-up">
             <div className="flex items-center space-x-3 mb-6">
@@ -280,14 +318,13 @@ const Register = () => {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               <div className="relative group">
                 <Input
-                  label="Adresse email"
+                  label="Adresse email (optionnel)"
                   type="email"
                   name="email"
                   value={formData.email}
                   onChange={handleChange}
-                  placeholder="votre@email.com"
+                  placeholder="votre@email.com (optionnel)"
                   error={errors.email}
-                  required
                   className="group-hover:shadow-md transition-all duration-300"
                 />
                 <Mail size={20} className="absolute right-4 top-12 text-neutral-400 group-hover:text-primary-500 transition-colors duration-300" />
@@ -382,7 +419,7 @@ const Register = () => {
           </div>
         );
 
-      case 2:
+      case 6:
         return (
           <div className="space-y-6 animate-fade-in-up">
             <div className="flex items-center space-x-3 mb-6">
@@ -491,7 +528,7 @@ const Register = () => {
           </div>
         );
 
-      case 3:
+      case 7:
         return (
           <div className="space-y-6 animate-fade-in-up">
             <div className="flex items-center space-x-3 mb-6">
@@ -581,7 +618,7 @@ const Register = () => {
           </div>
         );
 
-      case 4:
+      case 8:
         return (
           <div className="space-y-6 animate-fade-in-up">
             <div className="flex items-center space-x-3 mb-6">
@@ -704,9 +741,9 @@ const Register = () => {
             {renderStepContent()}
 
             <div className="flex justify-between pt-6">
-              {currentStep < 4 ? (
+              {currentStep < 8 ? (
                 <>
-                  {currentStep > 1 && (
+                                      {currentStep > 5 && (
                     <Button
                       type="button"
                       onClick={handlePrevious}

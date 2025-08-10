@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { getLoans, updateLoanStatus } from '../../utils/supabaseAPI';
+import { useNotifications } from '../../context/NotificationContext';
 import { 
   Search, 
   Filter, 
@@ -22,6 +24,7 @@ import Button from '../UI/Button';
 
 const LoanRequests = () => {
   const navigate = useNavigate();
+  const { showSuccess, showError } = useNotifications();
   const [loanRequests, setLoanRequests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -34,69 +37,75 @@ const LoanRequests = () => {
   const loadRequests = async () => {
     try {
       setLoading(true);
-      // Simulation du chargement
-    setTimeout(() => {
-      const mockRequests = [
-        {
-          id: 1,
-            user: { firstName: 'Utilisateur', lastName: 'A', email: 'utilisateur.a@email.com' },
-          amount: 75000,
-            purpose: 'Achat de matériel informatique',
-          status: 'pending',
-          requestDate: '2025-01-15',
-          priority: 'high'
-        },
-        {
-          id: 2,
-            user: { firstName: 'Utilisateur', lastName: 'B', email: 'utilisateur.b@email.com' },
-          amount: 120000,
-            purpose: 'Rénovation de boutique',
-          status: 'approved',
-          requestDate: '2025-01-14',
-          priority: 'medium'
-        },
-        {
-          id: 3,
-            user: { firstName: 'Utilisateur', lastName: 'C', email: 'utilisateur.c@email.com' },
-          amount: 50000,
-            purpose: 'Frais de scolarité',
-          status: 'rejected',
-          requestDate: '2025-01-13',
-          priority: 'low'
-          }
-        ];
-      setLoanRequests(mockRequests);
-      setLoading(false);
-    }, 1000);
+      
+      const result = await getLoans();
+      
+      if (result.success) {
+        // Transformer les données pour correspondre au format attendu
+        const formattedRequests = result.data.map(loan => ({
+          id: loan.id,
+          user: {
+            firstName: loan.users?.first_name || 'Utilisateur',
+            lastName: loan.users?.last_name || 'Inconnu',
+            email: loan.users?.email || 'email@inconnu.com'
+          },
+          amount: loan.amount || 0,
+          purpose: loan.purpose || 'Non spécifié',
+          status: loan.status || 'pending',
+          requestDate: loan.created_at || new Date().toISOString(),
+          priority: loan.priority || 'medium'
+        }));
+        
+        setLoanRequests(formattedRequests);
+      } else {
+        console.error('[ADMIN] Erreur lors du chargement des demandes:', result.error);
+        showError('Erreur lors du chargement des demandes');
+      }
     } catch (error) {
       console.error('[ADMIN] Erreur lors du chargement des demandes:', error.message);
+      showError('Erreur lors du chargement des demandes');
+    } finally {
       setLoading(false);
     }
   };
 
   const handleApprove = async (requestId) => {
     try {
-      // Simulation d'approbation
+      const result = await updateLoanStatus(requestId, 'approved');
+      
+      if (result.success) {
       setLoanRequests(prev => 
-        prev.map(req => 
-          req.id === requestId ? { ...req, status: 'approved' } : req
-        )
-      );
+          prev.map(req => 
+            req.id === requestId ? { ...req, status: 'approved' } : req
+          )
+        );
+        showSuccess('Demande approuvée avec succès');
+      } else {
+        showError('Erreur lors de l\'approbation');
+      }
     } catch (error) {
       console.error('[ADMIN] Erreur lors de l\'approbation:', error.message);
+      showError('Erreur lors de l\'approbation');
     }
   };
 
   const handleReject = async (requestId) => {
     try {
-      // Simulation de rejet
+      const result = await updateLoanStatus(requestId, 'rejected');
+      
+      if (result.success) {
       setLoanRequests(prev => 
-        prev.map(req => 
-          req.id === requestId ? { ...req, status: 'rejected' } : req
-        )
-      );
+          prev.map(req => 
+            req.id === requestId ? { ...req, status: 'rejected' } : req
+          )
+        );
+        showSuccess('Demande rejetée avec succès');
+      } else {
+        showError('Erreur lors du rejet');
+      }
     } catch (error) {
       console.error('[ADMIN] Erreur lors du rejet:', error.message);
+      showError('Erreur lors du rejet');
     }
   };
 

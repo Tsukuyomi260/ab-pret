@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../context/NotificationContext';
+import { updateUserProfile, getCurrentUser } from '../../utils/supabaseAPI';
 import Card from '../UI/Card';
 import Button from '../UI/Button';
 import Input from '../UI/Input';
@@ -37,14 +38,29 @@ const Profile = () => {
   });
 
   const [formData, setFormData] = useState({
-    firstName: user?.first_name || 'John',
-    lastName: user?.last_name || 'Doe',
-    email: user?.email || 'john.doe@example.com',
-    phone: '+225 0701234567',
+    firstName: user?.first_name || user?.user_metadata?.first_name || '',
+    lastName: user?.last_name || user?.user_metadata?.last_name || '',
+    email: user?.email || '',
+    phone: user?.phone_number || user?.user_metadata?.phone_number || '',
     address: 'Abidjan, Côte d\'Ivoire',
     occupation: 'Entrepreneur',
     monthlyIncome: 500000
   });
+
+  // Mettre à jour les données du formulaire quand l'utilisateur change
+  useEffect(() => {
+    if (user) {
+      setFormData({
+        firstName: user.first_name || user.user_metadata?.first_name || '',
+        lastName: user.last_name || user.user_metadata?.last_name || '',
+        email: user.email || '',
+        phone: user.phone_number || user.user_metadata?.phone_number || '',
+        address: 'Abidjan, Côte d\'Ivoire',
+        occupation: 'Entrepreneur',
+        monthlyIncome: 500000
+      });
+    }
+  }, [user]);
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -53,19 +69,70 @@ const Profile = () => {
   const handleSave = async () => {
     setLoading(true);
     try {
-      // Simulation d'appel API
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      console.log('[PROFILE] Sauvegarde du profil en cours...');
       
-      // Si une nouvelle image a été sélectionnée, simuler l'upload
-      if (profileImage) {
-        console.log('[PROFILE] Upload d\'image en cours');
+      // Préparer les données du profil
+      const profileData = {
+        firstName: formData.firstName,
+        lastName: formData.lastName,
+        email: formData.email,
+        phone: formData.phone,
+        address: formData.address,
+        occupation: formData.occupation,
+        monthlyIncome: formData.monthlyIncome
+      };
+      
+      // Appeler l'API de mise à jour
+      const result = await updateUserProfile(user.id, profileData);
+      
+      if (result.success) {
+        console.log('[PROFILE] ✅ Profil mis à jour avec succès');
+        
+        // Mettre à jour le cache local
+        try {
+          const cachedUser = JSON.parse(localStorage.getItem('ab_user_cache') || '{}');
+          const updatedCache = {
+            ...cachedUser,
+            first_name: formData.firstName,
+            last_name: formData.lastName,
+            email: formData.email
+          };
+          localStorage.setItem('ab_user_cache', JSON.stringify(updatedCache));
+        } catch (cacheError) {
+          console.warn('[PROFILE] Erreur mise à jour cache:', cacheError);
+        }
+        
+        // Rafraîchir les données de l'utilisateur
+        try {
+          const userResult = await getCurrentUser();
+          if (userResult.success) {
+            console.log('[PROFILE] Données utilisateur rafraîchies');
+          }
+        } catch (refreshError) {
+          console.warn('[PROFILE] Erreur rafraîchissement utilisateur:', refreshError);
+        }
+        
+        // Si une nouvelle image a été sélectionnée, simuler l'upload
+        if (profileImage) {
+          console.log('[PROFILE] Upload d\'image en cours');
+        }
+        
+        setIsEditing(false);
+        setProfileImage(null);
+        setPreviewImage(null);
+        
+        // Afficher un message de succès
+        alert('Profil mis à jour avec succès !');
+        
+        // Recharger la page pour afficher les nouvelles données
+        window.location.reload();
+      } else {
+        console.error('[PROFILE] ❌ Échec de la mise à jour:', result.error);
+        alert(`Erreur lors de la mise à jour: ${result.error}`);
       }
-      
-      setIsEditing(false);
-      setProfileImage(null);
-      setPreviewImage(null);
     } catch (error) {
-      console.error('[PROFILE] Erreur lors de la sauvegarde:', error.message);
+      console.error('[PROFILE] ❌ Erreur lors de la sauvegarde:', error.message);
+      alert(`Erreur lors de la sauvegarde: ${error.message}`);
     } finally {
       setLoading(false);
     }
@@ -101,9 +168,18 @@ const Profile = () => {
     }
   };
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      console.log('[PROFILE] Tentative de déconnexion...');
+      await logout();
+      console.log('[PROFILE] ✅ Déconnexion réussie, redirection vers login');
+      navigate('/login');
+    } catch (error) {
+      console.error('[PROFILE] ❌ Erreur lors de la déconnexion:', error);
+      // Forcer la déconnexion locale même en cas d'erreur
+      try { localStorage.removeItem('ab_user_cache'); } catch (_) {}
+      navigate('/login');
+    }
   };
 
   return (

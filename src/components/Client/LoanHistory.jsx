@@ -2,9 +2,11 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNotifications } from '../../context/NotificationContext';
+import { useAuth } from '../../context/AuthContext';
 import Card from '../UI/Card';
 import Button from '../UI/Button';
 import NotificationBell from '../UI/NotificationBell';
+import { getLoans, getPayments } from '../../utils/supabaseAPI';
 import { 
   Search, 
   Filter, 
@@ -31,6 +33,7 @@ import { formatCurrency, formatDate } from '../../utils/helpers';
 
 const LoanHistory = () => {
   const { notifications, markAsRead } = useNotifications();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const [loans, setLoans] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -97,89 +100,92 @@ const LoanHistory = () => {
   `;
 
   useEffect(() => {
-    // Simulation des données (à remplacer par des appels API)
-    setTimeout(() => {
-      const mockLoans = [
-        {
-          id: 1,
-          amount: 75000,
-          status: 'active',
-          requestDate: '2025-07-01',
-          dueDate: '2025-08-01',
-          totalAmount: 82500,
-          paidAmount: 0,
-          purpose: 'Achat d\'ordinateur portable',
-          category: 'education'
-        },
-        {
-          id: 2,
-          amount: 50000,
-          status: 'completed',
-          requestDate: '2025-06-01',
-          dueDate: '2025-06-30',
-          totalAmount: 55000,
-          paidAmount: 55000,
-          purpose: 'Frais de scolarité',
-          category: 'education'
-        },
-        {
-          id: 3,
-          amount: 100000,
-          status: 'pending',
-          requestDate: '2025-08-15',
-          dueDate: null,
-          totalAmount: null,
-          paidAmount: 0,
-          purpose: 'Démarrage d\'activité commerciale',
-          category: 'business'
-        },
-        {
-          id: 4,
-          amount: 150000,
-          status: 'rejected',
-          requestDate: '2025-07-20',
-          dueDate: null,
-          totalAmount: null,
-          paidAmount: 0,
-          purpose: 'Achat de véhicule',
-          category: 'transport'
-        },
-        {
-          id: 5,
-          amount: 80000,
-          status: 'completed',
-          requestDate: '2025-05-01',
-          dueDate: '2025-06-30',
-          totalAmount: 88000,
-          paidAmount: 88000,
-          purpose: 'Soins médicaux',
-          category: 'health'
+    const loadLoanHistory = async () => {
+      if (!user?.id) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        
+        // Récupérer les prêts et paiements de l'utilisateur
+        const [loansResult, paymentsResult] = await Promise.all([
+          getLoans(user.id),
+          getPayments(user.id)
+        ]);
+
+        if (loansResult.success && paymentsResult.success) {
+          const loansData = loansResult.data || [];
+          const paymentsData = paymentsResult.data || [];
+
+          // Formater les prêts avec les informations de paiement
+          const formattedLoans = loansData.map(loan => {
+            // Calculer le montant payé pour ce prêt
+            const loanPayments = paymentsData.filter(payment => payment.loan_id === loan.id);
+            const paidAmount = loanPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+            
+            // Calculer le montant total avec intérêts
+            const totalAmount = loan.amount ? loan.amount * (1 + (loan.interest_rate || 0) / 100) : 0;
+            
+            // Calculer la date d'échéance (si le prêt est approuvé)
+            let dueDate = null;
+            if (loan.status === 'active' || loan.status === 'completed') {
+              const loanDate = new Date(loan.created_at);
+              const durationMonths = loan.duration || 12;
+              dueDate = new Date(loanDate.getTime() + (durationMonths * 30 * 24 * 60 * 60 * 1000));
+            }
+
+            return {
+              id: loan.id,
+              amount: loan.amount || 0,
+              status: loan.status || 'pending',
+              requestDate: loan.created_at,
+              dueDate: dueDate ? dueDate.toISOString().split('T')[0] : null,
+              totalAmount: Math.round(totalAmount),
+              paidAmount: Math.round(paidAmount),
+              purpose: loan.purpose || 'Non spécifié',
+              category: loan.loan_type || 'other',
+              interest_rate: loan.interest_rate || 0,
+              duration: loan.duration || 12,
+              monthly_payment: loan.monthly_payment || 0
+            };
+          });
+
+          setLoans(formattedLoans);
+          
+          // Calculer les statistiques
+          const totalBorrowed = formattedLoans.reduce((sum, loan) => sum + loan.amount, 0);
+          const totalRepaid = formattedLoans.reduce((sum, loan) => sum + loan.paidAmount, 0);
+          const activeLoans = formattedLoans.filter(loan => loan.status === 'active').length;
+          const completedLoans = formattedLoans.filter(loan => loan.status === 'completed').length;
+          const pendingLoans = formattedLoans.filter(loan => loan.status === 'pending').length;
+          const rejectedLoans = formattedLoans.filter(loan => loan.status === 'rejected').length;
+          
+          setStats({
+            totalLoans: formattedLoans.length,
+            totalBorrowed,
+            totalRepaid,
+            activeLoans,
+            completedLoans,
+            pendingLoans,
+            rejectedLoans
+          });
+        } else {
+          console.error('[LOAN HISTORY] Erreur lors du chargement des données:', {
+            loans: loansResult.error,
+            payments: paymentsResult.error
+          });
         }
-      ];
-      
-      setLoans(mockLoans);
-      
-      // Calculer les statistiques
-      const totalBorrowed = mockLoans.reduce((sum, loan) => sum + loan.amount, 0);
-      const totalRepaid = mockLoans.reduce((sum, loan) => sum + (loan.paidAmount || 0), 0);
-      const activeLoans = mockLoans.filter(loan => loan.status === 'active').length;
-      const completedLoans = mockLoans.filter(loan => loan.status === 'completed').length;
-      const pendingLoans = mockLoans.filter(loan => loan.status === 'pending').length;
-      const rejectedLoans = mockLoans.filter(loan => loan.status === 'rejected').length;
-      
-      setStats({
-        totalLoans: mockLoans.length,
-        totalBorrowed,
-        totalRepaid,
-        activeLoans,
-        completedLoans,
-        pendingLoans,
-        rejectedLoans
-      });
-      
-      setLoading(false);
-    }, 1000);
-  }, []);
+      } catch (error) {
+        console.error('[LOAN HISTORY] Erreur lors du chargement de l\'historique:', error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadLoanHistory();
+  }, [user?.id]);
 
   const getStatusColor = (status) => {
     switch (status) {

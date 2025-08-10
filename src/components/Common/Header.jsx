@@ -45,9 +45,18 @@ const Header = () => {
     }
   }, [user?.role, showInfo]);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login');
+  const handleLogout = async () => {
+    try {
+      console.log('[HEADER] Tentative de déconnexion...');
+      await logout();
+      console.log('[HEADER] ✅ Déconnexion réussie, redirection vers login');
+      navigate('/login');
+    } catch (error) {
+      console.error('[HEADER] ❌ Erreur lors de la déconnexion:', error);
+      // Forcer la déconnexion locale même en cas d'erreur
+      try { localStorage.removeItem('ab_user_cache'); } catch (_) {}
+      navigate('/login');
+    }
   };
 
   const handleLogoClick = () => {

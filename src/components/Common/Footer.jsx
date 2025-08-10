@@ -1,5 +1,5 @@
 import React from 'react';
-import { MapPin, ExternalLink } from 'lucide-react';
+import { Facebook, ExternalLink } from 'lucide-react';
 import WhatsAppIcon from '../UI/WhatsAppIcon';
 import GmailIcon from '../UI/GmailIcon';
 
@@ -15,11 +15,10 @@ const Footer = () => {
     window.open(whatsappUrl, '_blank');
   };
 
-  const handleLocationClick = () => {
-    // Ouvrir Google Maps pour Cotonou, Bénin
-    const location = 'Cotonou, Bénin';
-    const mapsUrl = `https://www.google.com/maps/search/${encodeURIComponent(location)}`;
-    window.open(mapsUrl, '_blank');
+  const handleFacebookClick = () => {
+    // Ouvrir la page Facebook d'AB CAMPUS FINANCE
+    const facebookUrl = 'https://www.facebook.com/profile.php?id=61574820045309';
+    window.open(facebookUrl, '_blank');
   };
 
   return (
@@ -56,11 +55,11 @@ const Footer = () => {
               </button>
               
               <button
-                onClick={handleLocationClick}
+                onClick={handleFacebookClick}
                 className="p-2 bg-blue-100 rounded-full hover:bg-blue-200 transition-colors duration-200"
-                title="Voir sur la carte"
+                title="Suivre sur Facebook"
               >
-                <MapPin size={14} className="text-blue-600" />
+                <Facebook size={14} className="text-blue-600" />
               </button>
             </div>
           </div>
@@ -107,11 +106,11 @@ const Footer = () => {
                 </button>
                 
                 <button
-                  onClick={handleLocationClick}
+                  onClick={handleFacebookClick}
                   className="flex items-center space-x-2 text-neutral-600 hover:text-blue-600 transition-colors duration-200 font-montserrat"
                 >
-                  <MapPin size={16} />
-                  <span>Cotonou, Bénin</span>
+                  <Facebook size={16} />
+                  <span>Suivre sur Facebook</span>
                   <ExternalLink size={12} />
                 </button>
               </div>

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 
-import { getUsers } from '../../utils/supabaseClient';
+import { getAllUsers, getLoans, getAnalyticsData, updateUserStatus, updateLoanStatus } from '../../utils/supabaseAPI';
 import Card from '../UI/Card';
 import Button from '../UI/Button';
 import Logo from '../UI/Logo';
@@ -47,8 +47,16 @@ const AdminDashboard = () => {
   useEffect(() => {
     const loadData = async () => {
       try {
-        // Charger les utilisateurs depuis Supabase
-        const usersResult = await getUsers();
+        setLoading(true);
+        
+        // Charger les vraies données depuis Supabase
+        const [usersResult, loansResult, analyticsResult] = await Promise.all([
+          getAllUsers(),
+          getLoans(),
+          getAnalyticsData()
+        ]);
+
+        // Traitement des utilisateurs
         if (usersResult.success) {
           const pendingUsers = usersResult.data.filter(user => user.status === 'pending');
           setPendingRegistrations(pendingUsers);
@@ -59,52 +67,44 @@ const AdminDashboard = () => {
           }));
         }
         
-        // Simulation des autres données pour l'instant
-        setRecentRequests([
-          {
-            id: 1,
+        // Traitement des prêts
+        if (loansResult.success) {
+          const recentLoans = loansResult.data.slice(0, 5).map(loan => ({
+            id: loan.id,
             user: {
-                      firstName: 'Utilisateur',
-        lastName: 'A',
-        email: 'utilisateur.a@email.com'
+              firstName: loan.users?.first_name || 'Utilisateur',
+              lastName: loan.users?.last_name || 'Inconnu',
+              email: loan.users?.email || 'email@inconnu.com'
             },
-            amount: 75000,
-            status: 'pending',
-            requestDate: '2025-08-15',
-            purpose: 'Achat de matériel informatique'
-          },
-          {
-            id: 2,
-            user: {
-                      firstName: 'Utilisateur',
-        lastName: 'B',
-        email: 'utilisateur.b@email.com'
-            },
-            amount: 120000,
-            status: 'approved',
-            requestDate: '2025-08-14',
-            purpose: 'Rénovation de boutique'
-          },
-          {
-            id: 3,
-            user: {
-                      firstName: 'Utilisateur',
-        lastName: 'C',
-        email: 'utilisateur.c@email.com'
-            },
-            amount: 50000,
-            status: 'rejected',
-            requestDate: '2025-08-13',
-            purpose: 'Frais de scolarité'
-          }
-        ]);
-        
-        setStats(prev => ({
-          ...prev,
-          totalLoans: 890,
-          totalAmount: 824000
-        }));
-        
+            amount: loan.amount || 0,
+            status: loan.status || 'pending',
+            requestDate: loan.created_at || new Date().toISOString(),
+            purpose: loan.purpose || 'Non spécifié'
+          }));
+          setRecentRequests(recentLoans);
+          
+          // Mettre à jour les statistiques des prêts
+          const totalLoans = loansResult.data.length;
+          const totalAmount = loansResult.data.reduce((sum, loan) => sum + (loan.amount || 0), 0);
+          setStats(prev => ({
+            ...prev,
+            totalLoans,
+            totalAmount
+          }));
+        }
+
+        // Traitement des analytics
+        if (analyticsResult.success) {
+          const analytics = analyticsResult.data;
+          setStats(prev => ({
+            ...prev,
+            totalUsers: analytics.overview?.totalUsers || prev.totalUsers,
+            totalLoans: analytics.overview?.totalLoans || prev.totalLoans,
+            totalAmount: analytics.overview?.totalAmount || prev.totalAmount,
+            pendingRequests: analytics.overview?.pendingUsers || prev.pendingRequests
+          }));
+        }
+
       } catch (error) {
         console.error('[ADMIN] Erreur lors du chargement des données:', error.message);
       } finally {
@@ -117,7 +117,10 @@ const AdminDashboard = () => {
 
   const handleApprove = async (requestId) => {
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const result = await updateLoanStatus(requestId, 'approved', user?.id);
+      
+      if (result.success) {
+        // Mettre à jour l'interface
       setRecentRequests(prev => 
         prev.map(request => 
           request.id === requestId 
@@ -130,14 +133,21 @@ const AdminDashboard = () => {
         pendingRequests: Math.max(0, prev.pendingRequests - 1)
       }));
       alert('Demande approuvée avec succès !');
+      } else {
+        alert('Erreur lors de l\'approbation de la demande');
+      }
     } catch (error) {
+      console.error('[ADMIN] Erreur lors de l\'approbation:', error);
       alert('Erreur lors de l\'approbation de la demande');
     }
   };
 
   const handleReject = async (requestId) => {
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const result = await updateLoanStatus(requestId, 'rejected', user?.id);
+      
+      if (result.success) {
+        // Mettre à jour l'interface
       setRecentRequests(prev => 
         prev.map(request => 
           request.id === requestId 
@@ -150,47 +160,73 @@ const AdminDashboard = () => {
         pendingRequests: Math.max(0, prev.pendingRequests - 1)
       }));
       alert('Demande rejetée avec succès !');
+      } else {
+        alert('Erreur lors du rejet de la demande');
+      }
     } catch (error) {
+      console.error('[ADMIN] Erreur lors du rejet:', error);
       alert('Erreur lors du rejet de la demande');
     }
   };
 
   const handleApproveRegistration = async (userId) => {
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const result = await updateUserStatus(userId, 'approved');
       
-      // Simuler l'approbation
+      if (result.success) {
+        // Mettre à jour l'interface
       setPendingRegistrations(prev => 
         prev.filter(user => user.id !== userId)
       );
       
-      // Supprimer de localStorage
-      const storedPendingUsers = JSON.parse(localStorage.getItem('pendingUsers') || '[]');
-      const updatedPendingUsers = storedPendingUsers.filter(user => user.id !== userId);
-      localStorage.setItem('pendingUsers', JSON.stringify(updatedPendingUsers));
+        // Recharger les statistiques
+        const usersResult = await getAllUsers();
+        if (usersResult.success) {
+          const pendingUsers = usersResult.data.filter(user => user.status === 'pending');
+          setStats(prev => ({
+            ...prev,
+            totalUsers: usersResult.data.length,
+            pendingRequests: pendingUsers.length
+          }));
+        }
       
       alert('Inscription approuvée avec succès !');
+      } else {
+        alert('Erreur lors de l\'approbation de l\'inscription');
+      }
     } catch (error) {
+      console.error('[ADMIN] Erreur lors de l\'approbation de l\'inscription:', error);
       alert('Erreur lors de l\'approbation de l\'inscription');
     }
   };
 
   const handleRejectRegistration = async (userId) => {
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
+      const result = await updateUserStatus(userId, 'rejected');
       
-      // Simuler le rejet
+      if (result.success) {
+        // Mettre à jour l'interface
       setPendingRegistrations(prev => 
         prev.filter(user => user.id !== userId)
       );
       
-      // Supprimer de localStorage
-      const storedPendingUsers = JSON.parse(localStorage.getItem('pendingUsers') || '[]');
-      const updatedPendingUsers = storedPendingUsers.filter(user => user.id !== userId);
-      localStorage.setItem('pendingUsers', JSON.stringify(updatedPendingUsers));
+        // Recharger les statistiques
+        const usersResult = await getAllUsers();
+        if (usersResult.success) {
+          const pendingUsers = usersResult.data.filter(user => user.status === 'pending');
+          setStats(prev => ({
+            ...prev,
+            totalUsers: usersResult.data.length,
+            pendingRequests: pendingUsers.length
+          }));
+        }
       
       alert('Inscription rejetée avec succès !');
+      } else {
+        alert('Erreur lors du rejet de l\'inscription');
+      }
     } catch (error) {
+      console.error('[ADMIN] Erreur lors du rejet de l\'inscription:', error);
       alert('Erreur lors du rejet de l\'inscription');
     }
   };
@@ -222,9 +258,18 @@ const AdminDashboard = () => {
     }
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    try {
+      console.log('[ADMIN] Tentative de déconnexion...');
+      await logout();
+      console.log('[ADMIN] ✅ Déconnexion réussie, redirection vers login');
+      navigate('/login');
+    } catch (error) {
+      console.error('[ADMIN] ❌ Erreur lors de la déconnexion:', error);
+      // Forcer la déconnexion locale même en cas d'erreur
+      try { localStorage.removeItem('ab_user_cache'); } catch (_) {}
     navigate('/login');
+    }
   };
 
   const getGreeting = () => {
@@ -444,7 +489,7 @@ const AdminDashboard = () => {
                   <motion.div
                     initial={{ opacity: 0, scale: 0.9 }}
                     animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.4, delay: 0.8 }}
+                    transition={{ duration: 0.4, delay: 0.7 }}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
                     onClick={() => navigate('/admin/settings')}
@@ -467,6 +512,8 @@ const AdminDashboard = () => {
                       </div>
                     </div>
                   </motion.div>
+
+
                 </motion.div>
                 </div>
             </div>

@@ -9,7 +9,7 @@ import { Mail, Eye, EyeOff } from 'lucide-react';
 
 const Login = () => {
   const [formData, setFormData] = useState({
-    email: '',
+    email: '', // email ou téléphone
     password: ''
   });
   const [showPassword, setShowPassword] = useState(false);
@@ -31,21 +31,23 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    try {
+      const result = await login(formData);
 
-    const result = await login(formData);
-    
-    if (result.success) {
-      // Redirection basée sur le rôle
-      if (result.user.role === 'admin') {
-        navigate('/admin');
+      if (result.success) {
+        if (result.user.role === 'admin') {
+          navigate('/admin');
+        } else {
+          navigate('/dashboard');
+        }
       } else {
-        navigate('/dashboard');
+        setError(result.error || 'Erreur de connexion');
       }
-    } else {
-      setError(result.error);
+    } catch (err) {
+      setError('Erreur de connexion');
+    } finally {
+      setLoading(false);
     }
-    
-    setLoading(false);
   };
 
   return (
@@ -77,12 +79,12 @@ const Login = () => {
 
             <div className="relative">
               <Input
-                label="Adresse email"
-                type="email"
+                label="Identifiant"
+                type="text"
                 name="email"
                 value={formData.email}
                 onChange={handleChange}
-                placeholder="votre@email.com"
+                placeholder="gmail ou téléphone"
                 required
               />
               <Mail size={20} className="absolute right-3 top-11 text-neutral-400" />
@@ -107,20 +109,15 @@ const Login = () => {
               </button>
             </div>
 
-            <StarBorder
-              color="#FF6B35"
-              speed="2s"
-              thickness={3}
-              className="w-full"
-            >
-              <Button
-                type="submit"
-                loading={loading}
-                className="w-full bg-primary-500 hover:bg-primary-600 text-white font-montserrat"
-              >
-                {loading ? 'Connexion...' : 'Se connecter'}
-              </Button>
-            </StarBorder>
+                <div className="w-full">
+                  <Button
+                    type="submit"
+                    loading={loading}
+                    className="w-full bg-primary-500 hover:bg-primary-600 text-white font-montserrat"
+                  >
+                    {loading ? 'Connexion...' : 'Se connecter'}
+                  </Button>
+                </div>
           </form>
 
           {/* Liens */}

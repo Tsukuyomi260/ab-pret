@@ -29,6 +29,7 @@ module.exports = function override(config, env) {
     "assert": require.resolve("assert/"),
     "os": require.resolve("os-browserify/browser"),
     "constants": require.resolve("constants-browserify"),
+    "worker_threads": false,
   };
 
   // Ensure plugins array exists

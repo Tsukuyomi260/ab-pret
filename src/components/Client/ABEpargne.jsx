@@ -1,8 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { useAuth } from '../../context/AuthContext';
+import { useNotifications } from '../../context/NotificationContext';
 import Card from '../UI/Card';
 import Button from '../UI/Button';
+import { 
+  getSavingsAccount, 
+  getSavingsTransactions, 
+  createSavingsTransaction, 
+  updateSavingsAccount 
+} from '../../utils/supabaseAPI';
 import { 
   PiggyBank,
   ArrowLeft,
@@ -25,6 +33,8 @@ import {
 
 const ABEpargne = () => {
   const navigate = useNavigate();
+  const { user } = useAuth();
+  const { showSuccess, showError } = useNotifications();
   const [showBalance, setShowBalance] = useState(true);
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
@@ -33,106 +43,209 @@ const ABEpargne = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const [transactionSuccess, setTransactionSuccess] = useState(false);
 
-  // Données fictives du compte épargne
+  // Données du compte épargne
   const [savingsData, setSavingsData] = useState({
-    balance: 125000,
+    balance: 0,
     monthlyGoal: 50000,
-    monthlySaved: 35000,
+    monthlySaved: 0,
     interestRate: 3.5,
-    totalInterest: 8750,
-    transactions: [
-      {
-        id: 1,
-        type: 'deposit',
-        amount: 25000,
-        date: '2024-01-15',
-        description: 'Dépôt mensuel'
-      },
-      {
-        id: 2,
-        type: 'withdrawal',
-        amount: 15000,
-        date: '2024-01-10',
-        description: 'Retrait pour vacances'
-      },
-      {
-        id: 3,
-        type: 'deposit',
-        amount: 10000,
-        date: '2024-01-05',
-        description: 'Dépôt ponctuel'
-      }
-    ]
+    totalInterest: 0,
+    transactions: []
   });
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const loadSavingsData = async () => {
+      if (!user?.id) {
+        setLoading(false);
+        return;
+      }
+
+      try {
+        setLoading(true);
+        
+        // Récupérer le compte épargne et les transactions
+        const [accountResult, transactionsResult] = await Promise.all([
+          getSavingsAccount(user.id),
+          getSavingsTransactions(user.id)
+        ]);
+
+        if (accountResult.success && transactionsResult.success) {
+          const account = accountResult.data;
+          const transactions = transactionsResult.data || [];
+
+          // Formater les transactions pour l'affichage
+          const formattedTransactions = transactions.map(transaction => ({
+            id: transaction.id,
+            type: transaction.type,
+            amount: transaction.amount,
+            date: transaction.created_at,
+            description: transaction.description || 'Transaction'
+          }));
+
+          setSavingsData({
+            balance: account.balance || 0,
+            monthlyGoal: account.monthly_goal || 50000,
+            monthlySaved: account.monthly_saved || 0,
+            interestRate: account.interest_rate || 3.5,
+            totalInterest: account.total_interest || 0,
+            transactions: formattedTransactions
+          });
+        } else {
+          console.error('[ABEPARGNE] Erreur lors du chargement des données:', {
+            account: accountResult.error,
+            transactions: transactionsResult.error
+          });
+          showError('Erreur lors du chargement des données');
+        }
+      } catch (error) {
+        console.error('[ABEPARGNE] Erreur lors du chargement:', error.message);
+        showError('Erreur lors du chargement');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadSavingsData();
+  }, [user?.id, showError]);
 
   const handleDeposit = async () => {
-    if (!depositAmount || parseFloat(depositAmount) <= 0) return;
-    
-    setIsProcessing(true);
-    
-    // Simulation d'une transaction
-    setTimeout(() => {
-      const amount = parseFloat(depositAmount);
-      setSavingsData(prev => ({
-        ...prev,
-        balance: prev.balance + amount,
-        monthlySaved: prev.monthlySaved + amount,
-        transactions: [
-          {
-            id: Date.now(),
-            type: 'deposit',
-            amount: amount,
-            date: new Date().toISOString().split('T')[0],
-            description: 'Dépôt effectué'
-          },
-          ...prev.transactions
-        ]
-      }));
-      
-      setDepositAmount('');
-      setShowDepositModal(false);
-      setIsProcessing(false);
-      setTransactionSuccess(true);
-      
-      setTimeout(() => setTransactionSuccess(false), 3000);
-    }, 1500);
-  };
-
-  const handleWithdraw = async () => {
-    if (!withdrawAmount || parseFloat(withdrawAmount) <= 0) return;
-    
-    const amount = parseFloat(withdrawAmount);
-    if (amount > savingsData.balance) {
-      alert('Montant insuffisant sur votre compte épargne');
+    if (!depositAmount || parseFloat(depositAmount) <= 0) {
+      showError('Veuillez entrer un montant valide');
       return;
     }
     
     setIsProcessing(true);
     
-    // Simulation d'une transaction
-    setTimeout(() => {
-      setSavingsData(prev => ({
-        ...prev,
-        balance: prev.balance - amount,
-        transactions: [
-          {
-            id: Date.now(),
-            type: 'withdrawal',
-            amount: amount,
-            date: new Date().toISOString().split('T')[0],
-            description: 'Retrait effectué'
-          },
-          ...prev.transactions
-        ]
-      }));
+    try {
+      const amount = parseFloat(depositAmount);
       
-      setWithdrawAmount('');
-      setShowWithdrawModal(false);
+      // Créer la transaction
+      const transactionData = {
+        user_id: user.id,
+        type: 'deposit',
+        amount: amount,
+        description: 'Dépôt effectué'
+      };
+
+      const transactionResult = await createSavingsTransaction(transactionData);
+      
+      if (transactionResult.success) {
+        // Mettre à jour le compte épargne
+        const newBalance = savingsData.balance + amount;
+        const newMonthlySaved = savingsData.monthlySaved + amount;
+        
+        const updateResult = await updateSavingsAccount(user.id, {
+          balance: newBalance,
+          monthly_saved: newMonthlySaved
+        });
+
+        if (updateResult.success) {
+          // Mettre à jour l'état local
+          setSavingsData(prev => ({
+            ...prev,
+            balance: newBalance,
+            monthlySaved: newMonthlySaved,
+            transactions: [
+              {
+                id: transactionResult.data.id,
+                type: 'deposit',
+                amount: amount,
+                date: transactionResult.data.created_at,
+                description: 'Dépôt effectué'
+              },
+              ...prev.transactions
+            ]
+          }));
+          
+          setDepositAmount('');
+          setShowDepositModal(false);
+          setTransactionSuccess(true);
+          showSuccess('Dépôt effectué avec succès');
+          
+          setTimeout(() => setTransactionSuccess(false), 3000);
+        } else {
+          showError('Erreur lors de la mise à jour du compte');
+        }
+      } else {
+        showError('Erreur lors de la création de la transaction');
+      }
+    } catch (error) {
+      console.error('[ABEPARGNE] Erreur lors du dépôt:', error.message);
+      showError('Erreur lors du dépôt');
+    } finally {
       setIsProcessing(false);
-      setTransactionSuccess(true);
+    }
+  };
+
+  const handleWithdraw = async () => {
+    if (!withdrawAmount || parseFloat(withdrawAmount) <= 0) {
+      showError('Veuillez entrer un montant valide');
+      return;
+    }
+    
+    const amount = parseFloat(withdrawAmount);
+    if (amount > savingsData.balance) {
+      showError('Montant insuffisant sur votre compte épargne');
+      return;
+    }
+    
+    setIsProcessing(true);
+    
+    try {
+      // Créer la transaction de retrait
+      const transactionData = {
+        user_id: user.id,
+        type: 'withdrawal',
+        amount: amount,
+        description: 'Retrait effectué'
+      };
+
+      const transactionResult = await createSavingsTransaction(transactionData);
       
-      setTimeout(() => setTransactionSuccess(false), 3000);
-    }, 1500);
+      if (transactionResult.success) {
+        // Mettre à jour le compte épargne
+        const newBalance = savingsData.balance - amount;
+        
+        const updateResult = await updateSavingsAccount(user.id, {
+          balance: newBalance
+        });
+
+        if (updateResult.success) {
+          // Mettre à jour l'état local
+          setSavingsData(prev => ({
+            ...prev,
+            balance: newBalance,
+            transactions: [
+              {
+                id: transactionResult.data.id,
+                type: 'withdrawal',
+                amount: amount,
+                date: transactionResult.data.created_at,
+                description: 'Retrait effectué'
+              },
+              ...prev.transactions
+            ]
+          }));
+          
+          setWithdrawAmount('');
+          setShowWithdrawModal(false);
+          setTransactionSuccess(true);
+          showSuccess('Retrait effectué avec succès');
+          
+          setTimeout(() => setTransactionSuccess(false), 3000);
+        } else {
+          showError('Erreur lors de la mise à jour du compte');
+        }
+      } else {
+        showError('Erreur lors de la création de la transaction');
+      }
+    } catch (error) {
+      console.error('[ABEPARGNE] Erreur lors du retrait:', error.message);
+      showError('Erreur lors du retrait');
+    } finally {
+      setIsProcessing(false);
+    }
   };
 
   const formatCurrency = (amount) => {
@@ -149,6 +262,18 @@ const ABEpargne = () => {
       year: 'numeric'
     });
   };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 flex items-center justify-center">
+        <motion.div 
+          className="animate-spin rounded-full h-32 w-32 border-b-2 border-green-600"
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
+        />
+      </div>
+    );
+  }
 
   return (
     <div className="bg-gradient-to-br from-green-50 via-emerald-50 to-teal-50 pt-0">

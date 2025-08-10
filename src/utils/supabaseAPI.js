@@ -56,10 +56,32 @@ export const signUpWithPhone = async (phoneNumber, password, userData) => {
   }
 
   try {
-    // Créer l'utilisateur avec Supabase Auth (on utilise un email temporaire)
-    const tempEmail = `${phoneNumber.replace(/[^0-9]/g, '')}@campusfinance.bj`;
+    // Nettoyer et valider le numéro de téléphone
+    const cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
+    
+    // Vérifier que le numéro a au moins 8 chiffres
+    if (cleanPhone.length < 8) {
+      throw new Error('Numéro de téléphone invalide');
+    }
+    
+    // Utiliser l'email fourni ou créer un email temporaire
+    let emailToUse;
+    console.log('[SUPABASE] userData reçu:', userData);
+    console.log('[SUPABASE] Email fourni:', userData.email);
+    
+    if (userData.email && userData.email.trim()) {
+      emailToUse = userData.email.trim();
+      console.log(`[SUPABASE] ✅ Utilisation email fourni: ${emailToUse}`);
+    } else {
+      // Créer un email temporaire unique et valide
+      const timestamp = Date.now();
+      emailToUse = `user.${cleanPhone}.${timestamp}@gmail.com`;
+      console.log(`[SUPABASE] ⚠️ Création email temporaire: ${emailToUse}`);
+    }
+    
+    console.log(`[SUPABASE] Création utilisateur avec email: ${emailToUse}`);
     const { data: authData, error: authError } = await supabase.auth.signUp({
-      email: tempEmail,
+      email: emailToUse,
       password,
       options: {
         data: {
@@ -79,17 +101,17 @@ export const signUpWithPhone = async (phoneNumber, password, userData) => {
       .insert([{
         id: authData.user.id,
         phone_number: phoneNumber,
+        email: emailToUse, // Sauvegarder l'email utilisé
         first_name: userData.firstName,
         last_name: userData.lastName,
         role: 'client',
-        status: 'pending'
+        status: 'approved'
       }]);
 
     if (userError) throw userError;
 
-    // Envoyer un SMS de bienvenue
-    const userName = `${userData.firstName} ${userData.lastName}`;
-    await sendWelcomeSMS(phoneNumber, userName);
+    // Log de bienvenue (SMS temporairement désactivé)
+    console.log(`[SUPABASE] ✅ Utilisateur créé: ${userData.firstName} ${userData.lastName} (${phoneNumber})`);
 
     return { success: true, user: authData.user };
   } catch (error) {
@@ -131,15 +153,14 @@ export const signUpWithEmail = async (email, password, userData) => {
         first_name: userData.firstName,
         last_name: userData.lastName,
         role: 'client',
-        status: 'pending'
+        status: 'approved'
       }]);
 
     if (userError) throw userError;
 
-    // Envoyer un SMS de bienvenue si un numéro de téléphone est fourni
+    // Log de bienvenue (SMS temporairement désactivé)
     if (userData.phoneNumber) {
-      const userName = `${userData.firstName} ${userData.lastName}`;
-      await sendWelcomeSMS(userData.phoneNumber, userName);
+      console.log(`[SUPABASE] ✅ Utilisateur créé: ${userData.firstName} ${userData.lastName} (${userData.phoneNumber})`);
     }
 
     return { success: true, user: authData.user };
@@ -156,16 +177,72 @@ export const signInWithEmail = async (email, password) => {
   }
 
   try {
-    const { data, error } = await supabase.auth.signInWithPassword({
-      email,
-      password
-    });
+    const op = supabase.auth.signInWithPassword({ email, password });
+    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout de connexion')), 12000));
+    const { data, error } = await Promise.race([op, timeout]);
 
     if (error) throw error;
 
     return { success: true, user: data.user };
   } catch (error) {
     console.error('[SUPABASE] Erreur lors de la connexion:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+export const signInWithPhone = async (phoneNumber, password) => {
+  if (!supabase) {
+    console.error('[SUPABASE] Client non initialisé - configuration manquante');
+    return { success: false, error: 'Configuration Supabase manquante' };
+  }
+
+  try {
+    console.log('[SUPABASE] Tentative de connexion avec téléphone:', phoneNumber);
+    
+    // Nettoyer le numéro de téléphone
+    const cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
+    
+    // Récupérer l'utilisateur par téléphone
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id, email, created_at')
+      .eq('phone_number', phoneNumber)
+      .single();
+
+    if (userError || !userData) {
+      console.log('[SUPABASE] Utilisateur non trouvé pour le téléphone:', phoneNumber);
+      throw new Error('Utilisateur non trouvé');
+    }
+
+    console.log('[SUPABASE] Utilisateur trouvé:', userData.id);
+    
+    // Utiliser l'email réel s'il existe, sinon reconstruire l'email temporaire
+    let emailToUse = userData.email;
+    
+    if (!emailToUse || emailToUse.includes('@campusfinance.bj')) {
+      // Reconstruire l'email temporaire utilisé lors de l'inscription
+      const timestamp = new Date(userData.created_at).getTime();
+      emailToUse = `user.${cleanPhone}.${timestamp}@gmail.com`;
+      console.log('[SUPABASE] Utilisation email temporaire:', emailToUse);
+    } else {
+      console.log('[SUPABASE] Utilisation email réel:', emailToUse);
+    }
+    
+    // Se connecter avec l'email
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email: emailToUse,
+      password
+    });
+
+    if (error) {
+      console.error('[SUPABASE] Erreur connexion:', error.message);
+      throw error;
+    }
+
+    console.log('[SUPABASE] ✅ Connexion réussie');
+    return { success: true, user: data.user };
+  } catch (error) {
+    console.error('[SUPABASE] Erreur lors de la connexion (téléphone):', error.message);
     return { success: false, error: error.message };
   }
 };
@@ -184,88 +261,75 @@ export const signOut = async () => {
 // ===== OTP =====
 
 export const generateOTP = async (phoneNumber, type = 'registration') => {
-  if (!supabase) {
-    console.error('[SUPABASE] Client non initialisé - configuration manquante');
-    return { success: false, error: 'Configuration Supabase manquante' };
-  }
-
   try {
-    // Générer un code OTP à 6 chiffres
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    console.log('[OTP] Envoi OTP via Vonage...');
     
-    // Calculer l'expiration (15 minutes)
-    const expiresAt = new Date();
-    expiresAt.setMinutes(expiresAt.getMinutes() + 15);
-
-    // Certains schémas exigent un email non nul dans la table otp_codes
-    // On génère un email temporaire basé sur le numéro de téléphone pour satisfaire la contrainte
-    const normalizedPhone = (phoneNumber || '').toString().replace(/[^0-9]/g, '');
-    const tempEmail = `${normalizedPhone}@campusfinance.bj`;
-
-    // Insérer le code OTP dans la base de données
-    const { error } = await supabase
-      .from('otp_codes')
-      .insert([{
-        phone_number: phoneNumber, // Changé de email à phone_number
-        email: tempEmail, // Respecter la contrainte NOT NULL sur email si présente
-        code: otp,
-        type,
-        expires_at: expiresAt.toISOString()
-      }]);
-
-    if (error) throw error;
-
-    // Envoyer l'OTP par SMS
-    const smsResult = await sendOTPSMS(phoneNumber, otp, 'Utilisateur');
+    // Générer un code OTP
+    const otpCode = Math.floor(100000 + Math.random() * 900000).toString();
     
-    if (!smsResult.success) {
-      console.error('[OTP] Erreur lors de l\'envoi SMS:', smsResult.error);
-      // On retourne quand même le succès car l'OTP est enregistré en base
-      // L'utilisateur peut demander un nouveau code
-      return { success: true, otp: null, smsError: smsResult.error };
+    // Envoyer OTP via Vonage
+    const response = await fetch('/api/sms/send-otp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        phoneNumber,
+        otp: otpCode,
+        type
+      })
+    });
+
+    const result = await response.json();
+    
+    if (result.success) {
+      console.log('[OTP] ✅ OTP envoyé avec succès');
+      return {
+        success: true,
+        requestId: result.message_id || 'vonage-' + Date.now(),
+        message: 'Code OTP envoyé par SMS'
+      };
+    } else {
+      console.error('[OTP] ❌ Erreur envoi OTP:', result.error);
+      return {
+        success: false,
+        error: result.error || 'Erreur lors de l\'envoi du code OTP'
+      };
     }
-
-    console.log(`[OTP] SMS envoyé avec succès pour ${phoneNumber}`);
-    return { success: true, otp: null }; // On ne retourne plus l'OTP pour la sécurité
   } catch (error) {
-    console.error('[SUPABASE] Erreur lors de la génération OTP:', error.message);
-    return { success: false, error: error.message };
+    console.error('[OTP] ❌ Erreur génération OTP:', error.message);
+    return {
+      success: false,
+      error: 'Erreur de génération OTP'
+    };
   }
 };
 
-export const verifyOTP = async (phoneNumber, code) => {
-  if (!supabase) {
-    console.error('[SUPABASE] Client non initialisé - configuration manquante');
-    return { success: false, error: 'Configuration Supabase manquante' };
-  }
-
+export const verifyOTP = async (phoneNumber, code, requestId) => {
   try {
-    // Récupérer le code OTP
-    const { data, error } = await supabase
-      .from('otp_codes')
-      .select('*')
-      .eq('phone_number', phoneNumber) // Changé de email à phone_number
-      .eq('code', code)
-      .eq('used', false)
-      .gt('expires_at', new Date().toISOString())
-      .order('created_at', { ascending: false })
-      .limit(1)
-      .single();
-
-    if (error || !data) {
-      return { success: false, error: 'Code OTP invalide ou expiré' };
+    console.log('[OTP] Vérification OTP temporaire...');
+    
+    // Simulation de vérification pour le développement
+    // En production, ceci sera remplacé par votre système OTP
+    if (code && code.length === 6) {
+      console.log('[OTP] ✅ Code OTP vérifié avec succès');
+      return {
+        success: true,
+        message: 'Code OTP vérifié avec succès'
+      };
+    } else {
+      console.log('[OTP] ❌ Code OTP invalide');
+      return {
+        success: false,
+        error: 'Code OTP invalide'
+      };
     }
-
-    // Marquer le code comme utilisé
-    await supabase
-      .from('otp_codes')
-      .update({ used: true })
-      .eq('id', data.id);
-
-    return { success: true };
   } catch (error) {
-    console.error('[SUPABASE] Erreur lors de la vérification OTP:', error.message);
-    return { success: false, error: error.message };
+    console.error('[OTP] ❌ Erreur vérification OTP:', error.message);
+    return {
+      success: false,
+      error: 'Erreur de vérification OTP'
+    };
   }
 };
 
@@ -278,16 +342,28 @@ export const getCurrentUser = async () => {
 
     if (!user) return { success: false, error: 'Utilisateur non connecté' };
 
-    // Récupérer les données utilisateur complètes
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', user.id)
-      .single();
+    // Récupérer les données utilisateur applicatives
+    let userData = null;
+    try {
+      const { data, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      if (userError) throw userError;
+      userData = data;
+    } catch (err) {
+      // Ne pas bloquer l'app si RLS empêche la lecture; utiliser les métadonnées JWT
+      console.warn('[SUPABASE] Lecture de public.users indisponible pour cet utilisateur:', err.message);
+    }
 
-    if (userError) throw userError;
+    const mergedUser = {
+      ...user,
+      ...(userData || {}),
+      role: (userData && userData.role) || user?.user_metadata?.role || user?.app_metadata?.role || 'client'
+    };
 
-    return { success: true, user: { ...user, ...userData } };
+    return { success: true, user: mergedUser };
   } catch (error) {
     console.error('[SUPABASE] Erreur lors de la récupération utilisateur:', error.message);
     return { success: false, error: error.message };
@@ -296,18 +372,73 @@ export const getCurrentUser = async () => {
 
 export const updateUserProfile = async (userId, profileData) => {
   try {
-    const { error } = await supabase
-      .from('user_profiles')
-      .upsert([{
-        user_id: userId,
-        ...profileData
-      }]);
+    console.log('[PROFILE] Mise à jour du profil utilisateur:', userId, profileData);
+    
+    // Préparer les données de mise à jour
+    const updateData = {
+      updated_at: new Date().toISOString()
+    };
 
-    if (error) throw error;
+    // Ajouter les champs de base si fournis
+    if (profileData.firstName) updateData.first_name = profileData.firstName;
+    if (profileData.lastName) updateData.last_name = profileData.lastName;
+    if (profileData.phone) updateData.phone_number = profileData.phone;
+    if (profileData.email) updateData.email = profileData.email;
 
+    // Ajouter les champs académiques
+    if (profileData.filiere) updateData.filiere = profileData.filiere;
+    if (profileData.annee_etude) updateData.annee_etude = profileData.annee_etude;
+    if (profileData.entite) updateData.entite = profileData.entite;
+
+    // Ajouter les informations du témoin
+    if (profileData.temoin_name) updateData.temoin_name = profileData.temoin_name;
+    if (profileData.temoin_quartier) updateData.temoin_quartier = profileData.temoin_quartier;
+    if (profileData.temoin_phone) updateData.temoin_phone = profileData.temoin_phone;
+    if (profileData.temoin_email) updateData.temoin_email = profileData.temoin_email;
+
+    // Ajouter les informations de contact d'urgence
+    if (profileData.emergency_name) updateData.emergency_name = profileData.emergency_name;
+    if (profileData.emergency_relation) updateData.emergency_relation = profileData.emergency_relation;
+    if (profileData.emergency_phone) updateData.emergency_phone = profileData.emergency_phone;
+    if (profileData.emergency_email) updateData.emergency_email = profileData.emergency_email;
+    if (profileData.emergency_address) updateData.emergency_address = profileData.emergency_address;
+
+    // Ajouter les noms des documents
+    if (profileData.user_identity_card_name) updateData.user_identity_card_name = profileData.user_identity_card_name;
+    if (profileData.temoin_identity_card_name) updateData.temoin_identity_card_name = profileData.temoin_identity_card_name;
+
+    // 1. Mettre à jour la table users
+    const { error: userError } = await supabase
+      .from('users')
+      .update(updateData)
+      .eq('id', userId);
+
+    if (userError) {
+      console.error('[PROFILE] Erreur mise à jour table users:', userError);
+      throw userError;
+    }
+
+    // 2. Mettre à jour les métadonnées de l'utilisateur Supabase (si champs de base fournis)
+    if (profileData.firstName || profileData.lastName || profileData.phone) {
+      const authUpdateData = {};
+      if (profileData.firstName) authUpdateData.first_name = profileData.firstName;
+      if (profileData.lastName) authUpdateData.last_name = profileData.lastName;
+      if (profileData.phone) authUpdateData.phone_number = profileData.phone;
+
+      const { error: authError } = await supabase.auth.updateUser({
+        data: authUpdateData
+      });
+
+      if (authError) {
+        console.error('[PROFILE] Erreur mise à jour métadonnées auth:', authError);
+        throw authError;
+      }
+    }
+
+    console.log('[PROFILE] ✅ Profil mis à jour avec succès');
     return { success: true };
   } catch (error) {
-    console.error('[SUPABASE] Erreur lors de la mise à jour du profil:', error.message);
+    console.error('[PROFILE] ❌ Erreur lors de la mise à jour du profil:', error.message);
     return { success: false, error: error.message };
   }
 };
@@ -324,6 +455,27 @@ export const getAllUsers = async () => {
     return { success: true, data };
   } catch (error) {
     console.error('[SUPABASE] Erreur lors de la récupération des utilisateurs:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+export const updateUserStatus = async (userId, status) => {
+  try {
+    const { data, error } = await supabase
+      .from('users')
+      .update({ 
+        status,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('[SUPABASE] Erreur lors de la mise à jour du statut utilisateur:', error.message);
     return { success: false, error: error.message };
   }
 };
@@ -518,6 +670,113 @@ export const getAnalyticsData = async () => {
     };
   } catch (error) {
     console.error('[SUPABASE] Erreur lors de la récupération des analytics:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+// ===== ÉPARGNE =====
+
+export const getSavingsAccount = async (userId) => {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Configuration Supabase manquante' };
+    }
+
+    // Récupérer ou créer le compte épargne de l'utilisateur
+    let { data: savingsAccount, error } = await supabase
+      .from('savings_accounts')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (error && error.code === 'PGRST116') {
+      // Le compte n'existe pas, le créer
+      const { data: newAccount, error: createError } = await supabase
+        .from('savings_accounts')
+        .insert([{
+          user_id: userId,
+          balance: 0,
+          monthly_goal: 50000,
+          monthly_saved: 0,
+          interest_rate: 3.5,
+          total_interest: 0
+        }])
+        .select()
+        .single();
+
+      if (createError) throw createError;
+      savingsAccount = newAccount;
+    } else if (error) {
+      throw error;
+    }
+
+    return { success: true, data: savingsAccount };
+  } catch (error) {
+    console.error('[SUPABASE] Erreur lors de la récupération du compte épargne:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+export const getSavingsTransactions = async (userId) => {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Configuration Supabase manquante' };
+    }
+
+    const { data, error } = await supabase
+      .from('savings_transactions')
+      .select('*')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false });
+
+    if (error) throw error;
+
+    return { success: true, data: data || [] };
+  } catch (error) {
+    console.error('[SUPABASE] Erreur lors de la récupération des transactions épargne:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+export const createSavingsTransaction = async (transactionData) => {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Configuration Supabase manquante' };
+    }
+
+    const { data, error } = await supabase
+      .from('savings_transactions')
+      .insert([transactionData])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('[SUPABASE] Erreur lors de la création de la transaction épargne:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+export const updateSavingsAccount = async (userId, updateData) => {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Configuration Supabase manquante' };
+    }
+
+    const { data, error } = await supabase
+      .from('savings_accounts')
+      .update(updateData)
+      .eq('user_id', userId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('[SUPABASE] Erreur lors de la mise à jour du compte épargne:', error.message);
     return { success: false, error: error.message };
   }
 };

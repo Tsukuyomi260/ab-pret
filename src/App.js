@@ -15,6 +15,7 @@ import LoanRequests from './components/Admin/LoanRequests';
 import UserManagement from './components/Admin/UserManagement';
 import Analytics from './components/Admin/Analytics';
 import Settings from './components/Admin/Settings';
+
 import LoanRequest from './components/Client/LoanRequest';
 import LoanHistory from './components/Client/LoanHistory';
 import Repayment from './components/Client/Repayment';
@@ -43,6 +44,11 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
     return <Navigate to="/login" />;
   }
 
+  // Rediriger les admins vers leur dashboard s'ils essaient d'accéder aux pages client
+  if (!adminOnly && user?.role === 'admin') {
+    return <Navigate to="/admin" />;
+  }
+
   if (adminOnly && user?.role !== 'admin') {
     return <Navigate to="/dashboard" />;
   }
@@ -52,22 +58,24 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
 
 // Composant pour les routes publiques (redirections si connecté)
 const PublicRoute = ({ children }) => {
-  const { isAuthenticated, loading } = useAuth();
+  const { isAuthenticated, user, loading } = useAuth();
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary-600"></div>
-      </div>
-    );
-  }
+  // Ne pas bloquer la page publique pendant le chargement de l'auth
+  if (loading) return children;
 
   if (isAuthenticated) {
-    return <Navigate to="/dashboard" />;
+    // Rediriger vers la page appropriée selon le rôle
+    if (user?.role === 'admin') {
+      return <Navigate to="/admin" />;
+    } else {
+      return <Navigate to="/dashboard" />;
+    }
   }
 
   return children;
 };
+
+
 
 function App() {
   // Test de connexion au démarrage (uniquement en développement)
@@ -256,8 +264,11 @@ function App() {
                 } 
               />
 
+
               {/* Redirection par défaut */}
               <Route path="/" element={<Navigate to="/login" />} />
+              
+
             </Routes>
           </div>
         </Router>

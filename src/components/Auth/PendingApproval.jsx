@@ -1,141 +1,142 @@
 import React from 'react';
-import { useLocation, Link } from 'react-router-dom';
+import { Link } from 'react-router-dom';
+import { motion } from 'framer-motion';
+import { CheckCircle, Clock, Mail, Phone, ArrowLeft } from 'lucide-react';
 import Logo from '../UI/Logo';
-import { Clock, Mail, Phone, CheckCircle } from 'lucide-react';
+import Button from '../UI/Button';
 
 const PendingApproval = () => {
-  const location = useLocation();
-  const user = location.state?.user;
-
   return (
-    <div className="min-h-screen bg-gradient-to-br from-accent-50 to-primary-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8">
-      <div className="max-w-md w-full space-y-8">
-        <div className="bg-white rounded-2xl shadow-large p-8 border border-accent-200">
-          {/* Header */}
-          <div className="text-center mb-8">
-            <div className="flex justify-center mb-6">
-              <Logo size="xl" showText={true} />
+    <div className="min-h-screen bg-gradient-to-br from-primary-50 to-secondary-50 flex items-center justify-center p-4">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-md"
+      >
+        {/* Logo */}
+        <div className="text-center mb-8">
+          <Logo className="mx-auto mb-4" />
+        </div>
+
+        {/* Card principale */}
+        <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+          {/* Icône de succès */}
+          <div className="text-center mb-6">
+            <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
+              <CheckCircle className="w-8 h-8 text-green-600" />
             </div>
-            
-            <div className="flex justify-center mb-4">
-              <div className="w-16 h-16 bg-yellow-100 rounded-full flex items-center justify-center">
-                <Clock size={32} className="text-yellow-600" />
-              </div>
-            </div>
-            
-            <h2 className="text-2xl font-semibold text-secondary-900 font-montserrat mb-2">
-              Inscription reçue !
-            </h2>
-            <p className="text-neutral-600 font-montserrat">
-              Votre compte est en attente de validation
+            <h1 className="text-2xl font-bold text-gray-900 mb-2">
+              Inscription réussie !
+            </h1>
+            <p className="text-gray-600">
+              Votre compte a été créé avec succès
             </p>
           </div>
 
-          {/* Informations de l'utilisateur */}
-          {user && (
-            <div className="bg-accent-50 rounded-xl p-4 mb-6">
-              <h3 className="font-medium text-secondary-900 font-montserrat mb-3">
-                Vos informations :
-              </h3>
-              <div className="space-y-2 text-sm text-neutral-600 font-montserrat">
-                <p><strong>Nom :</strong> {user.firstName} {user.lastName}</p>
-                <p><strong>Filière :</strong> {user.filiere}</p>
-                <p><strong>Année :</strong> {user.anneeEtude}</p>
-                <p><strong>Entité :</strong> {user.entite}</p>
-                <p><strong>Email :</strong> {user.email}</p>
-                <p><strong>Téléphone :</strong> {user.phone}</p>
-              </div>
-            </div>
-          )}
-
-          {/* Processus */}
-          <div className="space-y-4 mb-6">
-            <h3 className="font-medium text-secondary-900 font-montserrat">
-              Prochaines étapes :
-            </h3>
-            <div className="space-y-3">
-              <div className="flex items-start space-x-3">
-                <div className="w-6 h-6 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <CheckCircle size={16} className="text-primary-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-secondary-900 font-montserrat">
-                    Vérification des documents
-                  </p>
-                  <p className="text-xs text-neutral-600 font-montserrat">
-                    Nous vérifions votre carte étudiant et votre carte d'identité
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex items-start space-x-3">
-                <div className="w-6 h-6 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <CheckCircle size={16} className="text-primary-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-secondary-900 font-montserrat">
-                    Validation par l'administrateur
-                  </p>
-                  <p className="text-xs text-neutral-600 font-montserrat">
-                    Abel Viakinnou examine votre demande
-                  </p>
-                </div>
-              </div>
-              
-              <div className="flex items-start space-x-3">
-                <div className="w-6 h-6 bg-yellow-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <Clock size={16} className="text-yellow-600" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-secondary-900 font-montserrat">
-                    Notification par email
-                  </p>
-                  <p className="text-xs text-neutral-600 font-montserrat">
-                    Vous recevrez un email dès que votre compte sera validé
-                  </p>
-                </div>
+          {/* Statut en attente */}
+          <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
+            <div className="flex items-center space-x-3">
+              <Clock className="w-5 h-5 text-yellow-600" />
+              <div>
+                <h3 className="font-semibold text-yellow-800">
+                  En attente d'approbation
+                </h3>
+                <p className="text-sm text-yellow-700">
+                  Votre compte sera activé sous 24-48h
+                </p>
               </div>
             </div>
           </div>
 
-          {/* Temps estimé */}
-          <div className="bg-primary-50 border border-primary-200 rounded-xl p-4 mb-6">
-            <div className="flex items-center space-x-2">
-              <Clock size={20} className="text-primary-600" />
-              <span className="text-sm font-medium text-primary-800 font-montserrat">
-                Temps de traitement estimé : 24-48 heures
-              </span>
+          {/* Prochaines étapes */}
+          <div className="space-y-4 mb-6">
+            <h3 className="font-semibold text-gray-900 mb-3">
+              Prochaines étapes :
+            </h3>
+            
+            <div className="space-y-3">
+              <div className="flex items-start space-x-3">
+                <div className="w-6 h-6 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span className="text-xs font-semibold text-primary-600">1</span>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-700">
+                    <strong>Vérification des documents</strong> - Nous vérifions vos informations
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start space-x-3">
+                <div className="w-6 h-6 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span className="text-xs font-semibold text-primary-600">2</span>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-700">
+                    <strong>Notification par SMS/Email</strong> - Vous recevrez une confirmation
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-start space-x-3">
+                <div className="w-6 h-6 bg-primary-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                  <span className="text-xs font-semibold text-primary-600">3</span>
+                </div>
+                <div>
+                  <p className="text-sm text-gray-700">
+                    <strong>Accès à votre compte</strong> - Vous pourrez vous connecter
+                  </p>
+                </div>
+              </div>
             </div>
           </div>
 
           {/* Contact */}
-          <div className="text-center">
-            <p className="text-sm text-neutral-600 font-montserrat mb-4">
-              Questions ? Contactez-nous :
-            </p>
-            <div className="flex items-center justify-center space-x-4 text-sm text-neutral-600 font-montserrat">
-              <div className="flex items-center space-x-1">
-                <Mail size={16} />
-                <span>abpret51@gmail.com</span>
+          <div className="bg-gray-50 rounded-xl p-4 mb-6">
+            <h3 className="font-semibold text-gray-900 mb-3">
+              Besoin d'aide ?
+            </h3>
+            <div className="space-y-2">
+              <div className="flex items-center space-x-2">
+                <Phone className="w-4 h-4 text-gray-500" />
+                <span className="text-sm text-gray-600">+229 90 00 00 00</span>
               </div>
-              <div className="flex items-center space-x-1">
-                <Phone size={16} />
-                <span>+229 53463606</span>
+              <div className="flex items-center space-x-2">
+                <Mail className="w-4 h-4 text-gray-500" />
+                <span className="text-sm text-gray-600">support@abpret.com</span>
               </div>
             </div>
           </div>
 
-          {/* Retour à la connexion */}
-          <div className="mt-6 text-center">
-            <Link 
-              to="/login" 
-              className="text-primary-600 hover:text-primary-700 font-medium font-montserrat"
+          {/* Boutons */}
+          <div className="space-y-3">
+            <Button
+              onClick={() => window.location.href = '/'}
+              className="w-full"
+              variant="primary"
             >
-              ← Retour à la connexion
+              Retour à l'accueil
+            </Button>
+            
+            <Link to="/login">
+              <Button
+                className="w-full"
+                variant="outline"
+              >
+                <ArrowLeft className="w-4 h-4 mr-2" />
+                Aller à la connexion
+              </Button>
             </Link>
           </div>
         </div>
-      </div>
+
+        {/* Footer */}
+        <div className="text-center mt-6">
+          <p className="text-sm text-gray-500">
+            © 2024 AB CAMPUS FINANCE. Tous droits réservés.
+          </p>
+        </div>
+      </motion.div>
     </div>
   );
 };

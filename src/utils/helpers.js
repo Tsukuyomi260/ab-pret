@@ -34,3 +34,29 @@ export const formatCurrency = (amount) => {
       totalInterest: Math.round((monthlyPayment * months) - principal)
     };
   };
+
+/**
+ * Formate l'affichage d'un email
+ * @param {string} email - L'email à formater
+ * @returns {string} - L'email formaté pour l'affichage
+ */
+export const formatEmailForDisplay = (email) => {
+  if (!email) return 'Non défini';
+  
+  // Si c'est un email temporaire, afficher un message plus clair
+  if (email.includes('user.') && email.includes('@gmail.com')) {
+    return 'Email temporaire (non défini)';
+  }
+  
+  return email;
+};
+
+/**
+ * Vérifie si un email est temporaire
+ * @param {string} email - L'email à vérifier
+ * @returns {boolean} - True si l'email est temporaire
+ */
+export const isTemporaryEmail = (email) => {
+  if (!email) return true;
+  return email.includes('user.') && email.includes('@gmail.com');
+};

@@ -2,15 +2,18 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { useNotifications } from '../../context/NotificationContext';
+import { useAuth } from '../../context/AuthContext';
 import Card from '../UI/Card';
 import Button from '../UI/Button';
 import Input from '../UI/Input';
 import NotificationBell from '../UI/NotificationBell';
+import { getLoans, getPayments, createPayment } from '../../utils/supabaseAPI';
 import { ArrowLeft, CreditCard, Wallet, CheckCircle, AlertCircle, Activity, BarChart3, Percent, Award, Gift, Rocket, Shield, TrendingUp, DollarSign } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 
 const Repayment = () => {
   const { notifications, markAsRead } = useNotifications();
+  const { user } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
   const [currentLoan, setCurrentLoan] = useState(null);
@@ -22,22 +25,83 @@ const Repayment = () => {
 
 
   useEffect(() => {
-    // Simulation des données (à remplacer par des appels API)
-    setTimeout(() => {
-      const loan = {
-        id: 1,
-        amount: 75000,
-        monthlyPayment: 82500,
-        totalAmount: 82500,
-        paidAmount: 0,
-        remainingAmount: 82500,
-        dueDate: '2025-08-01',
-        nextPaymentDate: '2025-08-01'
-      };
-      setCurrentLoan(loan);
-      setPaymentAmount(loan.monthlyPayment.toString());
-    }, 1000);
-  }, []);
+    const loadActiveLoan = async () => {
+      if (!user?.id) {
+        return;
+      }
+
+      try {
+        setLoading(true);
+        
+        // Récupérer les prêts actifs de l'utilisateur
+        const [loansResult, paymentsResult] = await Promise.all([
+          getLoans(user.id),
+          getPayments(user.id)
+        ]);
+
+        if (loansResult.success && paymentsResult.success) {
+          const loans = loansResult.data || [];
+          const payments = paymentsResult.data || [];
+
+          // Trouver le prêt actif le plus récent
+          const activeLoan = loans.find(loan => loan.status === 'active');
+          
+          if (activeLoan) {
+            // Calculer le montant payé pour ce prêt
+            const loanPayments = payments.filter(payment => payment.loan_id === activeLoan.id);
+            const paidAmount = loanPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+            
+            // Calculer le montant total avec intérêts
+            const totalAmount = activeLoan.amount * (1 + (activeLoan.interest_rate || 0) / 100);
+            const remainingAmount = totalAmount - paidAmount;
+            
+            // Calculer la date d'échéance
+            const loanDate = new Date(activeLoan.created_at);
+            const durationMonths = activeLoan.duration || 12;
+            const dueDate = new Date(loanDate.getTime() + (durationMonths * 30 * 24 * 60 * 60 * 1000));
+            
+            // Calculer la date du prochain paiement
+            const now = new Date();
+            const daysSinceLoan = Math.floor((now - loanDate) / (1000 * 60 * 60 * 24));
+            const daysInMonth = 30;
+            const nextPaymentDay = daysSinceLoan + daysInMonth - (daysSinceLoan % daysInMonth);
+            const nextPaymentDate = new Date(loanDate.getTime() + (nextPaymentDay * 24 * 60 * 60 * 1000));
+
+            const formattedLoan = {
+              id: activeLoan.id,
+              amount: activeLoan.amount,
+              monthlyPayment: activeLoan.monthly_payment || Math.round(totalAmount / durationMonths),
+              totalAmount: Math.round(totalAmount),
+              paidAmount: Math.round(paidAmount),
+              remainingAmount: Math.round(remainingAmount),
+              dueDate: dueDate.toISOString().split('T')[0],
+              nextPaymentDate: nextPaymentDate.toISOString().split('T')[0],
+              interest_rate: activeLoan.interest_rate || 0,
+              duration: activeLoan.duration || 12,
+              purpose: activeLoan.purpose || 'Non spécifié'
+            };
+
+            setCurrentLoan(formattedLoan);
+            setPaymentAmount(formattedLoan.monthlyPayment.toString());
+          } else {
+            // Aucun prêt actif trouvé
+            setCurrentLoan(null);
+          }
+        } else {
+          console.error('[REPAYMENT] Erreur lors du chargement des données:', {
+            loans: loansResult.error,
+            payments: paymentsResult.error
+          });
+        }
+      } catch (error) {
+        console.error('[REPAYMENT] Erreur lors du chargement du prêt actif:', error.message);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadActiveLoan();
+  }, [user?.id]);
 
   const validatePayment = () => {
     const newErrors = {};
@@ -68,14 +132,28 @@ const Repayment = () => {
     setLoading(true);
     
     try {
-      // Simulation d'appel API
-      await new Promise(resolve => setTimeout(resolve, 2000));
+      const paymentData = {
+        loan_id: currentLoan.id,
+        user_id: user.id,
+        amount: parseFloat(paymentAmount),
+        payment_method: paymentMethod,
+        status: 'completed',
+        payment_date: new Date().toISOString(),
+        description: `Paiement pour le prêt: ${currentLoan.purpose}`
+      };
+
+      const result = await createPayment(paymentData);
       
-      // Redirection vers le dashboard avec un message de succès
-      navigate('/dashboard', { 
-        state: { message: 'Paiement effectué avec succès' }
-      });
+      if (result.success) {
+        // Redirection vers le dashboard avec un message de succès
+        navigate('/dashboard', { 
+          state: { message: 'Paiement effectué avec succès' }
+        });
+      } else {
+        setErrors({ general: result.error || 'Erreur lors du paiement' });
+      }
     } catch (error) {
+      console.error('[REPAYMENT] Erreur lors du paiement:', error.message);
       setErrors({ general: 'Erreur lors du paiement' });
     } finally {
       setLoading(false);
