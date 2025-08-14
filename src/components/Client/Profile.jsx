@@ -1,27 +1,19 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../context/NotificationContext';
-import { updateUserProfile, getCurrentUser } from '../../utils/supabaseAPI';
 import Card from '../UI/Card';
 import Button from '../UI/Button';
 import Input from '../UI/Input';
 import NotificationBell from '../UI/NotificationBell';
 import { 
-  User, 
-  Mail, 
-  Phone, 
-  MapPin, 
   Edit, 
   Save, 
   X, 
   Camera,
   Trash2,
-  LogOut,
-  Calendar,
-  Upload
+  LogOut
 } from 'lucide-react';
-import { formatCurrency, formatDate } from '../../utils/helpers';
 
 const Profile = () => {
   const { user, logout } = useAuth();
@@ -33,34 +25,13 @@ const Profile = () => {
   const [previewImage, setPreviewImage] = useState(null);
   const [imageLoading, setImageLoading] = useState(false);
   const fileInputRef = useRef(null);
-  const [userStats, setUserStats] = useState({
-    memberSince: '2023-01-15'
-  });
 
   const [formData, setFormData] = useState({
     firstName: user?.first_name || user?.user_metadata?.first_name || '',
     lastName: user?.last_name || user?.user_metadata?.last_name || '',
     email: user?.email || '',
-    phone: user?.phone_number || user?.user_metadata?.phone_number || '',
-    address: user?.address || 'Adresse non renseignée',
-    occupation: 'Entrepreneur',
-    monthlyIncome: 500000
+    phone: user?.phone_number || user?.user_metadata?.phone_number || ''
   });
-
-  // Mettre à jour les données du formulaire quand l'utilisateur change
-  useEffect(() => {
-    if (user) {
-      setFormData({
-        firstName: user.first_name || user.user_metadata?.first_name || '',
-        lastName: user.last_name || user.user_metadata?.last_name || '',
-        email: user.email || '',
-        phone: user.phone_number || user.user_metadata?.phone_number || '',
-        address: user.address || 'Adresse non renseignée',
-        occupation: 'Entrepreneur',
-        monthlyIncome: 500000
-      });
-    }
-  }, [user]);
 
   const handleEdit = () => {
     setIsEditing(true);
@@ -76,72 +47,46 @@ const Profile = () => {
         firstName: formData.firstName,
         lastName: formData.lastName,
         email: formData.email,
-        phone: formData.phone,
-        address: formData.address,
-        occupation: formData.occupation,
-        monthlyIncome: formData.monthlyIncome
+        phone: formData.phone
       };
       
-      // Appeler l'API de mise à jour
-      const result = await updateUserProfile(user.id, profileData);
-      
-      if (result.success) {
-        console.log('[PROFILE] ✅ Profil mis à jour avec succès');
-        
-        // Mettre à jour le cache local
-        try {
-          const cachedUser = JSON.parse(localStorage.getItem('ab_user_cache') || '{}');
-          const updatedCache = {
-            ...cachedUser,
-            first_name: formData.firstName,
-            last_name: formData.lastName,
-            email: formData.email
-          };
-          localStorage.setItem('ab_user_cache', JSON.stringify(updatedCache));
-        } catch (cacheError) {
-          console.warn('[PROFILE] Erreur mise à jour cache:', cacheError);
-        }
-        
-        // Rafraîchir les données de l'utilisateur
-        try {
-          const userResult = await getCurrentUser();
-          if (userResult.success) {
-            console.log('[PROFILE] Données utilisateur rafraîchies');
-          }
-        } catch (refreshError) {
-          console.warn('[PROFILE] Erreur rafraîchissement utilisateur:', refreshError);
-        }
-        
-        // Si une nouvelle image a été sélectionnée, simuler l'upload
-        if (profileImage) {
-          console.log('[PROFILE] Upload d\'image en cours');
-        }
-        
-        setIsEditing(false);
-        setProfileImage(null);
-        setPreviewImage(null);
-        
-        // Afficher un message de succès
-        alert('Profil mis à jour avec succès !');
-        
-        // Recharger la page pour afficher les nouvelles données
-        window.location.reload();
-      } else {
-        console.error('[PROFILE] ❌ Échec de la mise à jour:', result.error);
-        alert(`Erreur lors de la mise à jour: ${result.error}`);
+      // Mettre à jour le cache local
+      try {
+        const cachedUser = JSON.parse(localStorage.getItem('ab_user_cache') || '{}');
+        const updatedCache = {
+          ...cachedUser,
+          first_name: formData.firstName,
+          last_name: formData.lastName,
+          email: formData.email
+        };
+        localStorage.setItem('ab_user_cache', JSON.stringify(updatedCache));
+        console.log('[PROFILE] ✅ Cache local mis à jour');
+      } catch (cacheError) {
+        console.warn('[PROFILE] Erreur lors de la mise à jour du cache:', cacheError);
       }
+      
+      setIsEditing(false);
+      console.log('[PROFILE] ✅ Profil mis à jour avec succès');
     } catch (error) {
-      console.error('[PROFILE] ❌ Erreur lors de la sauvegarde:', error.message);
-      alert(`Erreur lors de la sauvegarde: ${error.message}`);
+      console.error('[PROFILE] ❌ Erreur exceptionnelle:', error);
     } finally {
       setLoading(false);
     }
   };
 
   const handleCancel = () => {
+    // Restaurer les données originales
+    setFormData({
+      firstName: user?.first_name || user?.user_metadata?.first_name || '',
+      lastName: user?.last_name || user?.user_metadata?.last_name || '',
+      email: user?.email || '',
+      phone: user?.phone_number || user?.user_metadata?.phone_number || ''
+    });
     setIsEditing(false);
-    setProfileImage(null);
-    setPreviewImage(null);
+  };
+
+  const triggerImageUpload = () => {
+    fileInputRef.current?.click();
   };
 
   const handleImageUpload = (event) => {
@@ -156,10 +101,6 @@ const Profile = () => {
     }
   };
 
-  const triggerImageUpload = () => {
-    fileInputRef.current?.click();
-  };
-
   const removeProfileImage = () => {
     setProfileImage(null);
     setPreviewImage(null);
@@ -170,31 +111,57 @@ const Profile = () => {
 
   const handleLogout = async () => {
     try {
-      console.log('[PROFILE] Tentative de déconnexion...');
       await logout();
-      console.log('[PROFILE] ✅ Déconnexion réussie, redirection vers login');
       navigate('/login');
     } catch (error) {
-      console.error('[PROFILE] ❌ Erreur lors de la déconnexion:', error);
-      // Forcer la déconnexion locale même en cas d'erreur
-      try { localStorage.removeItem('ab_user_cache'); } catch (_) {}
-      navigate('/login');
+      console.error('Erreur lors de la déconnexion:', error);
     }
   };
 
+  if (!user) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-primary-50 via-accent-50 to-secondary-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-primary-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement du profil...</p>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-primary-50 via-accent-50 to-secondary-50">
-      {/* Header */}
-      <div className="flex justify-between items-center p-4 bg-white/80 backdrop-blur-sm border-b border-accent-200">
-        <div className="flex items-center space-x-4">
-          <Button
-            variant="outline"
-            onClick={() => navigate('/dashboard')}
-            className="flex items-center space-x-2"
-          >
-            <X size={20} />
-            <span>Retour</span>
-          </Button>
+      {/* Header avec notifications */}
+      <div className="bg-white/80 backdrop-blur-sm border-b border-white/20 sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 py-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <button
+                onClick={() => navigate('/menu')}
+                className="text-gray-600 hover:text-gray-900 transition-colors"
+              >
+                ← Retour au menu
+              </button>
+              <h1 className="text-2xl font-bold text-gray-900 font-montserrat">
+                Mon Profil
+              </h1>
+            </div>
+            
+            <div className="flex items-center space-x-4">
+              <NotificationBell 
+                notifications={notifications}
+                onMarkAsRead={markAsRead}
+              />
+              <Button
+                onClick={handleLogout}
+                variant="outline"
+                className="flex items-center space-x-2 text-red-600 border-red-200 hover:bg-red-50"
+              >
+                <LogOut size={16} />
+                <span>Déconnexion</span>
+              </Button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -291,32 +258,6 @@ const Profile = () => {
                     className="w-full"
                   />
                 </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Adresse
-                  </label>
-                  <Input
-                    type="text"
-                    value={formData.address}
-                    onChange={(e) => setFormData(prev => ({ ...prev, address: e.target.value }))}
-                    disabled={!isEditing}
-                    className="w-full"
-                  />
-                </div>
-                
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-2">
-                    Profession
-                  </label>
-                  <Input
-                    type="text"
-                    value={formData.occupation}
-                    onChange={(e) => setFormData(prev => ({ ...prev, occupation: e.target.value }))}
-                    disabled={!isEditing}
-                    className="w-full"
-                  />
-                </div>
               </div>
             </Card>
           </div>
@@ -389,26 +330,13 @@ const Profile = () => {
                     {formData.firstName} {formData.lastName}
                   </h3>
                   
-                  {/* Date d'inscription */}
+                  {/* Rôle utilisateur */}
                   <div className="flex items-center justify-center space-x-2 text-sm text-gray-500">
-                    <Calendar size={16} />
-                    <span className="font-medium">Membre depuis {formatDate(userStats.memberSince)}</span>
+                    <span className="font-medium capitalize">{user.role}</span>
                   </div>
                 </div>
               </Card>
             </div>
-
-            {/* Déconnexion */}
-            <Card className="bg-white/90 backdrop-blur-sm border-white/20">
-              <Button
-                variant="outline"
-                onClick={handleLogout}
-                className="w-full justify-start px-4 py-3 rounded-2xl bg-red-50/80 text-red-600 border-red-200/50 hover:bg-red-100/80 transition-all duration-200"
-              >
-                <LogOut size={20} className="mr-3" />
-                Se déconnecter
-              </Button>
-            </Card>
           </div>
         </div>
       </div>

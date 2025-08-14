@@ -20,7 +20,7 @@ export const LOAN_CONFIG = {
 
   // Montants min/max
   amounts: {
-    min: 5000,   // 5,000 FCFA minimum
+    min: 1000,   // 1,000 FCFA minimum
     max: 500000  // 500,000 FCFA maximum
   },
 

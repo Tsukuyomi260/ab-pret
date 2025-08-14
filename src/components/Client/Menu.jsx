@@ -8,7 +8,9 @@ import {
   PiggyBank,
   Heart,
   GraduationCap,
-  Award
+  Award,
+  TrendingUp,
+  Users
 } from 'lucide-react';
 
 const Menu = () => {
@@ -20,45 +22,42 @@ const Menu = () => {
     avatar: null
   });
 
-
-
   const bentoCards = [
-    {
-      icon: <Home size={24} />,
-      title: 'AB Logement',
-      subtitle: 'Solutions immobilières',
-      description: 'Accédez à nos services de financement immobilier et de gestion locative',
-      action: () => navigate('/ab-logement'),
-      color: 'from-blue-500 to-indigo-600',
-      bgColor: 'bg-gradient-to-br from-blue-50 to-indigo-100',
-      iconBg: 'bg-gradient-to-r from-blue-500 to-indigo-600'
-    },
     {
       icon: <PiggyBank size={24} />,
       title: 'AB Épargne',
       subtitle: 'Épargne et investissement',
-      description: 'Découvrez nos solutions d\'épargne et d\'investissement personnalisées',
+      description: 'Découvrez nos solutions d\'épargne et d\'investissement personnalisées pour faire fructifier votre capital',
       action: () => navigate('/ab-epargne'),
       color: 'from-green-500 to-emerald-600',
       bgColor: 'bg-gradient-to-br from-green-50 to-emerald-100',
       iconBg: 'bg-gradient-to-r from-green-500 to-emerald-600'
     },
     {
-      icon: <Heart size={24} />,
-          title: 'AB Nutrition',
-    subtitle: 'Santé et nutrition',
-      description: 'Prenez soin de votre santé avec nos solutions de financement médical',
-              action: () => navigate('/ab-nutrition'),
-      color: 'from-pink-500 to-rose-600',
-      bgColor: 'bg-gradient-to-br from-pink-50 to-rose-100',
-      iconBg: 'bg-gradient-to-r from-pink-500 to-rose-600'
+      icon: <Home size={24} />,
+      title: 'AB Logement',
+      subtitle: 'Solutions immobilières',
+      description: 'Accédez à nos services de financement immobilier et de gestion locative personnalisés',
+      action: () => navigate('/ab-logement'),
+      color: 'from-blue-500 to-indigo-600',
+      bgColor: 'bg-gradient-to-br from-blue-50 to-indigo-100',
+      iconBg: 'bg-gradient-to-r from-blue-500 to-indigo-600'
     },
-
+    {
+      icon: <TrendingUp size={24} />,
+      title: 'Coaching et Finance Entrepreneuriale',
+      subtitle: 'Accompagnement business',
+      description: 'Développez votre entreprise avec notre expertise en finance et notre accompagnement personnalisé',
+      action: () => navigate('/coaching-finance'), // Nouvelle route
+      color: 'from-purple-500 to-violet-600',
+      bgColor: 'bg-gradient-to-br from-purple-50 to-violet-100',
+      iconBg: 'bg-gradient-to-r from-purple-500 to-violet-600'
+    },
     {
       icon: <Award size={24} />,
       title: 'Score de Fidélité',
       subtitle: 'Programme de récompenses',
-      description: 'Découvrez vos avantages et récompenses pour votre fidélité',
+      description: 'Découvrez vos avantages et récompenses pour votre fidélité à nos services',
       action: () => navigate('/loyalty-score'),
       color: 'from-yellow-500 to-orange-600',
       bgColor: 'bg-gradient-to-br from-yellow-50 to-orange-100',
@@ -79,7 +78,6 @@ const Menu = () => {
             {/* Section Hero - En-tête principal */}
             <div className="text-center mb-8 lg:mb-12">
 
-
               {/* Titre principal */}
               <motion.h1
                 initial={{ opacity: 0, y: 20 }}
@@ -92,7 +90,6 @@ const Menu = () => {
                   Principal
                 </span>
               </motion.h1>
-
 
             </div>
 
@@ -151,8 +148,6 @@ const Menu = () => {
           </div>
         </div>
       </div>
-
-      
     </div>
   );
 };

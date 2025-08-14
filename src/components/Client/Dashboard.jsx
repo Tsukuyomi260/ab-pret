@@ -417,88 +417,12 @@ const ClientDashboard = () => {
           </motion.div>
         </motion.div>
 
-        {/* Actions rapides - Design Moderne */}
-            <motion.div 
-          className="space-y-4"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
-        >
-          <div className="text-center">
-            <h3 className="text-lg font-semibold text-secondary-900 font-montserrat mb-2">
-              Actions rapides
-            </h3>
-            <p className="text-sm text-neutral-600 font-montserrat">
-              Accédez rapidement à vos fonctionnalités
-            </p>
-          </div>
-          
-          <div className="grid grid-cols-3 gap-3">
-            {/* Nouveau prêt */}
-            <motion.div
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 0.95 }}
-              className="group cursor-pointer"
-              onClick={() => navigate('/loan-request')}
-            >
-              <div className="relative overflow-hidden bg-gradient-to-br from-primary-500 to-primary-600 rounded-2xl p-4 shadow-lg hover:shadow-xl transition-all duration-300 h-24">
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                
-                <div className="relative text-center h-full flex flex-col justify-center">
-                  <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center mx-auto mb-2">
-                    <Plus size={18} className="text-white" />
-            </div>
-                  <span className="text-sm font-semibold text-white font-montserrat">Nouveau prêt</span>
-            </div>
-          </div>
-            </motion.div>
-
-            {/* Rembourser */}
-            <motion.div 
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 0.95 }}
-              className="group cursor-pointer"
-              onClick={() => navigate('/repayment')}
-            >
-              <div className="relative overflow-hidden bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-4 shadow-lg hover:shadow-xl transition-all duration-300 h-24">
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                
-                <div className="relative text-center h-full flex flex-col justify-center">
-                  <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center mx-auto mb-2">
-                    <Wallet size={18} className="text-white" />
-                  </div>
-                  <span className="text-sm font-semibold text-white font-montserrat">Rembourser</span>
-                </div>
-              </div>
-            </motion.div>
-
-            {/* Historique */}
-            <motion.div 
-              whileHover={{ scale: 1.05, y: -2 }}
-              whileTap={{ scale: 0.95 }}
-              className="group cursor-pointer"
-              onClick={() => navigate('/loan-history')}
-            >
-              <div className="relative overflow-hidden bg-gradient-to-br from-purple-500 to-purple-600 rounded-2xl p-4 shadow-lg hover:shadow-xl transition-all duration-300 h-24">
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                
-                <div className="relative text-center h-full flex flex-col justify-center">
-                  <div className="w-10 h-10 bg-white/20 backdrop-blur-sm rounded-xl flex items-center justify-center mx-auto mb-2">
-                    <History size={18} className="text-white" />
-                </div>
-                  <span className="text-sm font-semibold text-white font-montserrat">Historique</span>
-                </div>
-                </div>
-            </motion.div>
-          </div>
-        </motion.div>
-
-                {/* Section Nos Services - Design Moderne */}
+        {/* Section Nos Services - Design Moderne */}
         <motion.div
           className="space-y-6"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.6 }}
+          transition={{ delay: 0.5 }}
         >
           <div className="text-center">
             <h3 className="text-xl font-bold text-secondary-900 font-montserrat mb-2">

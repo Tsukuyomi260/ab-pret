@@ -163,8 +163,8 @@ const Dock = ({
         </div>
       </div>
       
-                      {/* Indicateur de sécurité pour iOS */}
-                <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-32 h-1 bg-gradient-to-r from-transparent via-primary-200/50 to-transparent rounded-full" />
+      {/* Indicateur de sécurité pour iOS */}
+      <div className="absolute bottom-0 left-1/2 transform -translate-x-1/2 w-32 h-1 bg-gradient-to-r from-transparent via-primary-200/50 to-transparent rounded-full" />
     </motion.div>
   );
 };

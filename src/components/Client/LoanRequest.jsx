@@ -165,6 +165,12 @@ const LoanRequest = () => {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    
+    // Éviter les mises à jour inutiles qui causent des boucles
+    if (formData[name] === value) {
+      return;
+    }
+    
     setFormData({
       ...formData,
       [name]: value
@@ -219,10 +225,15 @@ const LoanRequest = () => {
           durationLabel: LOAN_CONFIG.durations.find(d => d.days === numDuration)?.label
         };
 
-        handleCalculation(result);
+        // Éviter la boucle infinie en vérifiant si le résultat a changé
+        if (!calculation || 
+            calculation.principal !== result.principal || 
+            calculation.duration !== result.duration) {
+          handleCalculation(result);
+        }
       }
     }
-  }, [formData.amount, formData.duration]);
+  }, [formData.amount, formData.duration]); // Supprimé handleCalculation des dépendances
 
   const validateStep = (step) => {
     const newErrors = {};
@@ -278,6 +289,12 @@ const LoanRequest = () => {
     
     if (!validateStep(currentStep)) return;
 
+    // Vérifier que l'utilisateur est connecté
+    if (!user || !user.id) {
+      showError('Vous devez être connecté pour soumettre une demande de prêt.');
+      return;
+    }
+
     // Vérifier que le PDF a été téléchargé
     if (!pdfDownloaded) {
       showError('Vous devez d\'abord télécharger et lire le PDF récapitulatif avant de soumettre votre demande.');
@@ -286,22 +303,27 @@ const LoanRequest = () => {
 
     setLoading(true);
     
+    // Préparer les données du prêt (en dehors du try pour être accessible dans le catch)
+    const loanData = {
+      user_id: user.id, // Ajouter l'ID de l'utilisateur
+      amount: parseFloat(formData.amount),
+      // duration_months existe dans la base, pas purpose
+      duration_months: formData.duration, // ✅ Champ correct
+      interest_rate: 10.0, // ✅ Champ requis par la base
+      status: 'pending'
+      // ❌ purpose n'existe pas dans la base actuellement
+    };
+    
     try {
-      // Préparer les données du prêt
-      const loanData = {
-        amount: parseFloat(formData.amount),
-        purpose: getPurposeText(),
-        duration_months: formData.duration,
-        interest_rate: 10.0, // Taux d'intérêt par défaut
-        daily_penalty_rate: 2.0, // Pénalité de 2% par jour
-        status: 'pending'
-      };
-
       console.log('[LOAN] Soumission de la demande de prêt:', loanData);
+      console.log('[LOAN] Utilisateur connecté:', user);
+      console.log('[LOAN] Données du formulaire:', formData);
 
       // Sauvegarder la demande dans la base de données
       const { createLoan } = await import('../../utils/supabaseAPI');
       const result = await createLoan(loanData);
+
+      console.log('[LOAN] Résultat de createLoan:', result);
 
       if (result.success) {
         console.log('[LOAN] ✅ Demande de prêt créée avec succès:', result.data);
@@ -321,11 +343,17 @@ const LoanRequest = () => {
           navigate('/dashboard');
         }, 1500);
       } else {
+        console.error('[LOAN] ❌ Échec de la création:', result.error);
         throw new Error(result.error || 'Erreur lors de la création de la demande');
       }
       
     } catch (error) {
-      console.error('[LOAN] ❌ Erreur lors de la soumission:', error.message);
+      console.error('[LOAN] ❌ Erreur lors de la soumission:', error);
+      console.error('[LOAN] ❌ Détails de l\'erreur:', {
+        message: error.message,
+        stack: error.stack,
+        loanData: loanData
+      });
       showError(`Erreur lors de la soumission: ${error.message}`);
     } finally {
       setLoading(false);
@@ -964,14 +992,12 @@ const LoanRequest = () => {
                         <div className="space-y-6">
                           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                             <Input
-                              label="Montant demandé (FCFA)"
+                              label={`Montant demandé (FCFA) - Min: ${LOAN_CONFIG.amounts.min.toLocaleString()} | Max: ${LOAN_CONFIG.amounts.max.toLocaleString()}`}
                               type="number"
                               name="amount"
                               value={formData.amount}
                               onChange={handleChange}
-                              placeholder="50000"
-                              min={LOAN_CONFIG.amounts.min}
-                              max={LOAN_CONFIG.amounts.max}
+                              placeholder={`${LOAN_CONFIG.amounts.min.toLocaleString()}`}
                               error={errors.amount}
                               required
                             />
@@ -1310,18 +1336,48 @@ const LoanRequest = () => {
                     whileHover={{ scale: 1.05, x: 5 }}
                     whileTap={{ scale: 0.95 }}
                   >
-                    <Button
-                      onClick={nextStep}
-                      className="flex items-center space-x-2 bg-primary-500 hover:bg-primary-600 relative overflow-hidden"
-                    >
-                      <span>Suivant</span>
-                      <motion.div
-                        whileHover={{ rotate: 10 }}
-                        transition={{ duration: 0.3 }}
+                    {currentStep === 4 ? (
+                      // Bouton dynamique à l'étape 4 : Télécharger → Suivant
+                      <Button
+                        onClick={pdfDownloaded ? nextStep : generatePDF}
+                        className={`flex items-center space-x-2 relative overflow-hidden ${
+                          pdfDownloaded
+                            ? 'bg-primary-500 hover:bg-primary-600'
+                            : 'bg-blue-500 hover:bg-blue-600'
+                        }`}
                       >
-                        <ArrowRight className="w-4 h-4" />
-                      </motion.div>
-                    </Button>
+                        {pdfDownloaded ? (
+                          <>
+                            <span>Suivant</span>
+                            <motion.div
+                              whileHover={{ rotate: 10 }}
+                              transition={{ duration: 0.3 }}
+                            >
+                              <ArrowRight className="w-4 h-4" />
+                            </motion.div>
+                          </>
+                        ) : (
+                          <>
+                            <Download className="w-4 h-4" />
+                            <span>Télécharger l'engagement</span>
+                          </>
+                        )}
+                      </Button>
+                    ) : (
+                      // Bouton normal pour les autres étapes
+                      <Button
+                        onClick={nextStep}
+                        className="flex items-center space-x-2 bg-primary-500 hover:bg-primary-600 relative overflow-hidden"
+                      >
+                        <span>Suivant</span>
+                        <motion.div
+                          whileHover={{ rotate: 10 }}
+                          transition={{ duration: 0.3 }}
+                        >
+                          <ArrowRight className="w-4 h-4" />
+                        </motion.div>
+                      </Button>
+                    )}
                   </motion.div>
                 ) : (
                   <motion.div

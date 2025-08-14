@@ -23,9 +23,84 @@ export const NotificationProvider = ({ children }) => {
     setUnreadCount(count);
   }, [notifications]);
 
+  // Charger les notifications réelles depuis la base de données
+  const loadRealNotifications = useCallback(async () => {
+    try {
+      // Si Supabase n'est pas configuré, ne pas essayer de charger
+      if (!supabase) {
+        console.log('[NOTIFICATIONS] Supabase non configuré - skip chargement');
+        return;
+      }
+
+      // Charger les notifications depuis Supabase
+      const { data: notificationsData, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (error) {
+        console.error('[NOTIFICATIONS] Erreur lors du chargement:', error);
+        return;
+      }
+
+      if (notificationsData) {
+        // Transformer les données Supabase en format local
+        const realNotifications = notificationsData.map(notif => ({
+          id: notif.id,
+          title: notif.title,
+          message: notif.message,
+          type: notif.type || 'info',
+          priority: notif.priority || 'medium',
+          read: notif.read || false,
+          timestamp: notif.created_at,
+          data: notif.data || {},
+          action: notif.action || null
+        }));
+
+        setNotifications(realNotifications);
+      }
+    } catch (error) {
+      console.error('[NOTIFICATIONS] Erreur lors du chargement:', error);
+    }
+  }, []);
+
   // Ajouter une nouvelle notification
   const addNotification = useCallback(async (notification) => {
     try {
+      // Si Supabase n'est pas configuré, ajouter seulement en local
+      if (!supabase) {
+        console.log('[NOTIFICATIONS] Supabase non configuré - notification locale seulement');
+        const newNotification = {
+          id: Date.now() + Math.random(),
+          title: notification.title,
+          message: notification.message,
+          type: notification.type || 'info',
+          priority: notification.priority || 'medium',
+          read: false,
+          data: notification.data || {},
+          action: notification.action || null,
+          created_at: new Date().toISOString(),
+          timestamp: new Date().toISOString()
+        };
+
+        setNotifications(prev => {
+          // Éviter les doublons basés sur le titre et le message
+          const isDuplicate = prev.some(existing => 
+            existing.title === notification.title && 
+            existing.message === notification.message &&
+            Date.now() - new Date(existing.timestamp).getTime() < 60000 // Dans la dernière minute
+          );
+          
+          if (isDuplicate) {
+            return prev;
+          }
+          
+          return [newNotification, ...prev.slice(0, 49)]; // Garder max 50 notifications
+        });
+        return;
+      }
+
       const newNotification = {
         title: notification.title,
         message: notification.message,
@@ -78,6 +153,16 @@ export const NotificationProvider = ({ children }) => {
   // Marquer une notification comme lue
   const markAsRead = async (notificationId) => {
     try {
+      // Si Supabase n'est pas configuré, mettre à jour seulement en local
+      if (!supabase) {
+        setNotifications(prev => 
+          prev.map(notif => 
+            notif.id === notificationId ? { ...notif, read: true } : notif
+          )
+        );
+        return;
+      }
+
       // Mettre à jour dans Supabase
       const { error } = await supabase
         .from('notifications')
@@ -103,6 +188,14 @@ export const NotificationProvider = ({ children }) => {
   // Marquer toutes les notifications comme lues
   const markAllAsRead = async () => {
     try {
+      // Si Supabase n'est pas configuré, mettre à jour seulement en local
+      if (!supabase) {
+        setNotifications(prev => 
+          prev.map(notif => ({ ...notif, read: true }))
+        );
+        return;
+      }
+
       // Mettre à jour toutes les notifications dans Supabase
       const { error } = await supabase
         .from('notifications')
@@ -126,6 +219,12 @@ export const NotificationProvider = ({ children }) => {
   // Supprimer une notification
   const removeNotification = async (notificationId) => {
     try {
+      // Si Supabase n'est pas configuré, supprimer seulement en local
+      if (!supabase) {
+        setNotifications(prev => prev.filter(notif => notif.id !== notificationId));
+        return;
+      }
+
       // Supprimer de Supabase
       const { error } = await supabase
         .from('notifications')
@@ -147,6 +246,12 @@ export const NotificationProvider = ({ children }) => {
   // Supprimer toutes les notifications
   const clearAllNotifications = async () => {
     try {
+      // Si Supabase n'est pas configuré, vider seulement en local
+      if (!supabase) {
+        setNotifications([]);
+        return;
+      }
+
       // Supprimer toutes les notifications de Supabase
       const { error } = await supabase
         .from('notifications')
@@ -199,42 +304,6 @@ export const NotificationProvider = ({ children }) => {
 
   const removeToast = useCallback((id) => {
     setToasts(prev => prev.filter(toast => toast.id !== id));
-  }, []);
-
-  // Charger les notifications réelles depuis la base de données
-  const loadRealNotifications = useCallback(async () => {
-    try {
-      // Charger les notifications depuis Supabase
-      const { data: notificationsData, error } = await supabase
-        .from('notifications')
-        .select('*')
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (error) {
-        console.error('[NOTIFICATIONS] Erreur lors du chargement:', error);
-        return;
-      }
-
-      if (notificationsData) {
-        // Transformer les données Supabase en format local
-        const realNotifications = notificationsData.map(notif => ({
-          id: notif.id,
-          title: notif.title,
-          message: notif.message,
-          type: notif.type || 'info',
-          priority: notif.priority || 'medium',
-          read: notif.read || false,
-          timestamp: notif.created_at,
-          data: notif.data || {},
-          action: notif.action || null
-        }));
-
-        setNotifications(realNotifications);
-      }
-    } catch (error) {
-      console.error('[NOTIFICATIONS] Erreur lors du chargement:', error);
-    }
   }, []);
 
   // Initialiser avec des notifications réelles

@@ -177,13 +177,63 @@ export const signInWithEmail = async (email, password) => {
   }
 
   try {
-    const op = supabase.auth.signInWithPassword({ email, password });
-    const timeout = new Promise((_, reject) => setTimeout(() => reject(new Error('Timeout de connexion')), 12000));
-    const { data, error } = await Promise.race([op, timeout]);
+    console.log('[SUPABASE] Tentative de connexion avec email:', email);
+    
+    // 1. Authentification avec Supabase Auth
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({ 
+      email, 
+      password 
+    });
 
-    if (error) throw error;
+    if (authError) {
+      console.error('[SUPABASE] Erreur d\'authentification:', authError.message);
+      throw authError;
+    }
 
-    return { success: true, user: data.user };
+    if (!authData.user) {
+      throw new Error('Aucun utilisateur retourné après authentification');
+    }
+
+    console.log('[SUPABASE] Authentification réussie pour:', authData.user.email);
+
+    // 2. Récupérer les informations complètes depuis la table users
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('*')
+      .eq('id', authData.user.id)
+      .single();
+
+    if (userError) {
+      console.warn('[SUPABASE] Utilisateur non trouvé dans la table users:', userError.message);
+      // Si l'utilisateur n'est pas dans la table users, utiliser les données auth
+      const userWithRole = {
+        ...authData.user,
+        role: authData.user.user_metadata?.role || 'client',
+        first_name: authData.user.user_metadata?.first_name || '',
+        last_name: authData.user.user_metadata?.last_name || ''
+      };
+      return { success: true, user: userWithRole };
+    }
+
+    // 3. Fusionner les données auth et users
+    const completeUser = {
+      ...authData.user,
+      role: userData.role || authData.user.user_metadata?.role || 'client',
+      first_name: userData.first_name || authData.user.user_metadata?.first_name || '',
+      last_name: userData.last_name || authData.user.user_metadata?.last_name || '',
+      phone_number: userData.phone_number || '',
+      status: userData.status || 'approved'
+    };
+
+    console.log('[SUPABASE] Utilisateur complet récupéré:', {
+      id: completeUser.id,
+      email: completeUser.email,
+      role: completeUser.role,
+      status: completeUser.status
+    });
+
+    return { success: true, user: completeUser };
+
   } catch (error) {
     console.error('[SUPABASE] Erreur lors de la connexion:', error.message);
     return { success: false, error: error.message };
@@ -201,46 +251,105 @@ export const signInWithPhone = async (phoneNumber, password) => {
     
     // Nettoyer le numéro de téléphone
     const cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
+    console.log('[SUPABASE] Téléphone nettoyé:', cleanPhone);
     
-    // Récupérer l'utilisateur par téléphone
+    // 1. Récupérer l'utilisateur par téléphone depuis la table users
     const { data: userData, error: userError } = await supabase
       .from('users')
-      .select('id, email, created_at')
+      .select('*')
       .eq('phone_number', phoneNumber)
       .single();
 
     if (userError || !userData) {
-      console.log('[SUPABASE] Utilisateur non trouvé pour le téléphone:', phoneNumber);
-      throw new Error('Utilisateur non trouvé');
+      console.error('[SUPABASE] Utilisateur non trouvé pour le téléphone:', phoneNumber, userError);
+      return { success: false, error: 'Aucun utilisateur trouvé avec ce numéro de téléphone' };
     }
 
-    console.log('[SUPABASE] Utilisateur trouvé:', userData.id);
+    console.log('[SUPABASE] Utilisateur trouvé dans la table users:', {
+      id: userData.id,
+      email: userData.email,
+      phone_number: userData.phone_number,
+      role: userData.role,
+      status: userData.status
+    });
     
-    // Utiliser l'email réel s'il existe, sinon reconstruire l'email temporaire
+    // 2. Vérifier si l'utilisateur a un statut approuvé
+    if (userData.status !== 'approved') {
+      console.error('[SUPABASE] Utilisateur non approuvé, statut:', userData.status);
+      return { success: false, error: 'Votre compte n\'est pas encore approuvé' };
+    }
+    
+    // 3. Déterminer l'email à utiliser pour l'authentification
     let emailToUse = userData.email;
     
-    if (!emailToUse || emailToUse.includes('@campusfinance.bj')) {
+    if (!emailToUse || emailToUse.includes('@campusfinance.bj') || emailToUse.includes('@gmail.com')) {
       // Reconstruire l'email temporaire utilisé lors de l'inscription
       const timestamp = new Date(userData.created_at).getTime();
       emailToUse = `user.${cleanPhone}.${timestamp}@gmail.com`;
-      console.log('[SUPABASE] Utilisation email temporaire:', emailToUse);
+      console.log('[SUPABASE] Utilisation email temporaire reconstruit:', emailToUse);
     } else {
-      console.log('[SUPABASE] Utilisation email réel:', emailToUse);
+      console.log('[SUPABASE] Utilisation email réel existant:', emailToUse);
     }
     
-    // Se connecter avec l'email
-    const { data, error } = await supabase.auth.signInWithPassword({
+    // 4. Vérifier si l'utilisateur existe dans auth.users
+    try {
+      const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(userData.id);
+      if (authError) {
+        console.warn('[SUPABASE] Utilisateur non trouvé dans auth.users:', authError.message);
+        console.log('[SUPABASE] Tentative de connexion avec l\'email reconstruit...');
+      } else {
+        console.log('[SUPABASE] Utilisateur trouvé dans auth.users:', authUser.user.email);
+        // Si l'utilisateur existe dans auth, utiliser son email réel
+        if (authUser.user.email && !authUser.user.email.includes('@gmail.com')) {
+          emailToUse = authUser.user.email;
+          console.log('[SUPABASE] Utilisation email réel de auth.users:', emailToUse);
+        }
+      }
+    } catch (adminError) {
+      console.log('[SUPABASE] Impossible de vérifier auth.users (pas de droits admin)');
+    }
+    
+    // 5. Se connecter avec l'email et le mot de passe
+    console.log('[SUPABASE] Tentative de connexion avec email:', emailToUse);
+    
+    const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
       email: emailToUse,
       password
     });
 
-    if (error) {
-      console.error('[SUPABASE] Erreur connexion:', error.message);
-      throw error;
+    if (authError) {
+      console.error('[SUPABASE] Erreur d\'authentification:', authError.message);
+      
+      // Si c'est un problème de mot de passe, essayer de diagnostiquer
+      if (authError.message.includes('Invalid login credentials')) {
+        console.error('[SUPABASE] Problème de mot de passe ou email incorrect');
+        return { 
+          success: false, 
+          error: 'Identifiants incorrects. Vérifiez votre numéro de téléphone et mot de passe.' 
+        };
+      }
+      
+      throw authError;
     }
 
-    console.log('[SUPABASE] ✅ Connexion réussie');
-    return { success: true, user: data.user };
+    if (!authData.user) {
+      throw new Error('Aucun utilisateur retourné après authentification');
+    }
+
+    console.log('[SUPABASE] ✅ Connexion réussie avec auth.users');
+    
+    // 6. Fusionner les données auth et users
+    const completeUser = {
+      ...authData.user,
+      role: userData.role || 'client',
+      first_name: userData.first_name || '',
+      last_name: userData.last_name || '',
+      phone_number: userData.phone_number || '',
+      status: userData.status || 'approved'
+    };
+
+    return { success: true, user: completeUser };
+    
   } catch (error) {
     console.error('[SUPABASE] Erreur lors de la connexion (téléphone):', error.message);
     return { success: false, error: error.message };
@@ -484,17 +593,29 @@ export const updateUserStatus = async (userId, status) => {
 
 export const createLoan = async (loanData) => {
   try {
+    console.log('[SUPABASE] Tentative de création du prêt avec:', loanData);
+    
     const { data, error } = await supabase
       .from('loans')
       .insert([loanData])
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('[SUPABASE] Erreur Supabase:', error);
+      throw error;
+    }
 
+    console.log('[SUPABASE] Prêt créé avec succès:', data);
     return { success: true, data };
   } catch (error) {
-    console.error('[SUPABASE] Erreur lors de la création du prêt:', error.message);
+    console.error('[SUPABASE] Erreur lors de la création du prêt:', error);
+    console.error('[SUPABASE] Détails de l\'erreur:', {
+      message: error.message,
+      details: error.details,
+      hint: error.hint,
+      code: error.code
+    });
     return { success: false, error: error.message };
   }
 };

@@ -102,135 +102,151 @@ export const AuthProvider = ({ children }) => {
                   first_name: userData.user_metadata?.first_name || '',
                   last_name: userData.user_metadata?.last_name || ''
                 }));
-              } catch (_) {}
+              } catch (cacheError) {
+                console.warn('[AUTH] Erreur cache:', cacheError);
+              }
             } else if (event === 'SIGNED_OUT') {
               console.log('[AUTH] Utilisateur déconnecté');
               setUser(null);
-              try { localStorage.removeItem('ab_user_cache'); } catch (_) {}
-            }
-            
-            if (!isInitialized) {
-              isInitialized = true;
-              setLoading(false);
+              try {
+                localStorage.removeItem('ab_user_cache');
+              } catch (cacheError) {
+                console.warn('[AUTH] Erreur suppression cache:', cacheError);
+              }
+            } else if (event === 'TOKEN_REFRESHED' && session) {
+              console.log('[AUTH] Token rafraîchi');
+              const roleFromJwt = session.user?.user_metadata?.role || session.user?.app_metadata?.role || 'client';
+              const userData = { ...session.user, role: roleFromJwt };
+              setUser(userData);
             }
           }
         );
-        
-        subscription = res?.data?.subscription;
-        
-        // Si on a une session, on peut arrêter le loader
-        if (session?.user && !isInitialized) {
-          isInitialized = true;
-          setLoading(false);
-        }
+
+        subscription = res.data.subscription;
+        isInitialized = true;
+        console.log('[AUTH] ✅ Contexte d\'authentification initialisé');
         
       } catch (error) {
-        console.error('[AUTH] Erreur lors de l\'initialisation:', error);
+        console.error('[AUTH] ❌ Erreur lors de l\'initialisation:', error.message);
+      } finally {
+        clearTimeout(safetyTimeout);
         setLoading(false);
       }
     };
 
     initializeAuth();
 
+    // Cleanup function
     return () => {
-      try { subscription && subscription.unsubscribe(); } catch (_) {}
       clearTimeout(safetyTimeout);
+      if (subscription) {
+        subscription.unsubscribe();
+      }
     };
   }, []);
 
-  const login = async (credentials) => {
+  // Fonctions d'authentification avec gestion d'erreur
+  const signUp = async (email, password, userData) => {
+    if (!supabase) {
+      console.error('[AUTH] Supabase non configuré - impossible de s\'inscrire');
+      return { success: false, error: 'Configuration Supabase manquante. Vérifiez vos variables d\'environnement.' };
+    }
+    
     try {
-      const rawInput = (credentials.identifier ?? credentials.email ?? '').trim();
-      console.log('[AUTH] Tentative de connexion avec:', rawInput);
-      
-      // Détecter si c'est un téléphone ou un email
-      const normalizedInput = rawInput.replace(/\s|\-/g, '');
-      const isPhone = rawInput && /^(\+?\d{8,15})$/.test(normalizedInput);
-      
-      console.log('[AUTH] Type détecté:', isPhone ? 'téléphone' : 'email');
-
-      let result;
-      if (isPhone) {
-        // Connexion par téléphone
-        result = await signInWithPhone(normalizedInput, credentials.password);
-      } else {
-        // Connexion par email
-        result = await signInWithEmail(rawInput, credentials.password);
-      }
-
-      if (!result.success) {
-        console.error('[AUTH] Échec de connexion:', result.error);
-        return { success: false, error: result.error };
-      }
-
-      const roleFromJwt = result.user?.user_metadata?.role || result.user?.app_metadata?.role || 'client';
-      const merged = { ...result.user, role: roleFromJwt };
-
-      console.log('[AUTH] ✅ Connexion réussie pour:', merged.email || merged.phone_number);
-      
-      // Mettre à jour immédiatement le contexte pour éviter les boucles de redirection
-      setUser(merged);
-
-      return { success: true, user: merged };
+      const result = await signUpWithEmail(email, password, userData);
+      return result;
     } catch (error) {
-      console.error('[AUTH] Erreur lors de la connexion:', error);
-      return { success: false, error: 'Erreur de connexion' };
+      console.error('[AUTH] Erreur lors de l\'inscription:', error.message);
+      return { success: false, error: error.message };
     }
   };
 
-  const register = async (userData) => {
+  const signIn = async (email, password) => {
+    if (!supabase) {
+      console.error('[AUTH] Supabase non configuré - impossible de se connecter');
+      return { success: false, error: 'Configuration Supabase manquante. Vérifiez vos variables d\'environnement.' };
+    }
+    
     try {
-      const result = await signUpWithEmail(userData.email, userData.password, userData);
-      
-      if (result.success) {
-        return { success: true, user: result.user };
-      } else {
-        return { success: false, error: result.error };
-      }
+      console.log('[AUTH] Tentative de connexion avec Supabase...');
+      const result = await signInWithEmail(email, password);
+      console.log('[AUTH] Résultat Supabase:', result);
+      return result;
     } catch (error) {
-      console.error('[AUTH] Erreur lors de l\'inscription:', error);
-      return { success: false, error: 'Erreur d\'inscription' };
+      console.error('[AUTH] Erreur lors de la connexion:', error.message);
+      return { success: false, error: error.message };
+    }
+  };
+
+  const signInWithPhoneNumber = async (phoneNumber) => {
+    if (!supabase) {
+      return { success: false, error: 'Supabase non configuré' };
+    }
+    
+    try {
+      const result = await signInWithPhone(phoneNumber);
+      return result;
+    } catch (error) {
+      console.error('[AUTH] Erreur lors de la connexion par téléphone:', error.message);
+      return { success: false, error: error.message };
     }
   };
 
   const logout = async () => {
-    try {
-      console.log('[AUTH] Déconnexion en cours...');
-      
-      // Nettoyer immédiatement le state local et le cache
+    if (!supabase) {
       setUser(null);
       try {
         localStorage.removeItem('ab_user_cache');
-        console.log('[AUTH] Cache local nettoyé');
-      } catch (cacheError) {
-        console.warn('[AUTH] Erreur lors du nettoyage du cache:', cacheError);
+      } catch (error) {
+        console.warn('[AUTH] Erreur lors de la suppression du cache:', error);
       }
-      
-      // Appeler la fonction de déconnexion Supabase
+      return { success: true };
+    }
+    
+    try {
       const result = await signOut();
-      
       if (result.success) {
-        console.log('[AUTH] ✅ Déconnexion Supabase réussie');
-        return { success: true };
-      } else {
-        console.warn('[AUTH] ⚠️ Échec de la déconnexion Supabase, mais déconnexion locale effectuée:', result.error);
-        // On retourne quand même success car la déconnexion locale est faite
-        return { success: true, warning: result.error };
+        setUser(null);
+        try {
+          localStorage.removeItem('ab_user_cache');
+        } catch (error) {
+          console.warn('[AUTH] Erreur lors de la suppression du cache:', error);
+        }
       }
+      return result;
     } catch (error) {
-      console.error('[AUTH] ❌ Erreur lors de la déconnexion:', error);
-      // On retourne quand même success car la déconnexion locale est faite
-      return { success: true, warning: error.message };
+      console.error('[AUTH] Erreur lors de la déconnexion:', error.message);
+      return { success: false, error: error.message };
+    }
+  };
+
+  const refreshUser = async () => {
+    if (!supabase) {
+      return { success: false, error: 'Supabase non configuré' };
+    }
+    
+    try {
+      const result = await getCurrentUser();
+      if (result.success && result.user) {
+        setUser(result.user);
+      }
+      return result;
+    } catch (error) {
+      console.error('[AUTH] Erreur lors du rafraîchissement:', error.message);
+      return { success: false, error: error.message };
     }
   };
 
   const value = {
     user,
-    login,
-    register,
-    logout,
     loading,
-    isAuthenticated: !!user
+    isAuthenticated: !!user,
+    signUp,
+    signIn,
+    signInWithPhoneNumber,
+    logout,
+    refreshUser,
+    setUser
   };
 
   return (

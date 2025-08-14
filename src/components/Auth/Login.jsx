@@ -5,19 +5,25 @@ import Button from '../UI/Button';
 import Input from '../UI/Input';
 import Logo from '../UI/Logo';
 import StarBorder from '../UI/StarBorder';
-import { Mail, Eye, EyeOff } from 'lucide-react';
+import { Mail, Eye, EyeOff, Phone } from 'lucide-react';
 
 const Login = () => {
   const [formData, setFormData] = useState({
-    email: '', // email ou téléphone
+    identifier: '', // email ou téléphone
     password: ''
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
-  const { login } = useAuth();
+  const { signIn, signInWithPhoneNumber } = useAuth();
   const navigate = useNavigate();
+
+  // Fonction pour détecter si c'est un téléphone ou un email
+  const isPhoneNumber = (identifier) => {
+    const cleanIdentifier = identifier.replace(/[^0-9]/g, '');
+    return cleanIdentifier.length >= 8 && cleanIdentifier.length <= 15;
+  };
 
   const handleChange = (e) => {
     setFormData({
@@ -31,20 +37,45 @@ const Login = () => {
     e.preventDefault();
     setLoading(true);
     setError('');
+    
     try {
-      const result = await login(formData);
+      const identifier = formData.identifier.trim();
+      const isPhone = isPhoneNumber(identifier);
+      
+      console.log('[LOGIN] Tentative de connexion avec:', {
+        identifier,
+        type: isPhone ? 'téléphone' : 'email'
+      });
+      
+      let result;
+      
+      if (isPhone) {
+        // Connexion par téléphone
+        console.log('[LOGIN] Connexion par téléphone');
+        result = await signInWithPhoneNumber(identifier);
+      } else {
+        // Connexion par email
+        console.log('[LOGIN] Connexion par email');
+        result = await signIn(identifier, formData.password);
+      }
+      
+      console.log('[LOGIN] Résultat de la connexion:', result);
 
       if (result.success) {
-        if (result.user.role === 'admin') {
+        if (result.user && result.user.role === 'admin') {
+          console.log('[LOGIN] Connexion admin réussie, redirection vers /admin');
           navigate('/admin');
         } else {
+          console.log('[LOGIN] Connexion client réussie, redirection vers /dashboard');
           navigate('/dashboard');
         }
       } else {
+        console.error('[LOGIN] Échec de la connexion:', result.error);
         setError(result.error || 'Erreur de connexion');
       }
     } catch (err) {
-      setError('Erreur de connexion');
+      console.error('[LOGIN] Erreur exceptionnelle:', err);
+      setError('Erreur de connexion inattendue');
     } finally {
       setLoading(false);
     }
@@ -81,13 +112,17 @@ const Login = () => {
               <Input
                 label="Identifiant"
                 type="text"
-                name="email"
-                value={formData.email}
+                name="identifier"
+                value={formData.identifier}
                 onChange={handleChange}
-                placeholder="gmail ou téléphone"
+                placeholder="Email ou numéro de téléphone"
                 required
               />
-              <Mail size={20} className="absolute right-3 top-11 text-neutral-400" />
+              {isPhoneNumber(formData.identifier) ? (
+                <Phone size={20} className="absolute right-3 top-11 text-neutral-400" />
+              ) : (
+                <Mail size={20} className="absolute right-3 top-11 text-neutral-400" />
+              )}
             </div>
 
             <div className="relative">
@@ -103,39 +138,34 @@ const Login = () => {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-11 text-neutral-400 hover:text-neutral-600"
+                className="absolute right-3 top-11 text-neutral-400 hover:text-neutral-600 transition-colors"
               >
                 {showPassword ? <EyeOff size={20} /> : <Eye size={20} />}
               </button>
             </div>
 
-                <div className="w-full">
-                  <Button
-                    type="submit"
-                    loading={loading}
-                    className="w-full bg-primary-500 hover:bg-primary-600 text-white font-montserrat"
-                  >
-                    {loading ? 'Connexion...' : 'Se connecter'}
-                  </Button>
-                </div>
-          </form>
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full"
+            >
+              {loading ? 'Connexion...' : 'Se connecter'}
+            </Button>
 
-          {/* Liens */}
-          <div className="mt-6 text-center">
-            <p className="text-neutral-600 font-montserrat">
-              Pas encore de compte ?{' '}
-              <Link 
-                to="/create-account" 
-                className="text-primary-600 hover:text-primary-700 font-medium"
+            <div className="text-center">
+              <Link
+                to="/create-account"
+                className="text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors"
               >
-                S'inscrire
+                Pas encore de compte ? Créer un compte
               </Link>
-            </p>
-          </div>
+            </div>
+          </form>
         </div>
-
-
       </div>
+      
+      {/* Éléments décoratifs */}
+      <StarBorder />
     </div>
   );
 };

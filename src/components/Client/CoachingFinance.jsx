@@ -1,16 +1,16 @@
 import React from 'react';
 import { motion } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
-import { ArrowLeft, Home, Clock } from 'lucide-react';
+import { ArrowLeft, TrendingUp, Clock } from 'lucide-react';
 
-const ABLogement = () => {
+const CoachingFinance = () => {
   const navigate = useNavigate();
 
   return (
-    <div className="bg-gradient-to-br from-blue-50 via-indigo-50 to-blue-100 min-h-screen">
+    <div className="bg-gradient-to-br from-purple-50 via-violet-50 to-indigo-50 min-h-screen">
       {/* Header avec navigation */}
       <div className="relative overflow-hidden">
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-500 via-indigo-600 to-blue-600 opacity-10"></div>
+        <div className="absolute inset-0 bg-gradient-to-br from-purple-500 via-violet-600 to-indigo-600 opacity-10"></div>
         
         <div className="relative px-4 lg:px-8 py-6">
           <div className="max-w-4xl mx-auto">
@@ -22,8 +22,8 @@ const ABLogement = () => {
               onClick={() => navigate('/menu')}
               className="inline-flex items-center space-x-2 px-4 py-2 bg-white/80 backdrop-blur-sm rounded-full border border-white/50 shadow-lg hover:bg-white/90 transition-all duration-300 mb-8"
             >
-              <ArrowLeft size={16} className="text-blue-600" />
-              <span className="text-sm font-medium text-blue-700">Retour au menu</span>
+              <ArrowLeft size={16} className="text-purple-600" />
+              <span className="text-sm font-medium text-purple-700">Retour au menu</span>
             </motion.button>
 
             {/* Contenu principal */}
@@ -35,8 +35,8 @@ const ABLogement = () => {
                 transition={{ duration: 0.8, delay: 0.2 }}
                 className="mb-8"
               >
-                <div className="inline-flex p-8 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full text-white shadow-2xl">
-                  <Home size={80} />
+                <div className="inline-flex p-8 bg-gradient-to-r from-purple-500 to-violet-600 rounded-full text-white shadow-2xl">
+                  <TrendingUp size={80} />
                 </div>
               </motion.div>
 
@@ -47,9 +47,9 @@ const ABLogement = () => {
                 transition={{ duration: 0.6, delay: 0.3 }}
                 className="text-4xl lg:text-6xl font-bold text-gray-900 mb-6"
               >
-                AB{' '}
-                <span className="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-600 bg-clip-text text-transparent">
-                  Logement
+                Coaching et{' '}
+                <span className="bg-gradient-to-r from-purple-600 via-violet-600 to-indigo-600 bg-clip-text text-transparent">
+                  Finance Entrepreneuriale
                 </span>
               </motion.h1>
 
@@ -73,9 +73,9 @@ const ABLogement = () => {
                 transition={{ duration: 0.6, delay: 0.5 }}
                 className="text-xl lg:text-2xl text-gray-600 mb-12 font-light max-w-2xl mx-auto"
               >
-                Nos solutions immobilières et de financement logement sont en cours de développement.
+                Nos services de coaching et de finance entrepreneuriale sont en cours de développement.
                 <br />
-                <span className="text-blue-600 font-medium">Revenez bientôt !</span>
+                <span className="text-purple-600 font-medium">Revenez bientôt !</span>
               </motion.p>
 
               {/* Bouton retour au menu */}
@@ -84,7 +84,7 @@ const ABLogement = () => {
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.6, delay: 0.6 }}
                 onClick={() => navigate('/menu')}
-                className="bg-gradient-to-r from-blue-500 to-indigo-600 text-white px-8 py-4 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105"
+                className="bg-gradient-to-r from-purple-500 to-violet-600 text-white px-8 py-4 rounded-2xl shadow-xl hover:shadow-2xl transition-all duration-300 hover:scale-105"
               >
                 Retour au menu principal
               </motion.button>
@@ -96,4 +96,4 @@ const ABLogement = () => {
   );
 };
 
-export default ABLogement; 
+export default CoachingFinance;

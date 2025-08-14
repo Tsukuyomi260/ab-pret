@@ -51,15 +51,17 @@ const LoanCalculator = ({
 
         setCalculation(result);
         
-        // Appeler le callback si fourni
-        if (onCalculate) {
+        // Appeler le callback si fourni ET si le résultat a changé
+        if (onCalculate && (!calculation || 
+            calculation.principal !== result.principal || 
+            calculation.duration !== result.duration)) {
           onCalculate(result);
         }
       } else {
         setCalculation(null);
       }
     }
-  }, [amount, duration, onCalculate]);
+  }, [amount, duration]); // Supprimé onCalculate des dépendances pour éviter la boucle
 
 
 
