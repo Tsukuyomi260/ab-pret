@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../context/NotificationContext';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -85,6 +85,11 @@ const Settings = () => {
     maintenanceMode: false
   });
 
+  const [smsData, setSmsData] = useState({
+    mode: 'echo',
+    isProduction: false
+  });
+
   const handleProfileUpdate = async () => {
     try {
       setLoading(true);
@@ -146,11 +151,60 @@ const Settings = () => {
     }
   };
 
+  // Fonction pour récupérer le mode SMS actuel
+  const fetchSmsMode = async () => {
+    try {
+      const response = await fetch('/api/admin/sms-mode');
+      const data = await response.json();
+      if (data.success) {
+        setSmsData({
+          mode: data.mode,
+          isProduction: data.isProduction
+        });
+      }
+    } catch (error) {
+      console.error('[ADMIN] Erreur lors de la récupération du mode SMS:', error);
+    }
+  };
+
+  // Fonction pour changer le mode SMS
+  const handleSmsModeChange = async (newMode) => {
+    try {
+      setLoading(true);
+      const response = await fetch('/api/admin/sms-mode', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ mode: newMode })
+      });
+      
+      const data = await response.json();
+      if (data.success) {
+        setSmsData(prev => ({ ...prev, mode: data.mode }));
+        showSuccess(`Mode SMS changé vers: ${data.mode}`);
+      } else {
+        showError(data.error || 'Erreur lors du changement de mode');
+      }
+    } catch (error) {
+      console.error('[ADMIN] Erreur lors du changement de mode SMS:', error);
+      showError('Erreur de connexion');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Charger le mode SMS au montage du composant
+  useEffect(() => {
+    fetchSmsMode();
+  }, []);
+
   const tabs = [
     { id: 'profile', label: 'Profil', icon: User },
     { id: 'security', label: 'Sécurité', icon: Shield },
     { id: 'notifications', label: 'Notifications', icon: Bell },
-    { id: 'system', label: 'Système', icon: Cog }
+    { id: 'system', label: 'Système', icon: Cog },
+    { id: 'sms', label: 'SMS', icon: Smartphone }
   ];
 
   return (
@@ -414,6 +468,116 @@ const Settings = () => {
                             <Cog size={16} />
                             <span>{loading ? 'Mise à jour...' : 'Mettre à jour'}</span>
                           </Button>
+                      </div>
+                    </div>
+                  </motion.div>
+                )}
+
+                {activeTab === 'sms' && (
+                  <motion.div
+                    key="sms"
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    className="space-y-6"
+                  >
+                    <div>
+                      <h2 className="text-xl font-bold text-gray-900 mb-4">Configuration SMS</h2>
+                      
+                      {/* Mode SMS */}
+                      <div className="bg-white rounded-lg border border-gray-200 p-6 mb-6">
+                        <div className="flex items-center justify-between mb-4">
+                          <div>
+                            <h3 className="text-lg font-semibold text-gray-900">Mode SMS</h3>
+                            <p className="text-sm text-gray-600">
+                              Contrôlez le comportement des SMS dans l'application
+                            </p>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <span className={`px-3 py-1 rounded-full text-xs font-medium ${
+                              smsData.mode === 'echo' 
+                                ? 'bg-yellow-100 text-yellow-800' 
+                                : 'bg-green-100 text-green-800'
+                            }`}>
+                              {smsData.mode === 'echo' ? 'Mode Test' : 'Mode Production'}
+                            </span>
+                          </div>
+                        </div>
+
+                        <div className="space-y-4">
+                          {/* Mode Echo */}
+                          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                            <div>
+                              <p className="font-medium text-gray-900">Mode Test (Echo)</p>
+                              <p className="text-sm text-gray-600">
+                                Les SMS ne sont pas envoyés, les codes s'affichent dans la console
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => handleSmsModeChange('echo')}
+                              disabled={loading || smsData.mode === 'echo'}
+                              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                                smsData.mode === 'echo'
+                                  ? 'bg-primary-500 text-white cursor-not-allowed'
+                                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                              }`}
+                            >
+                              {smsData.mode === 'echo' ? 'Actif' : 'Activer'}
+                            </button>
+                          </div>
+
+                          {/* Mode Live */}
+                          <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                            <div>
+                              <p className="font-medium text-gray-900">Mode Production (Live)</p>
+                              <p className="text-sm text-gray-600">
+                                Les SMS sont envoyés via l'API Vonage
+                              </p>
+                            </div>
+                            <button
+                              onClick={() => handleSmsModeChange('live')}
+                              disabled={loading || smsData.mode === 'live'}
+                              className={`px-4 py-2 rounded-lg font-medium transition-colors ${
+                                smsData.mode === 'live'
+                                  ? 'bg-green-500 text-white cursor-not-allowed'
+                                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                              }`}
+                            >
+                              {smsData.mode === 'live' ? 'Actif' : 'Activer'}
+                            </button>
+                          </div>
+                        </div>
+
+                        {/* Avertissement Production */}
+                        {smsData.isProduction && (
+                          <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-lg">
+                            <div className="flex items-center space-x-2">
+                              <Shield size={16} className="text-red-500" />
+                              <p className="text-sm text-red-700 font-medium">
+                                Mode Production
+                              </p>
+                            </div>
+                            <p className="text-sm text-red-600 mt-1">
+                              Le changement de mode SMS est désactivé en production pour des raisons de sécurité.
+                            </p>
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Informations de configuration */}
+                      <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                        <div className="flex items-center space-x-2 mb-2">
+                          <Smartphone size={16} className="text-blue-500" />
+                          <h3 className="font-medium text-blue-900">Configuration Vonage</h3>
+                        </div>
+                        <p className="text-sm text-blue-700">
+                          Assurez-vous que les variables d'environnement Vonage sont configurées avant de passer en mode production.
+                        </p>
+                        <div className="mt-3 space-y-1">
+                          <p className="text-xs text-blue-600">• REACT_APP_VONAGE_API_KEY</p>
+                          <p className="text-xs text-blue-600">• REACT_APP_VONAGE_API_SECRET</p>
+                          <p className="text-xs text-blue-600">• REACT_APP_VONAGE_BRAND_NAME</p>
+                        </div>
                       </div>
                     </div>
                   </motion.div>

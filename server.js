@@ -9,8 +9,29 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
-// Mode SMS: 'live' (par défaut) ou 'echo' (ne pas envoyer, juste logger)
-const SMS_MODE = 'echo'; // Forcer le mode echo pour les tests
+// Mode SMS: 'live' (production) ou 'echo' (développement)
+let SMS_MODE = process.env.SMS_MODE || 'echo'; // Utiliser la variable d'environnement ou echo par défaut
+
+// Endpoint pour changer le mode SMS (uniquement en développement)
+app.post('/api/admin/sms-mode', (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(403).json({ success: false, error: 'Mode production - changement non autorisé' });
+  }
+  
+  const { mode } = req.body;
+  if (mode === 'echo' || mode === 'live') {
+    SMS_MODE = mode;
+    console.log(`[ADMIN] Mode SMS changé vers: ${SMS_MODE}`);
+    res.json({ success: true, mode: SMS_MODE });
+  } else {
+    res.status(400).json({ success: false, error: 'Mode invalide. Utilisez "echo" ou "live"' });
+  }
+});
+
+// Endpoint pour obtenir le mode SMS actuel
+app.get('/api/admin/sms-mode', (req, res) => {
+  res.json({ success: true, mode: SMS_MODE, isProduction: process.env.NODE_ENV === 'production' });
+});
 
 // Instantiate Vonage on server side only
 let vonageClient = null;

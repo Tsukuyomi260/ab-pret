@@ -42,7 +42,7 @@ const Profile = () => {
     lastName: user?.last_name || user?.user_metadata?.last_name || '',
     email: user?.email || '',
     phone: user?.phone_number || user?.user_metadata?.phone_number || '',
-    address: 'Abidjan, Côte d\'Ivoire',
+    address: user?.address || 'Adresse non renseignée',
     occupation: 'Entrepreneur',
     monthlyIncome: 500000
   });
@@ -55,7 +55,7 @@ const Profile = () => {
         lastName: user.last_name || user.user_metadata?.last_name || '',
         email: user.email || '',
         phone: user.phone_number || user.user_metadata?.phone_number || '',
-        address: 'Abidjan, Côte d\'Ivoire',
+        address: user.address || 'Adresse non renseignée',
         occupation: 'Entrepreneur',
         monthlyIncome: 500000
       });

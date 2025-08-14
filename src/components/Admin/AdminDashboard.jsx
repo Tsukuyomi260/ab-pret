@@ -6,6 +6,8 @@ import { getAllUsers, getLoans, getAnalyticsData, updateUserStatus, updateLoanSt
 import Card from '../UI/Card';
 import Button from '../UI/Button';
 import Logo from '../UI/Logo';
+import AdminNotifications from './AdminNotifications';
+import { useRealtimeNotifications } from '../../hooks/useRealtimeNotifications';
 import { 
   Users, 
   CreditCard, 
@@ -33,6 +35,9 @@ import { motion } from 'framer-motion';
 const AdminDashboard = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  
+  // Activer les notifications en temps réel
+  const { isConnected } = useRealtimeNotifications();
 
   const [stats, setStats] = useState({
     totalUsers: 0,
@@ -527,8 +532,40 @@ const AdminDashboard = () => {
           <div className="px-4 lg:px-8 py-8 lg:py-12">
             <div className="max-w-7xl mx-auto space-y-6 lg:space-y-8">
               
-
-
+              {/* Notifications et demandes en attente */}
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                <div className="lg:col-span-2">
+                  <Card className="bg-white/90 backdrop-blur-sm">
+                    <AdminNotifications />
+                  </Card>
+                </div>
+                
+                {/* Actions rapides */}
+                <div className="space-y-4">
+                  <Card className="bg-white/90 backdrop-blur-sm">
+                    <div className="p-6">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-4">Actions rapides</h3>
+                      <div className="space-y-3">
+                        <Button
+                          onClick={() => navigate('/admin/loan-requests')}
+                          className="w-full justify-center"
+                        >
+                          <CreditCard size={16} className="mr-2" />
+                          Gérer les prêts
+                        </Button>
+                        <Button
+                          onClick={() => navigate('/admin/user-management')}
+                          variant="outline"
+                          className="w-full justify-center"
+                        >
+                          <Users size={16} className="mr-2" />
+                          Gérer les utilisateurs
+                        </Button>
+                      </div>
+                    </div>
+                  </Card>
+                </div>
+              </div>
               
             </div>
           </div>

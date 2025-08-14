@@ -8,7 +8,7 @@ import Button from '../UI/Button';
 import Input from '../UI/Input';
 import Logo from '../UI/Logo';
 import StarBorder from '../UI/StarBorder';
-import { Mail, Lock, Phone, Eye, EyeOff, Camera, GraduationCap, Building, User, Shield, CheckCircle, Upload, ArrowRight, ArrowLeft } from 'lucide-react';
+import { Mail, Lock, Phone, Eye, EyeOff, Camera, GraduationCap, Building, User, Shield, CheckCircle, Upload, ArrowRight, ArrowLeft, MapPin } from 'lucide-react';
 import { validateEmail, validatePhone } from '../../utils/helpers';
 import { uploadIdentityCard } from '../../utils/fileUpload';
 
@@ -29,6 +29,7 @@ const Register = () => {
     // Informations personnelles
     firstName: basicInfo?.firstName || '',
     lastName: basicInfo?.lastName || '',
+    address: basicInfo?.address || '', // Ajouter l'adresse
     filiere: '',
     anneeEtude: '',
     entite: '',
@@ -93,6 +94,7 @@ const Register = () => {
       case 5:
         if (!formData.firstName.trim()) newErrors.firstName = 'Le prénom est requis';
         if (!formData.lastName.trim()) newErrors.lastName = 'Le nom est requis';
+        if (!formData.address.trim()) newErrors.address = 'L\'adresse est requise';
         if (!formData.filiere.trim()) newErrors.filiere = 'La filière est requise';
         if (!formData.anneeEtude.trim()) newErrors.anneeEtude = "L'année d'étude est requise";
         if (!formData.entite.trim()) newErrors.entite = "L'entité est requise";
@@ -190,6 +192,7 @@ const Register = () => {
 
       // 3) Enregistrer/compléter le profil utilisateur
       await updateUserProfile(signUp.user.id, {
+        address: formData.address, // Ajouter l'adresse
         filiere: formData.filiere,
         annee_etude: formData.anneeEtude,
         entite: formData.entite,
@@ -261,6 +264,23 @@ const Register = () => {
                   required
                   className="group-hover:shadow-md transition-all duration-300"
                 />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div className="relative group">
+                <Input
+                  label="Adresse"
+                  type="text"
+                  name="address"
+                  value={formData.address}
+                  onChange={handleChange}
+                  placeholder="Votre adresse complète"
+                  error={errors.address}
+                  required
+                  className="group-hover:shadow-md transition-all duration-300"
+                />
+                <MapPin size={20} className="absolute right-4 top-12 text-neutral-400 group-hover:text-primary-500 transition-colors duration-300" />
               </div>
             </div>
 

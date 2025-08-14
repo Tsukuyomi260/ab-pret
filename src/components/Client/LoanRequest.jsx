@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
 import Card from '../UI/Card';
 import Button from '../UI/Button';
@@ -43,6 +44,7 @@ import { formatCurrency } from '../../utils/helpers';
 import { jsPDF } from 'jspdf/dist/jspdf.umd.min.js'
 
 const LoanRequest = () => {
+  const { user } = useAuth();
   const { notifications, addNotification, markAsRead, showSuccess, showError } = useNotifications();
   const navigate = useNavigate();
   const [currentStep, setCurrentStep] = useState(1);
@@ -278,17 +280,47 @@ const LoanRequest = () => {
     setLoading(true);
     
     try {
-      await new Promise(resolve => setTimeout(resolve, 2000));
-      
-      setSubmitted(true);
-      
-      setTimeout(() => {
-        showSuccess('Demande de prêt soumise avec succès ! Notre équipe vous contactera dans les 24h.');
-        navigate('/dashboard');
-      }, 1500);
+      // Préparer les données du prêt
+      const loanData = {
+        amount: parseFloat(formData.amount),
+        purpose: getPurposeText(),
+        loan_type: selectedCategory || 'general',
+        duration: formData.duration,
+        interest_rate: 10.0, // Taux d'intérêt par défaut
+        status: 'pending'
+      };
+
+      console.log('[LOAN] Soumission de la demande de prêt:', loanData);
+
+      // Sauvegarder la demande dans la base de données
+      const { createLoan } = await import('../../utils/supabaseAPI');
+      const result = await createLoan(loanData);
+
+      if (result.success) {
+        console.log('[LOAN] ✅ Demande de prêt créée avec succès:', result.data);
+        
+        // Ajouter une notification pour l'admin
+        addNotification({
+          title: 'Nouvelle demande de prêt',
+          message: `Demande de ${formatCurrency(formData.amount)} de ${user?.first_name || 'Utilisateur'}`,
+          type: 'info',
+          priority: 'high'
+        });
+
+        setSubmitted(true);
+        
+        setTimeout(() => {
+          showSuccess('Demande de prêt soumise avec succès ! Notre équipe vous contactera dans les 24h.');
+          navigate('/dashboard');
+        }, 1500);
+      } else {
+        throw new Error(result.error || 'Erreur lors de la création de la demande');
+      }
       
     } catch (error) {
-      showError('Erreur lors de la soumission de la demande');
+      console.error('[LOAN] ❌ Erreur lors de la soumission:', error.message);
+      showError(`Erreur lors de la soumission: ${error.message}`);
+    } finally {
       setLoading(false);
     }
   };

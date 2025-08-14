@@ -26,6 +26,7 @@ import ABLogement from './components/Client/ABLogement';
 import ABNutrition from './components/Client/ABNutrition';
 
 import LoyaltyScore from './components/Client/LoyaltyScore';
+import TestOTP from './components/TestOTP';
 import './styles/globals.css';
 
 // Composant pour protéger les routes
@@ -264,6 +265,9 @@ function App() {
                 } 
               />
 
+
+              {/* Route de test temporaire */}
+              <Route path="/test-otp" element={<TestOTP />} />
 
               {/* Redirection par défaut */}
               <Route path="/" element={<Navigate to="/login" />} />

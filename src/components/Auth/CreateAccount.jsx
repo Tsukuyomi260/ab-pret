@@ -17,7 +17,8 @@ import {
   Clock,
   RefreshCw,
   Eye,
-  EyeOff
+  EyeOff,
+  MapPin
 } from 'lucide-react';
 import { validateEmail } from '../../utils/helpers';
 import { generateOTP, verifyOTP } from '../../utils/supabaseAPI';
@@ -37,6 +38,7 @@ const CreateAccount = () => {
     lastName: '',
     email: '', // Ajouter l'email
     phoneNumber: '',
+    address: '', // Ajouter l'adresse
     password: '',
     confirmPassword: ''
   });
@@ -82,6 +84,10 @@ const CreateAccount = () => {
 
     if (!basicInfo.lastName.trim()) {
       newErrors.lastName = 'Le nom est requis';
+    }
+
+    if (!basicInfo.address.trim()) {
+      newErrors.address = 'L\'adresse est requise';
     }
 
     // Validation de l'email (optionnel mais doit être valide si fourni)
@@ -210,6 +216,7 @@ const CreateAccount = () => {
             lastName: basicInfo.lastName,
             email: basicInfo.email, // Ajouter l'email
             phoneNumber: basicInfo.phoneNumber,
+            address: basicInfo.address, // Ajouter l'adresse
             password: basicInfo.password,
             confirmPassword: basicInfo.confirmPassword
           },
@@ -281,6 +288,16 @@ const CreateAccount = () => {
           error={errors.phoneNumber}
           icon={Phone}
           placeholder="Ex: 0123456789 ou +229 12345678"
+        />
+
+        <Input
+          label="Adresse"
+          name="address"
+          value={basicInfo.address}
+          onChange={handleBasicInfoChange}
+          error={errors.address}
+          icon={MapPin}
+          placeholder="Votre adresse complète"
         />
 
         <Input

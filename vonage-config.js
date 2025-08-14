@@ -28,7 +28,13 @@ console.log('==========================');
 console.log('Copiez ces variables dans votre fichier .env.local :');
 console.log('');
 Object.entries(vonageConfig).forEach(([key, value]) => {
-  console.log(`${key}=${value}`);
+  // Masquer les clés sensibles
+  if (key.includes('KEY') || key.includes('SECRET') || key.includes('TOKEN')) {
+    console.log(`${key}=***MASKED***`);
+  } else {
+    console.log(`${key}=${value}`);
+  }
 });
 console.log('');
 console.log('⚠️  N\'oubliez pas de remplacer les clés Supabase par vos vraies clés !');
+console.log('🔒 Les clés sensibles sont masquées pour la sécurité');
