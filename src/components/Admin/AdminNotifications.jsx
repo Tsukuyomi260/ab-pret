@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, AlertCircle, CheckCircle, XCircle, Clock, Eye, ArrowRight } from 'lucide-react';
+import { Bell, AlertCircle, CheckCircle, XCircle, Clock, Eye, ArrowRight, RefreshCw } from 'lucide-react';
 import { useNotifications } from '../../context/NotificationContext';
 import { getLoans } from '../../utils/supabaseAPI';
 import Button from '../UI/Button';
 
 const AdminNotifications = () => {
-  const { notifications, markAsRead } = useNotifications();
+  const { notifications, markAsRead, refreshNotifications } = useNotifications();
   const [pendingLoans, setPendingLoans] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -130,6 +130,9 @@ const AdminNotifications = () => {
                   <p className="text-xs text-yellow-600">
                     {formatCurrency(loan.amount)} - {loan.purpose}
                   </p>
+                  <p className="text-xs text-red-600 font-medium">
+                    Pénalité: {loan.daily_penalty_rate || 2.0}% par jour
+                  </p>
                 </div>
                 <Button
                   size="sm"
@@ -147,6 +150,16 @@ const AdminNotifications = () => {
 
       {/* Notifications récentes */}
       <div className="space-y-2">
+        <div className="flex items-center justify-between mb-3">
+          <h4 className="font-medium text-gray-800">Notifications système</h4>
+          <button
+            onClick={refreshNotifications}
+            className="p-1 text-gray-400 hover:text-gray-600 transition-colors"
+            title="Rafraîchir les notifications"
+          >
+            <RefreshCw size={16} />
+          </button>
+        </div>
         <AnimatePresence>
           {notifications.slice(0, 5).map((notification) => (
             <motion.div
@@ -167,9 +180,26 @@ const AdminNotifications = () => {
                   <p className="text-sm text-gray-600 mt-1">
                     {notification.message}
                   </p>
-                  <p className="text-xs text-gray-500 mt-2">
-                    {formatDate(notification.timestamp)}
-                  </p>
+                  <div className="flex items-center justify-between mt-2">
+                    <p className="text-xs text-gray-500">
+                      {formatDate(notification.timestamp)}
+                    </p>
+                    {notification.action && (
+                      <span className="text-xs text-blue-600 font-medium">
+                        {notification.action}
+                      </span>
+                    )}
+                  </div>
+                  {notification.data && Object.keys(notification.data).length > 0 && (
+                    <div className="mt-2 p-2 bg-gray-50 rounded text-xs text-gray-600">
+                      <details className="cursor-pointer">
+                        <summary className="font-medium">Détails</summary>
+                        <pre className="mt-1 text-xs overflow-x-auto">
+                          {JSON.stringify(notification.data, null, 2)}
+                        </pre>
+                      </details>
+                    </div>
+                  )}
                 </div>
                 <div className="flex-shrink-0">
                   <button

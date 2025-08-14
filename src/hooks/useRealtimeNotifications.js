@@ -22,11 +22,18 @@ export const useRealtimeNotifications = () => {
           
           // Ajouter une notification pour l'admin
           addNotification({
-            title: 'Nouvelle demande de prêt',
-            message: `Demande de ${payload.new.amount} FCFA - ${payload.new.purpose}`,
+            title: '🚨 Nouvelle demande de prêt',
+            message: `Demande de ${new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(payload.new.amount)} - ${payload.new.purpose || 'Objectif non spécifié'}`,
             type: 'info',
             priority: 'high',
-            data: payload.new
+            data: {
+              loan_id: payload.new.id,
+              amount: payload.new.amount,
+              purpose: payload.new.purpose,
+              status: payload.new.status,
+              created_at: payload.new.created_at
+            },
+            action: 'Voir la demande'
           });
         }
       )
@@ -91,11 +98,20 @@ export const useRealtimeNotifications = () => {
           console.log('[REALTIME] Nouvel utilisateur:', payload.new);
           
           addNotification({
-            title: 'Nouvelle inscription',
-            message: `${payload.new.first_name} ${payload.new.last_name} s'est inscrit`,
+            title: '👤 Nouvelle inscription',
+            message: `${payload.new.first_name || 'Prénom'} ${payload.new.last_name || 'Nom'} s'est inscrit sur la plateforme`,
             type: 'info',
             priority: 'medium',
-            data: payload.new
+            data: {
+              user_id: payload.new.id,
+              first_name: payload.new.first_name,
+              last_name: payload.new.last_name,
+              email: payload.new.email,
+              phone_number: payload.new.phone_number,
+              status: payload.new.status,
+              created_at: payload.new.created_at
+            },
+            action: 'Voir le profil'
           });
         }
       )
@@ -126,11 +142,19 @@ export const useRealtimeNotifications = () => {
             }
             
             addNotification({
-              title: 'Statut utilisateur mis à jour',
-              message,
+              title: `🔄 Statut utilisateur mis à jour`,
+              message: `${message} - Statut: ${payload.new.status}`,
               type,
               priority: 'medium',
-              data: payload.new
+              data: {
+                user_id: payload.new.id,
+                first_name: payload.new.first_name,
+                last_name: payload.new.last_name,
+                old_status: payload.old.status,
+                new_status: payload.new.status,
+                updated_at: payload.new.updated_at
+              },
+              action: 'Voir le profil'
             });
           }
         }

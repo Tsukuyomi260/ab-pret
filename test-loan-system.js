@@ -101,8 +101,7 @@ async function testLoanSystem() {
         user_id: testUser.id,
         amount: 50000,
         purpose: 'Test de système - Prêt de test',
-        loan_type: 'test',
-        duration: 6,
+        duration_months: 6,
         interest_rate: 10.0,
         status: 'pending'
       };

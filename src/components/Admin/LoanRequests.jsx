@@ -53,7 +53,8 @@ const LoanRequests = () => {
           purpose: loan.purpose || 'Non spécifié',
           status: loan.status || 'pending',
           requestDate: loan.created_at || new Date().toISOString(),
-          priority: loan.priority || 'medium'
+          priority: loan.priority || 'medium',
+          dailyPenaltyRate: loan.daily_penalty_rate || 2.0
         }));
         
         setLoanRequests(formattedRequests);
@@ -246,11 +247,11 @@ const LoanRequests = () => {
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 sm:gap-4 mb-4">
-                    <div>
+                      <div>
                         <p className="text-sm text-gray-600">Montant demandé</p>
                         <p className="font-semibold text-gray-900 text-sm sm:text-base">{formatCurrency(request.amount)}</p>
-                    </div>
-                    <div>
+                      </div>
+                      <div>
                         <p className="text-sm text-gray-600">Objet</p>
                         <p className="font-medium text-gray-900 text-sm sm:text-base break-words">{request.purpose}</p>
                       </div>
@@ -260,7 +261,13 @@ const LoanRequests = () => {
                           {new Date(request.requestDate).toLocaleDateString('fr-FR')}
                         </p>
                       </div>
-                            </div>
+                      <div className="sm:col-span-2 lg:col-span-1">
+                        <p className="text-sm text-gray-600">Pénalité de retard</p>
+                        <p className="font-medium text-red-600 text-sm sm:text-base">
+                          {request.dailyPenaltyRate}% par jour
+                        </p>
+                      </div>
+                    </div>
                     </div>
                   </div>
                   

@@ -58,6 +58,7 @@ const LoanRequest = () => {
   });
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
+  const [pdfDownloaded, setPdfDownloaded] = useState(false); // Nouvel état pour le PDF
   const [errors, setErrors] = useState({});
   const [selectedCategory, setSelectedCategory] = useState('');
   const [calculation, setCalculation] = useState(null);
@@ -256,7 +257,7 @@ const LoanRequest = () => {
 
   const nextStep = () => {
     if (validateStep(currentStep)) {
-      setCurrentStep(prev => Math.min(prev + 1, 4));
+      setCurrentStep(prev => Math.min(prev + 1, 5));
       window.scrollTo({
         top: 0,
         behavior: 'smooth'
@@ -277,6 +278,12 @@ const LoanRequest = () => {
     
     if (!validateStep(currentStep)) return;
 
+    // Vérifier que le PDF a été téléchargé
+    if (!pdfDownloaded) {
+      showError('Vous devez d\'abord télécharger et lire le PDF récapitulatif avant de soumettre votre demande.');
+      return;
+    }
+
     setLoading(true);
     
     try {
@@ -284,9 +291,9 @@ const LoanRequest = () => {
       const loanData = {
         amount: parseFloat(formData.amount),
         purpose: getPurposeText(),
-        loan_type: selectedCategory || 'general',
-        duration: formData.duration,
+        duration_months: formData.duration,
         interest_rate: 10.0, // Taux d'intérêt par défaut
+        daily_penalty_rate: 2.0, // Pénalité de 2% par jour
         status: 'pending'
       };
 
@@ -424,11 +431,16 @@ const LoanRequest = () => {
     // ===== CORPS DU DOCUMENT =====
     
     // Variables pour les données
-    const clientName = 'Elise HASSI';
-    const filiere = 'Informatique'; // À récupérer depuis la base de données
-    const anneeEtude = '3ème année'; // À récupérer depuis la base de données
+    const clientName = user ? `${user.first_name} ${user.last_name}` : 'Utilisateur';
+    const filiere = user?.filiere || 'Non spécifiée';
+    const anneeEtude = user?.annee_etude || 'Non spécifiée';
     const montantPret = formatAmountFCFA(parseFloat(formData.amount) || 0);
     const dureePret = LOAN_CONFIG.durations.find(d => d.days === parseInt(formData.duration))?.label || 'Non spécifiée';
+    
+    // Informations du témoin (à récupérer depuis la base de données)
+    const temoinName = user?.temoin_name || 'Non spécifié';
+    const temoinPhone = user?.temoin_phone || 'Non spécifié';
+    const temoinQuartier = user?.temoin_quartier || 'Non spécifié';
     
     // Texte de l'engagement avec meilleur formatage
     doc.setFontSize(12);
@@ -436,10 +448,11 @@ const LoanRequest = () => {
     
     const engagementText = [
       `Je soussigne(e) ${clientName}, etudiant(e) en ${filiere} en ${anneeEtude},`,
-              `reconnais avoir recu un pret de ${montantPret} de la part de AB Campus Finance,`,
+      `reconnais avoir recu un pret de ${montantPret} de la part de AB Campus Finance,`,
       `a rembourser avant ${dureePret}.`,
       '',
-      'En cas de retard, une penalite de 2% sera appliquee.'
+      'En cas de retard de paiement, une pénalité de 2% par jour sera appliquée.',
+      'Cette pénalité s\'accumule quotidiennement jusqu\'au remboursement complet.'
     ];
     
     let yPosition = 115;
@@ -468,14 +481,15 @@ const LoanRequest = () => {
     doc.setTextColor(...darkColor);
     
     if (calculation) {
-             const creditInfo = [
-         `Montant du pret: ${formatAmountFCFA(calculation.principal)}`,
-         `Taux d'interet: ${calculation.interestRate}%`,
-         `Interets: ${formatAmountFCFA(calculation.interestAmount)}`,
-         `Montant total a rembourser: ${formatAmountFCFA(calculation.totalAmount)}`,
-         `Duree: ${calculation.durationLabel}`,
-         `Objectif: ${getPurposeText()}`
-       ];
+      const creditInfo = [
+        `Montant du pret: ${formatAmountFCFA(calculation.principal)}`,
+        `Taux d'interet: ${calculation.interestRate}%`,
+        `Interets: ${formatAmountFCFA(calculation.interestAmount)}`,
+        `Montant total a rembourser: ${formatAmountFCFA(calculation.totalAmount)}`,
+        `Duree: ${calculation.durationLabel}`,
+        `Objectif: ${getPurposeText()}`,
+        `Pénalité de retard: 2% par jour`
+      ];
       
       creditInfo.forEach((info, index) => {
         doc.text(info, 25, yPosition + (index * 12));
@@ -489,20 +503,44 @@ const LoanRequest = () => {
     
     doc.setFontSize(16);
     doc.setTextColor(...accentColor);
-         doc.text('INFORMATIONS DU CLIENT', 20, yPosition);
+    doc.text('INFORMATIONS DU CLIENT', 20, yPosition);
     
     yPosition += 20;
     doc.setFontSize(11);
     doc.setTextColor(...darkColor);
     
-         const clientInfo = [
-       `Nom et prenom: ${clientName}`,
-       `Filiere: ${filiere}`,
-       `Annee d'etude: ${anneeEtude}`,
-       `Statut: ${formData.employmentStatus === 'self-employed' ? 'Independent' : 'Etudiant'}`
-     ];
+    const clientInfo = [
+      `Nom et prenom: ${clientName}`,
+      `Filiere: ${filiere}`,
+      `Annee d'etude: ${anneeEtude}`,
+      `Statut: ${formData.employmentStatus === 'self-employed' ? 'Independent' : 'Etudiant'}`
+    ];
     
     clientInfo.forEach((info, index) => {
+      doc.text(info, 25, yPosition + (index * 12));
+    });
+    
+    // Section Informations du témoin
+    yPosition += 80;
+    doc.setFillColor(255, 248, 220); // Jaune très clair
+    doc.rect(15, yPosition - 5, 180, 60, 'F');
+    
+    doc.setFontSize(16);
+    doc.setTextColor(255, 165, 0); // Orange
+    doc.text('INFORMATIONS DU TÉMOIN', 20, yPosition);
+    
+    yPosition += 20;
+    doc.setFontSize(11);
+    doc.setTextColor(...darkColor);
+    
+    const temoinInfo = [
+      `Nom et prenom: ${temoinName}`,
+      `Téléphone: ${temoinPhone}`,
+      `Quartier/Adresse: ${temoinQuartier}`,
+      `Relation: Témoin de l'engagement`
+    ];
+    
+    temoinInfo.forEach((info, index) => {
       doc.text(info, 25, yPosition + (index * 12));
     });
     
@@ -527,12 +565,16 @@ const LoanRequest = () => {
      doc.text('Signature: ', 20, yPosition + 24);
      doc.line(50, yPosition + 24, 110, yPosition + 24);
      
-     // Signature du temoin
+     // Signature du temoin avec informations
      doc.text('Temoin:', 120, yPosition);
      doc.text('Nom et prenom: ', 120, yPosition + 12);
      doc.line(160, yPosition + 12, 210, yPosition + 12);
-     doc.text('Signature: ', 120, yPosition + 24);
-     doc.line(150, yPosition + 24, 210, yPosition + 24);
+     doc.text(`${temoinName}`, 162, yPosition + 12);
+     doc.text('Téléphone: ', 120, yPosition + 24);
+     doc.line(160, yPosition + 24, 210, yPosition + 24);
+     doc.text(`${temoinPhone}`, 162, yPosition + 24);
+     doc.text('Signature: ', 120, yPosition + 36);
+     doc.line(150, yPosition + 36, 210, yPosition + 36);
     
     // ===== PIED DE PAGE =====
     doc.setFontSize(9);
@@ -544,6 +586,10 @@ const LoanRequest = () => {
     // Sauvegarder le PDF
     const fileName = `engagement_pret_abpret_${new Date().toISOString().split('T')[0]}.pdf`;
     doc.save(fileName);
+    
+    // Marquer le PDF comme téléchargé
+    setPdfDownloaded(true);
+    showSuccess('PDF téléchargé avec succès ! Vous pouvez maintenant soumettre votre demande.');
   };
 
   const getStepIcon = (step) => {
@@ -790,7 +836,7 @@ const LoanRequest = () => {
                   {getStepTitle(currentStep)}
                 </p>
                 <p className="text-xs sm:text-sm text-secondary-600 font-montserrat">
-                  Étape {currentStep} sur 4
+                  Étape {currentStep} sur 5
                 </p>
               </div>
             </motion.div>
@@ -1055,14 +1101,97 @@ const LoanRequest = () => {
                   >
                     <Card className="bg-white">
                       <div className="text-center mb-8">
+                        <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                          <Download size={32} className="text-blue-600" />
+                        </div>
+                        <h3 className="text-2xl font-bold text-gray-900 mb-2">
+                          Téléchargement de l'Engagement de Prêt
+                        </h3>
+                        <p className="text-gray-600">
+                          Avant de soumettre votre demande, vous devez télécharger et lire attentivement le document d'engagement
+                        </p>
+                      </div>
+
+                      {/* Bouton de téléchargement PDF */}
+                      <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.3 }}
+                        className="text-center mb-6"
+                      >
+                        {!pdfDownloaded ? (
+                          <>
+                            <Button
+                              onClick={generatePDF}
+                              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center space-x-3 mx-auto"
+                            >
+                              <Download className="w-5 h-5" />
+                              <span className="font-semibold">Télécharger l'Engagement de Prêt (PDF)</span>
+                            </Button>
+                            <p className="text-sm text-gray-600 mt-2 font-montserrat">
+                              ⚠️ Vous devez télécharger et lire le PDF avant de continuer
+                            </p>
+                          </>
+                        ) : (
+                          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
+                            <div className="flex items-center justify-center space-x-2 mb-2">
+                              <CheckCircle className="w-5 h-5 text-green-600" />
+                              <span className="font-medium text-green-800">PDF Téléchargé ✓</span>
+                            </div>
+                            <p className="text-sm text-green-600">
+                              Vous pouvez maintenant continuer vers la soumission de votre demande
+                            </p>
+                            <Button
+                              onClick={generatePDF}
+                              variant="outline"
+                              size="sm"
+                              className="mt-2 border-green-300 text-green-700 hover:bg-green-100"
+                            >
+                              <Download className="w-4 h-4 mr-1" />
+                              Télécharger à nouveau
+                            </Button>
+                          </div>
+                        )}
+                      </motion.div>
+
+                      {/* Informations importantes */}
+                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
+                        <div className="flex items-start space-x-3">
+                          <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
+                          <div>
+                            <h4 className="font-medium text-yellow-800 mb-1">Informations importantes</h4>
+                            <ul className="text-sm text-yellow-700 space-y-1">
+                              <li>• Lisez attentivement toutes les conditions du prêt</li>
+                              <li>• Notez la pénalité de 2% par jour en cas de retard</li>
+                              <li>• Vérifiez les informations du témoin</li>
+                              <li>• Assurez-vous de comprendre vos obligations</li>
+                            </ul>
+                          </div>
+                        </div>
+                      </div>
+                    </Card>
+                  </motion.div>
+                )}
+
+                {currentStep === 5 && (
+                  <motion.div
+                    key="step5"
+                    initial={{ opacity: 0, x: 50 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -50 }}
+                    transition={{ duration: 0.3 }}
+                    className="max-w-4xl mx-auto"
+                  >
+                    <Card className="bg-white">
+                      <div className="text-center mb-8">
                         <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
                           <CheckCircle className="w-8 h-8 text-green-600" />
                         </div>
                         <h3 className="text-2xl font-bold text-secondary-900 font-montserrat mb-2">
-                          Récapitulatif de votre demande
+                          Confirmation et soumission
                         </h3>
                         <p className="text-secondary-600 font-montserrat">
-                          Vérifiez toutes les informations avant de soumettre votre demande
+                          Vérifiez toutes les informations et soumettez votre demande de prêt
                         </p>
                       </div>
                       
@@ -1143,24 +1272,7 @@ const LoanRequest = () => {
                         </div>
                       </div>
 
-                      {/* Bouton de téléchargement PDF */}
-                      <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3 }}
-                        className="text-center mb-6"
-                      >
-                        <Button
-                          onClick={generatePDF}
-                          className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center space-x-3 mx-auto"
-                        >
-                          <Download className="w-5 h-5" />
-                          <span className="font-semibold">Télécharger l'Engagement de Prêt (PDF)</span>
-                        </Button>
-                        <p className="text-sm text-gray-600 mt-2 font-montserrat">
-                          Téléchargez votre engagement de prêt officiel
-                        </p>
-                      </motion.div>
+
                     </Card>
                   </motion.div>
                 )}
@@ -1193,7 +1305,7 @@ const LoanRequest = () => {
                   </Button>
                 </motion.div>
 
-                {currentStep < 4 ? (
+                {currentStep < 5 ? (
                   <motion.div
                     whileHover={{ scale: 1.05, x: 5 }}
                     whileTap={{ scale: 0.95 }}
@@ -1219,12 +1331,14 @@ const LoanRequest = () => {
                   >
                     <Button
                       onClick={handleSubmit}
-                      disabled={loading || submitted}
+                      disabled={loading || submitted || !pdfDownloaded}
                       className={`relative overflow-hidden flex items-center space-x-2 px-4 sm:px-8 py-3 sm:py-4 rounded-2xl font-semibold text-base sm:text-lg transition-all duration-500 ${
                         submitted 
                           ? 'bg-green-500 text-white shadow-lg shadow-green-500/50' 
                           : loading
                           ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/50'
+                          : !pdfDownloaded
+                          ? 'bg-gray-400 text-gray-200 cursor-not-allowed shadow-lg'
                           : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg hover:shadow-xl hover:shadow-green-500/50 transform hover:scale-105'
                       }`}
                     >
@@ -1270,6 +1384,20 @@ const LoanRequest = () => {
                         </>
                       )}
                     </Button>
+                    
+                    {/* Message d'aide pour le PDF */}
+                    {!pdfDownloaded && (
+                      <motion.div
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className="mt-3 text-center"
+                      >
+                        <p className="text-sm text-red-600 flex items-center justify-center space-x-2">
+                          <AlertCircle className="w-4 h-4" />
+                          <span>Vous devez d'abord télécharger le PDF récapitulatif</span>
+                        </p>
+                      </motion.div>
+                    )}
                   </motion.div>
                 )}
               </motion.div>

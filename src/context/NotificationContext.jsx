@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
+import { supabase } from '../utils/supabaseClient';
 import Toast from '../components/UI/Toast';
 
 const NotificationContext = createContext();
@@ -23,63 +24,151 @@ export const NotificationProvider = ({ children }) => {
   }, [notifications]);
 
   // Ajouter une nouvelle notification
-  const addNotification = useCallback((notification) => {
-    const newNotification = {
-      id: Date.now() + Math.random(),
-      timestamp: new Date().toISOString(),
-      read: false,
-      ...notification
-    };
-    
-    setNotifications(prev => {
-      // Éviter les doublons basés sur le titre et le message
-      const isDuplicate = prev.some(existing => 
-        existing.title === notification.title && 
-        existing.message === notification.message &&
-        Date.now() - new Date(existing.timestamp).getTime() < 60000 // Dans la dernière minute
-      );
-      
-      if (isDuplicate) {
-        return prev;
+  const addNotification = useCallback(async (notification) => {
+    try {
+      const newNotification = {
+        title: notification.title,
+        message: notification.message,
+        type: notification.type || 'info',
+        priority: notification.priority || 'medium',
+        read: false,
+        data: notification.data || {},
+        action: notification.action || null,
+        created_at: new Date().toISOString()
+      };
+
+      // Sauvegarder dans Supabase
+      const { data, error } = await supabase
+        .from('notifications')
+        .insert([newNotification])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('[NOTIFICATIONS] Erreur lors de la sauvegarde:', error);
+        return;
       }
-      
-      return [newNotification, ...prev.slice(0, 49)]; // Garder max 50 notifications
-    });
+
+      // Ajouter à l'état local
+      const savedNotification = {
+        id: data.id,
+        ...newNotification,
+        timestamp: data.created_at
+      };
+
+      setNotifications(prev => {
+        // Éviter les doublons basés sur le titre et le message
+        const isDuplicate = prev.some(existing => 
+          existing.title === notification.title && 
+          existing.message === notification.message &&
+          Date.now() - new Date(existing.timestamp).getTime() < 60000 // Dans la dernière minute
+        );
+        
+        if (isDuplicate) {
+          return prev;
+        }
+        
+        return [savedNotification, ...prev.slice(0, 49)]; // Garder max 50 notifications
+      });
+    } catch (error) {
+      console.error('[NOTIFICATIONS] Erreur lors de l\'ajout:', error);
+    }
   }, []);
 
   // Marquer une notification comme lue
-  const markAsRead = (notificationId) => {
-    setNotifications(prev => 
-      prev.map(notif => 
-        notif.id === notificationId ? { ...notif, read: true } : notif
-      )
-    );
+  const markAsRead = async (notificationId) => {
+    try {
+      // Mettre à jour dans Supabase
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read: true })
+        .eq('id', notificationId);
+
+      if (error) {
+        console.error('[NOTIFICATIONS] Erreur lors de la mise à jour:', error);
+        return;
+      }
+
+      // Mettre à jour l'état local
+      setNotifications(prev => 
+        prev.map(notif => 
+          notif.id === notificationId ? { ...notif, read: true } : notif
+        )
+      );
+    } catch (error) {
+      console.error('[NOTIFICATIONS] Erreur lors de la mise à jour:', error);
+    }
   };
 
   // Marquer toutes les notifications comme lues
-  const markAllAsRead = () => {
-    setNotifications(prev => 
-      prev.map(notif => ({ ...notif, read: true }))
-    );
+  const markAllAsRead = async () => {
+    try {
+      // Mettre à jour toutes les notifications dans Supabase
+      const { error } = await supabase
+        .from('notifications')
+        .update({ read: true })
+        .eq('read', false);
+
+      if (error) {
+        console.error('[NOTIFICATIONS] Erreur lors de la mise à jour globale:', error);
+        return;
+      }
+
+      // Mettre à jour l'état local
+      setNotifications(prev => 
+        prev.map(notif => ({ ...notif, read: true }))
+      );
+    } catch (error) {
+      console.error('[NOTIFICATIONS] Erreur lors de la mise à jour globale:', error);
+    }
   };
 
   // Supprimer une notification
-  const removeNotification = (notificationId) => {
-    setNotifications(prev => prev.filter(notif => notif.id !== notificationId));
+  const removeNotification = async (notificationId) => {
+    try {
+      // Supprimer de Supabase
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .eq('id', notificationId);
+
+      if (error) {
+        console.error('[NOTIFICATIONS] Erreur lors de la suppression:', error);
+        return;
+      }
+
+      // Supprimer de l'état local
+      setNotifications(prev => prev.filter(notif => notif.id !== notificationId));
+    } catch (error) {
+      console.error('[NOTIFICATIONS] Erreur lors de la suppression:', error);
+    }
   };
 
   // Supprimer toutes les notifications
-  const clearAllNotifications = () => {
-    setNotifications([]);
+  const clearAllNotifications = async () => {
+    try {
+      // Supprimer toutes les notifications de Supabase
+      const { error } = await supabase
+        .from('notifications')
+        .delete()
+        .neq('id', 0); // Supprimer tous les enregistrements
+
+      if (error) {
+        console.error('[NOTIFICATIONS] Erreur lors de la suppression globale:', error);
+        return;
+      }
+
+      // Vider l'état local
+      setNotifications([]);
+    } catch (error) {
+      console.error('[NOTIFICATIONS] Erreur lors de la suppression globale:', error);
+    }
   };
 
-  // Nettoyer les notifications système (garder seulement les vraies notifications)
-  const clearSystemNotifications = () => {
-    setNotifications(prev => prev.filter(notif => 
-      !notif.title.includes('Bienvenue') && 
-      !notif.title.includes('tableau de bord')
-    ));
-  };
+  // Rafraîchir les notifications depuis la base de données
+  const refreshNotifications = useCallback(async () => {
+    await loadRealNotifications();
+  }, [loadRealNotifications]);
 
   // Fonctions pour les toasts
   const showToast = useCallback((message, type = 'info', duration = 5000) => {
@@ -112,75 +201,46 @@ export const NotificationProvider = ({ children }) => {
     setToasts(prev => prev.filter(toast => toast.id !== id));
   }, []);
 
-  // Générer des notifications automatiques basées sur les événements
-  const generateSystemNotifications = () => {
-    const now = new Date();
-    const systemNotifications = [];
+  // Charger les notifications réelles depuis la base de données
+  const loadRealNotifications = useCallback(async () => {
+    try {
+      // Charger les notifications depuis Supabase
+      const { data: notificationsData, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(50);
 
-    // Notification de rappel de paiement (si proche de la date)
-    const nextPaymentDate = new Date();
-    nextPaymentDate.setDate(nextPaymentDate.getDate() + 3); // Dans 3 jours
-    
-    systemNotifications.push({
-      type: 'reminder',
-      title: 'Rappel de paiement',
-      message: 'Votre prochain paiement de 25 000 FCFA est prévu dans 3 jours.',
-      action: 'Voir les détails',
-      timestamp: new Date(now.getTime() - 2 * 60 * 60 * 1000).toISOString(), // Il y a 2h
-      read: false
-    });
+      if (error) {
+        console.error('[NOTIFICATIONS] Erreur lors du chargement:', error);
+        return;
+      }
 
-    // Notification de prêt accordé
-    systemNotifications.push({
-      type: 'loan',
-      title: 'Prêt accordé !',
-      message: 'Votre demande de prêt de 150 000 FCFA a été approuvée.',
-      action: 'Voir le contrat',
-      timestamp: new Date(now.getTime() - 24 * 60 * 60 * 1000).toISOString(), // Il y a 1 jour
-      read: false
-    });
+      if (notificationsData) {
+        // Transformer les données Supabase en format local
+        const realNotifications = notificationsData.map(notif => ({
+          id: notif.id,
+          title: notif.title,
+          message: notif.message,
+          type: notif.type || 'info',
+          priority: notif.priority || 'medium',
+          read: notif.read || false,
+          timestamp: notif.created_at,
+          data: notif.data || {},
+          action: notif.action || null
+        }));
 
-    // Notification de paiement reçu
-    systemNotifications.push({
-      type: 'payment',
-      title: 'Paiement reçu',
-      message: 'Votre paiement de 20 000 FCFA a été enregistré avec succès.',
-      action: 'Voir le reçu',
-      timestamp: new Date(now.getTime() - 3 * 24 * 60 * 60 * 1000).toISOString(), // Il y a 3 jours
-      read: true
-    });
-
-    // Notification d'amélioration du score de crédit
-    systemNotifications.push({
-      type: 'success',
-      title: 'Score de crédit amélioré',
-      message: 'Votre score de crédit a augmenté de 25 points grâce à vos paiements réguliers.',
-      action: 'Voir le détail',
-      timestamp: new Date(now.getTime() - 5 * 24 * 60 * 60 * 1000).toISOString(), // Il y a 5 jours
-      read: true
-    });
-
-    // Notification d'information
-    systemNotifications.push({
-      type: 'info',
-      title: 'Nouvelle fonctionnalité',
-      message: 'Découvrez notre nouveau calculateur de prêt pour estimer vos mensualités.',
-      action: 'Essayer maintenant',
-      timestamp: new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000).toISOString(), // Il y a 1 semaine
-      read: true
-    });
-
-    return systemNotifications;
-  };
-
-  // Initialiser avec des notifications système (une seule fois)
-  useEffect(() => {
-    // Vérifier si les notifications sont déjà initialisées
-    if (notifications.length === 0) {
-      const systemNotifications = generateSystemNotifications();
-      setNotifications(systemNotifications);
+        setNotifications(realNotifications);
+      }
+    } catch (error) {
+      console.error('[NOTIFICATIONS] Erreur lors du chargement:', error);
     }
-  }, []); // Dépendance vide pour ne s'exécuter qu'une seule fois
+  }, []);
+
+  // Initialiser avec des notifications réelles
+  useEffect(() => {
+    loadRealNotifications();
+  }, [loadRealNotifications]);
 
   const value = {
     notifications,
@@ -190,7 +250,7 @@ export const NotificationProvider = ({ children }) => {
     markAllAsRead,
     removeNotification,
     clearAllNotifications,
-    clearSystemNotifications,
+    refreshNotifications,
     // Toast functions
     showToast,
     showSuccess,
