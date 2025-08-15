@@ -249,10 +249,6 @@ export const signInWithPhone = async (phoneNumber, password) => {
   try {
     console.log('[SUPABASE] Tentative de connexion avec téléphone:', phoneNumber);
     
-    // Nettoyer le numéro de téléphone
-    const cleanPhone = phoneNumber.replace(/[^0-9]/g, '');
-    console.log('[SUPABASE] Téléphone nettoyé:', cleanPhone);
-    
     // 1. Récupérer l'utilisateur par téléphone depuis la table users
     const { data: userData, error: userError } = await supabase
       .from('users')
@@ -279,50 +275,24 @@ export const signInWithPhone = async (phoneNumber, password) => {
       return { success: false, error: 'Votre compte n\'est pas encore approuvé' };
     }
     
-    // 3. Déterminer l'email à utiliser pour l'authentification
-    let emailToUse = userData.email;
-    
-    if (!emailToUse || emailToUse.includes('@campusfinance.bj') || emailToUse.includes('@gmail.com')) {
-      // Reconstruire l'email temporaire utilisé lors de l'inscription
-      const timestamp = new Date(userData.created_at).getTime();
-      emailToUse = `user.${cleanPhone}.${timestamp}@gmail.com`;
-      console.log('[SUPABASE] Utilisation email temporaire reconstruit:', emailToUse);
-    } else {
-      console.log('[SUPABASE] Utilisation email réel existant:', emailToUse);
+    // 3. Vérifier que l'utilisateur a un email
+    if (!userData.email) {
+      console.error('[SUPABASE] Utilisateur sans email');
+      return { success: false, error: 'Votre compte n\'a pas d\'email configuré. Contactez l\'administrateur.' };
     }
     
-    // 4. Vérifier si l'utilisateur existe dans auth.users
-    try {
-      const { data: authUser, error: authError } = await supabase.auth.admin.getUserById(userData.id);
-      if (authError) {
-        console.warn('[SUPABASE] Utilisateur non trouvé dans auth.users:', authError.message);
-        console.log('[SUPABASE] Tentative de connexion avec l\'email reconstruit...');
-      } else {
-        console.log('[SUPABASE] Utilisateur trouvé dans auth.users:', authUser.user.email);
-        // Si l'utilisateur existe dans auth, utiliser son email réel
-        if (authUser.user.email && !authUser.user.email.includes('@gmail.com')) {
-          emailToUse = authUser.user.email;
-          console.log('[SUPABASE] Utilisation email réel de auth.users:', emailToUse);
-        }
-      }
-    } catch (adminError) {
-      console.log('[SUPABASE] Impossible de vérifier auth.users (pas de droits admin)');
-    }
-    
-    // 5. Se connecter avec l'email et le mot de passe
-    console.log('[SUPABASE] Tentative de connexion avec email:', emailToUse);
+    // 4. Se connecter directement avec l'email stocké et le mot de passe
+    console.log('[SUPABASE] Tentative de connexion avec email:', userData.email);
     
     const { data: authData, error: authError } = await supabase.auth.signInWithPassword({
-      email: emailToUse,
+      email: userData.email,
       password
     });
 
     if (authError) {
       console.error('[SUPABASE] Erreur d\'authentification:', authError.message);
       
-      // Si c'est un problème de mot de passe, essayer de diagnostiquer
       if (authError.message.includes('Invalid login credentials')) {
-        console.error('[SUPABASE] Problème de mot de passe ou email incorrect');
         return { 
           success: false, 
           error: 'Identifiants incorrects. Vérifiez votre numéro de téléphone et mot de passe.' 
@@ -336,9 +306,9 @@ export const signInWithPhone = async (phoneNumber, password) => {
       throw new Error('Aucun utilisateur retourné après authentification');
     }
 
-    console.log('[SUPABASE] ✅ Connexion réussie avec auth.users');
+    console.log('[SUPABASE] ✅ Connexion réussie');
     
-    // 6. Fusionner les données auth et users
+    // 5. Fusionner les données auth et users
     const completeUser = {
       ...authData.user,
       role: userData.role || 'client',

@@ -52,7 +52,7 @@ const Login = () => {
       if (isPhone) {
         // Connexion par téléphone
         console.log('[LOGIN] Connexion par téléphone');
-        result = await signInWithPhoneNumber(identifier);
+        result = await signInWithPhoneNumber(identifier, formData.password);
       } else {
         // Connexion par email
         console.log('[LOGIN] Connexion par email');

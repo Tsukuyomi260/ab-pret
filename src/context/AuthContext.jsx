@@ -178,13 +178,13 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
-  const signInWithPhoneNumber = async (phoneNumber) => {
+  const signInWithPhoneNumber = async (phoneNumber, password) => {
     if (!supabase) {
       return { success: false, error: 'Supabase non configuré' };
     }
     
     try {
-      const result = await signInWithPhone(phoneNumber);
+      const result = await signInWithPhone(phoneNumber, password);
       return result;
     } catch (error) {
       console.error('[AUTH] Erreur lors de la connexion par téléphone:', error.message);
