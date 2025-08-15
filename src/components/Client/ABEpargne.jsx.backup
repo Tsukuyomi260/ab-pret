@@ -42,21 +42,10 @@ const ABEpargne = () => {
   const [showDepositModal, setShowDepositModal] = useState(false);
   const [showWithdrawModal, setShowWithdrawModal] = useState(false);
   const [showPlanConfigModal, setShowPlanConfigModal] = useState(false);
-  const [showAccountCreationModal, setShowAccountCreationModal] = useState(false);
   const [depositAmount, setDepositAmount] = useState('');
   const [withdrawAmount, setWithdrawAmount] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [transactionSuccess, setTransactionSuccess] = useState(false);
-
-  // États de progression du compte épargne
-  const [accountStatus, setAccountStatus] = useState({
-    hasAccount: false,        // A-t-il déjà un compte AB Epargne ?
-    hasConfiguredPlan: false, // A-t-il configuré un plan d'épargne ?
-    isFirstVisit: true        // Première visite sur AB Epargne ?
-  });
-
-  // Plan d'épargne actif (une fois configuré)
-  const [activePlan, setActivePlan] = useState(null);
 
   // Configuration du plan d'épargne - ÉTAPE 1
   const [planConfig, setPlanConfig] = useState({
@@ -341,6 +330,54 @@ const ABEpargne = () => {
   }, [planConfig.fixedAmount, planConfig.frequency, planConfig.duration]);
 
   // Fonctions de calcul du plan d'épargne - ÉTAPE 1
+  const calculatePlanDetails = () => {
+    const amount = parseFloat(planConfig.fixedAmount) || 0;
+    const frequency = parseInt(planConfig.frequency);
+    const duration = parseInt(planConfig.duration);
+    
+    if (amount < 300) {
+      setPlanConfig(prev => ({
+        ...prev,
+        totalDeposits: 0,
+        totalAmount: 0,
+        estimatedBenefits: 0,
+        totalWithFees: prev.creationFees
+      }));
+      return;
+    }
+
+    // Calculer le nombre de dépôts sur la période
+    const daysInPeriod = duration * 30;
+    const totalDeposits = Math.floor(daysInPeriod / frequency);
+    
+    // Calculer le montant total
+    const totalAmount = totalDeposits * amount;
+    
+    // Calculer les bénéfices estimés (5% par mois)
+    const estimatedBenefits = (totalAmount * 0.05 * duration);
+    
+    // Calculer le total avec frais
+    const totalWithFees = totalAmount + planConfig.creationFees;
+
+    setPlanConfig(prev => ({
+      ...prev,
+      totalDeposits,
+      totalAmount,
+      estimatedBenefits,
+      totalWithFees
+    }));
+  };
+
+  const handlePlanConfigChange = (field, value) => {
+    setPlanConfig(prev => ({
+      ...prev,
+      [field]: value
+    }));
+  };
+
+  useEffect(() => {
+    calculatePlanDetails();
+  }, [planConfig.fixedAmount, planConfig.frequency, planConfig.duration]);
 
   if (loading) {
     return (

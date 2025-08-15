@@ -43,8 +43,8 @@ const Repayment = () => {
           const loans = loansResult.data || [];
           const payments = paymentsResult.data || [];
 
-          // Trouver le prêt actif le plus récent
-          const activeLoan = loans.find(loan => loan.status === 'active');
+          // Trouver le prêt actif ou approuvé le plus récent
+          const activeLoan = loans.find(loan => loan.status === 'active' || loan.status === 'approved');
           
           if (activeLoan) {
             // Calculer le montant payé pour ce prêt

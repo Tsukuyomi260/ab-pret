@@ -625,6 +625,8 @@ export const updateLoanStatus = async (loanId, status, adminId = null) => {
     const updateData = { status };
     
     if (status === 'approved') {
+      // Quand un prêt est approuvé, il devient automatiquement actif
+      updateData.status = 'active';
       updateData.approved_by = adminId;
       updateData.approved_at = new Date().toISOString();
     }

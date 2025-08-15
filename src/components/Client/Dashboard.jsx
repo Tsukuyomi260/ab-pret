@@ -502,41 +502,7 @@ const ClientDashboard = () => {
               </div>
             </motion.div>
 
-            {/* AB Nutrition */}
-            <motion.div
-              whileHover={{ scale: 1.02, y: -2 }}
-              whileTap={{ scale: 0.98 }}
-              className="group cursor-pointer"
-              onClick={() => navigate('/ab-nutrition')}
-            >
-              <div className="relative overflow-hidden bg-gradient-to-r from-pink-500 via-rose-600 to-red-600 rounded-3xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
-                {/* Effet de brillance */}
-                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
-                
-                <div className="relative flex items-center justify-between">
-                  <div className="flex items-center justify-between">
-                    <div className="flex items-center space-x-4">
-                      <div className="relative">
-                        <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
-                          <Heart size={28} className="text-white" />
-                        </div>
-                        <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-400 rounded-full flex items-center justify-center">
-                          <span className="text-xs font-bold text-white">❤️</span>
-                        </div>
-                      </div>
-                      <div>
-                        <h4 className="text-lg font-bold text-white font-montserrat">AB Nutrition</h4>
-                        <p className="text-pink-100 text-sm font-montserrat">Santé & bien-être</p>
-                      </div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-2xl font-bold text-white">🥗</div>
-                      <div className="text-xs text-pink-200">Bientôt</div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </motion.div>
+
           </div>
 
 
