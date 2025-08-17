@@ -28,8 +28,8 @@ Ce document décrit l'intégration de FedaPay pour gérer les remboursements de 
 
 ```bash
 # Clés FedaPay (à configurer en production)
-REACT_APP_FEDAPAY_PUBLIC_KEY=pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-REACT_APP_FEDAPAY_SECRET_KEY=sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+REACT_APP_FEDAPAY_PUBLIC_KEY=votre_cle_publique_fedapay
+REACT_APP_FEDAPAY_SECRET_KEY=votre_cle_secrete_fedapay
 REACT_APP_FEDAPAY_BASE_URL=https://api.fedapay.com/v1
 
 # Configuration par défaut

@@ -128,7 +128,7 @@ metadata: {
   "success": true,
   "transaction_id": "fed_123456789",
   "checkout_url": "https://fedapay.com/checkout/fed_123456789",
-  "public_key": "pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+  "public_key": "votre_cle_publique_fedapay"
 }
 ```
 
@@ -154,8 +154,8 @@ metadata: {
 ### 1. Variables d'environnement
 ```bash
 # Configuration FedaPay
-FEDAPAY_PUBLIC_KEY=pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
-FEDAPAY_SECRET_KEY=sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+FEDAPAY_PUBLIC_KEY=votre_cle_publique_fedapay
+FEDAPAY_SECRET_KEY=votre_cle_secrete_fedapay
 FEDAPAY_BASE_URL=https://api.fedapay.com/v1
 FEDAPAY_CURRENCY=XOF
 FEDAPAY_COUNTRY=CI
