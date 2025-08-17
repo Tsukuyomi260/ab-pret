@@ -695,6 +695,175 @@ export const getPayments = async (userId = null) => {
   }
 };
 
+// ===== REMBOURSEMENTS DE PRÊTS =====
+
+/**
+ * Crée un remboursement de prêt avec FedaPay
+ * @param {Object} repaymentData - Données du remboursement
+ * @returns {Promise<Object>} Résultat du remboursement
+ */
+export const createLoanRepayment = async (repaymentData) => {
+  try {
+    console.log('[SUPABASE] Création du remboursement:', repaymentData);
+
+    // Validation des données
+    if (!repaymentData.loan_id || !repaymentData.user_id || !repaymentData.amount) {
+      throw new Error('Données de remboursement incomplètes');
+    }
+
+    // Créer l'enregistrement de remboursement
+    const repaymentRecord = {
+      loan_id: repaymentData.loan_id,
+      user_id: repaymentData.user_id,
+      amount: repaymentData.amount,
+      payment_method: repaymentData.payment_method || 'fedapay',
+      fedapay_transaction_id: repaymentData.fedapay_transaction_id,
+      status: repaymentData.status || 'pending',
+      payment_date: repaymentData.payment_date || new Date().toISOString(),
+      description: repaymentData.description || 'Remboursement de prêt via FedaPay',
+      metadata: {
+        fedapay_data: repaymentData.fedapay_data,
+        payment_type: 'loan_repayment',
+        app_source: 'ab_pret_web'
+      }
+    };
+
+    const { data, error } = await supabase
+      .from('payments')
+      .insert([repaymentRecord])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    console.log('[SUPABASE] Remboursement créé:', data);
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('[SUPABASE] Erreur lors de la création du remboursement:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Met à jour le statut d'un remboursement
+ * @param {string} paymentId - ID du paiement
+ * @param {string} status - Nouveau statut
+ * @param {Object} fedapayData - Données FedaPay (optionnel)
+ * @returns {Promise<Object>} Résultat de la mise à jour
+ */
+export const updateRepaymentStatus = async (paymentId, status, fedapayData = null) => {
+  try {
+    console.log('[SUPABASE] Mise à jour du statut:', { paymentId, status });
+
+    const updateData = {
+      status: status,
+      updated_at: new Date().toISOString()
+    };
+
+    // Ajouter les données FedaPay si fournies
+    if (fedapayData) {
+      updateData.metadata = {
+        fedapay_data: fedapayData,
+        last_update: new Date().toISOString()
+      };
+    }
+
+    const { data, error } = await supabase
+      .from('payments')
+      .update(updateData)
+      .eq('id', paymentId)
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    console.log('[SUPABASE] Statut mis à jour:', data);
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('[SUPABASE] Erreur lors de la mise à jour du statut:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Récupère les détails d'un prêt avec ses remboursements
+ * @param {string} loanId - ID du prêt
+ * @returns {Promise<Object>} Détails du prêt
+ */
+export const getLoanWithRepayments = async (loanId) => {
+  try {
+    console.log('[SUPABASE] Récupération du prêt avec remboursements:', loanId);
+
+    const { data, error } = await supabase
+      .from('loans')
+      .select(`
+        *,
+        payments (
+          id,
+          amount,
+          status,
+          payment_date,
+          payment_method,
+          fedapay_transaction_id
+        )
+      `)
+      .eq('id', loanId)
+      .single();
+
+    if (error) throw error;
+
+    console.log('[SUPABASE] Prêt récupéré:', data);
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('[SUPABASE] Erreur lors de la récupération du prêt:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+/**
+ * Calcule le montant restant à payer pour un prêt
+ * @param {string} loanId - ID du prêt
+ * @returns {Promise<Object>} Calcul du montant restant
+ */
+export const calculateRemainingAmount = async (loanId) => {
+  try {
+    console.log('[SUPABASE] Calcul du montant restant pour le prêt:', loanId);
+
+    // Récupérer le prêt
+    const loanResult = await getLoanWithRepayments(loanId);
+    if (!loanResult.success) {
+      throw new Error('Impossible de récupérer les détails du prêt');
+    }
+
+    const loan = loanResult.data;
+    const totalAmount = loan.amount * (1 + (loan.interest_rate || 0) / 100);
+    
+    // Calculer le montant payé
+    const paidAmount = loan.payments
+      .filter(payment => payment.status === 'completed')
+      .reduce((sum, payment) => sum + parseFloat(payment.amount), 0);
+
+    const remainingAmount = totalAmount - paidAmount;
+
+    const result = {
+      totalAmount: totalAmount,
+      paidAmount: paidAmount,
+      remainingAmount: remainingAmount,
+      isFullyPaid: remainingAmount <= 0
+    };
+
+    console.log('[SUPABASE] Calcul terminé:', result);
+
+    return { success: true, data: result };
+  } catch (error) {
+    console.error('[SUPABASE] Erreur lors du calcul du montant restant:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
 // ===== ANALYTICS =====
 
 export const getAnalyticsData = async () => {
@@ -870,6 +1039,85 @@ export const updateSavingsAccount = async (userId, updateData) => {
     return { success: true, data };
   } catch (error) {
     console.error('[SUPABASE] Erreur lors de la mise à jour du compte épargne:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+// ===== FEDAPAY LOAN REPAYMENT =====
+
+export const processFedaPayLoanRepayment = async (transactionData) => {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Configuration Supabase manquante' };
+    }
+
+    const { loan_id, user_id, amount, transaction_id } = transactionData;
+
+    console.log('[SUPABASE] Traitement remboursement FedaPay:', {
+      loan_id,
+      user_id,
+      amount,
+      transaction_id
+    });
+
+    // 1. Créer l'enregistrement de paiement
+    const { data: paymentData, error: paymentError } = await supabase
+      .from('payments')
+      .insert([{
+        loan_id: loan_id,
+        user_id: user_id,
+        amount: amount,
+        payment_method: 'fedapay',
+        transaction_id: transaction_id,
+        status: 'completed',
+        payment_date: new Date().toISOString()
+      }])
+      .select()
+      .single();
+
+    if (paymentError) throw paymentError;
+
+    // 2. Mettre à jour le statut du prêt
+    const { error: loanError } = await supabase
+      .from('loans')
+      .update({
+        status: 'remboursé',
+        en_cours: false,
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', loan_id);
+
+    if (loanError) throw loanError;
+
+    // 3. Envoyer une notification SMS de confirmation
+    try {
+      const { data: userData } = await supabase
+        .from('users')
+        .select('phone_number, first_name')
+        .eq('id', user_id)
+        .single();
+
+      if (userData?.phone_number) {
+        const message = `CAMPUS FINANCE\n\nBonjour ${userData.first_name || 'Client'},\n\nVotre remboursement de ${new Intl.NumberFormat('fr-CI', { style: 'currency', currency: 'XOF' }).format(amount / 100)} a été traité avec succès.\n\nMerci pour votre confiance !\n\nCampus Finance`;
+        
+        await sendOTPSMS(userData.phone_number, 'CONFIRMATION', userData.first_name || 'Client');
+      }
+    } catch (smsError) {
+      console.warn('[SUPABASE] Erreur envoi SMS confirmation:', smsError.message);
+    }
+
+    console.log('[SUPABASE] Remboursement FedaPay traité avec succès');
+
+    return { 
+      success: true, 
+      data: {
+        payment: paymentData,
+        loan_updated: true
+      }
+    };
+
+  } catch (error) {
+    console.error('[SUPABASE] Erreur lors du traitement du remboursement FedaPay:', error.message);
     return { success: false, error: error.message };
   }
 };

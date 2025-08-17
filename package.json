@@ -11,6 +11,7 @@
     "axios": "^1.4.0",
     "cors": "^2.8.5",
     "express": "^5.1.0",
+    "fedapay": "^1.2.5",
     "framer-motion": "^12.23.6",
     "jspdf": "^2.5.1",
     "jspdf-font": "^1.0.7",

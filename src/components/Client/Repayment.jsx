@@ -1,26 +1,23 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../context/NotificationContext';
 import { useAuth } from '../../context/AuthContext';
 import Card from '../UI/Card';
 import Button from '../UI/Button';
-import Input from '../UI/Input';
-import NotificationBell from '../UI/NotificationBell';
-import { getLoans, getPayments, createPayment } from '../../utils/supabaseAPI';
-import { ArrowLeft, CreditCard, Wallet, CheckCircle, AlertCircle, Activity, BarChart3, Percent, Award, Gift, Rocket, Shield, TrendingUp, DollarSign } from 'lucide-react';
+import RembourserButton from '../UI/RembourserButton';
+import { 
+  getLoans, 
+  getPayments 
+} from '../../utils/supabaseAPI';
+import { ArrowLeft, Wallet } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 
 const Repayment = () => {
-  const { notifications, markAsRead } = useNotifications();
+  const { showSuccess, showError } = useNotifications();
   const { user } = useAuth();
   const navigate = useNavigate();
-  const location = useLocation();
   const [currentLoan, setCurrentLoan] = useState(null);
-  const [paymentAmount, setPaymentAmount] = useState('');
-  const [paymentMethod, setPaymentMethod] = useState('mobile_money');
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState({});
 
 
 
@@ -82,7 +79,6 @@ const Repayment = () => {
             };
 
             setCurrentLoan(formattedLoan);
-            setPaymentAmount(formattedLoan.monthlyPayment.toString());
           } else {
             // Aucun prêt actif trouvé
             setCurrentLoan(null);
@@ -103,75 +99,15 @@ const Repayment = () => {
     loadActiveLoan();
   }, [user?.id]);
 
-  const validatePayment = () => {
-    const newErrors = {};
 
-    if (!currentLoan) {
-      newErrors.loan = 'Aucun prêt actif trouvé';
-    }
 
-    if (!paymentAmount || parseFloat(paymentAmount) <= 0) {
-      newErrors.amount = 'Veuillez entrer un montant valide';
-    } else if (parseFloat(paymentAmount) > currentLoan?.remainingAmount) {
-      newErrors.amount = 'Le montant ne peut pas dépasser le reste à payer';
-    }
 
-    if (!paymentMethod) {
-      newErrors.method = 'Veuillez sélectionner un mode de paiement';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+  const handleRepaymentSuccess = (message) => {
+    showSuccess(message);
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!validatePayment()) return;
-
-    setLoading(true);
-    
-    try {
-      const paymentData = {
-        loan_id: currentLoan.id,
-        user_id: user.id,
-        amount: parseFloat(paymentAmount),
-        payment_method: paymentMethod,
-        status: 'completed',
-        payment_date: new Date().toISOString(),
-        description: `Paiement pour le prêt: ${currentLoan.purpose}`
-      };
-
-      const result = await createPayment(paymentData);
-      
-      if (result.success) {
-        // Redirection vers le dashboard avec un message de succès
-        navigate('/dashboard', { 
-          state: { message: 'Paiement effectué avec succès' }
-        });
-      } else {
-        setErrors({ general: result.error || 'Erreur lors du paiement' });
-      }
-    } catch (error) {
-      console.error('[REPAYMENT] Erreur lors du paiement:', error.message);
-      setErrors({ general: 'Erreur lors du paiement' });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const getPaymentMethodIcon = (method) => {
-    switch (method) {
-      case 'mobile_money': return '📱';
-      default: return '💳';
-    }
-  };
-
-  const getPaymentMethodText = (method) => {
-    switch (method) {
-      case 'mobile_money': return 'Mobile Money';
-      default: return 'Carte bancaire';
-    }
+  const handleRepaymentError = (error) => {
+    showError(error);
   };
 
   return (
@@ -237,29 +173,27 @@ const Repayment = () => {
                 
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
                   <div className="p-4 bg-white/60 rounded-xl border border-white/50">
-                    <span className="text-gray-600 text-xs uppercase tracking-wide">Mensualité</span>
-                    <p className="font-semibold text-xl text-gray-900">{formatCurrency(currentLoan.monthlyPayment)}</p>
+                    <span className="text-gray-600 text-xs uppercase tracking-wide">Montant du prêt</span>
+                    <p className="font-semibold text-xl text-gray-900">{formatCurrency(currentLoan.amount)}</p>
                   </div>
                   <div className="p-4 bg-white/60 rounded-xl border border-white/50">
-                    <span className="text-gray-600 text-xs uppercase tracking-wide">Prochain paiement</span>
-                    <p className="font-semibold text-xl text-gray-900">{new Date(currentLoan.nextPaymentDate).toLocaleDateString('fr-FR')}</p>
+                    <span className="text-gray-600 text-xs uppercase tracking-wide">Montant payé</span>
+                    <p className="font-semibold text-xl text-gray-900">{formatCurrency(currentLoan.paidAmount)}</p>
                   </div>
                   <div className="p-4 bg-white/60 rounded-xl border border-white/50">
-                    <span className="text-gray-600 text-xs uppercase tracking-wide">Montant total</span>
-                    <p className="font-semibold text-xl text-gray-900">{formatCurrency(currentLoan.totalAmount)}</p>
+                    <span className="text-gray-600 text-xs uppercase tracking-wide">Reste à payer</span>
+                    <p className="font-semibold text-xl text-gray-900">{formatCurrency(currentLoan.remainingAmount)}</p>
                   </div>
                 </div>
               </div>
               
               {/* Bouton Effectuer le paiement */}
               <div className="mt-6">
-                <Button
-                  onClick={handleSubmit}
-                  loading={loading}
-                  className="w-full px-8 py-4 text-lg rounded-2xl bg-primary-500 hover:bg-primary-600 font-semibold"
-                >
-                  {loading ? 'Traitement...' : 'Effectuer le paiement'}
-                </Button>
+                <RembourserButton
+                  loan={currentLoan}
+                  onSuccess={handleRepaymentSuccess}
+                  onError={handleRepaymentError}
+                />
               </div>
             </Card>
           ) : (
@@ -278,7 +212,7 @@ const Repayment = () => {
             </Card>
           )}
 
-          
+
 
         </div>
       </div>

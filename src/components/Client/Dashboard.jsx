@@ -142,15 +142,12 @@ const ClientDashboard = () => {
             daysUntilNextPayment = Math.max(0, daysUntilNext);
           }
 
-          // Calculer le score de crédit basé sur l'historique
-          let creditScore = 750; // Score de base
-          const completedLoans = loans.filter(loan => loan.status === 'completed').length;
-          const onTimePayments = payments.filter(payment => payment.status === 'completed').length;
+          // Pour les comptes existants, score de fidélité à 0
+          // Le nouveau système commence à 0 pour tous les comptes
+          let creditScore = 0; // Score de base à 0 pour tous les comptes existants
           
-          // Ajuster le score selon l'historique
-          creditScore += completedLoans * 20; // +20 points par prêt complété
-          creditScore += onTimePayments * 10; // +10 points par paiement à temps
-          creditScore = Math.min(850, Math.max(300, creditScore)); // Limiter entre 300 et 850
+          // Note: Les prêts et paiements passés ne comptent plus pour le score de fidélité
+          // Seuls les nouveaux remboursements (après cette mise à jour) compteront
 
       setStats({
             totalLoaned,
@@ -338,7 +335,7 @@ const ClientDashboard = () => {
                   </div>
                 </div>
                 <p className="text-gray-300 font-montserrat text-xs mb-1">Score de fidélité</p>
-                <span className="text-xl font-bold text-white">{Math.min(5, Math.floor(stats.creditScore / 170))}</span>
+                <span className="text-xl font-bold text-white">0</span>
                 <p className="text-gray-400 text-xs">/ 5 points</p>
                 
                 {/* Étoiles */}
@@ -347,7 +344,7 @@ const ClientDashboard = () => {
                           {[...Array(5)].map((_, i) => (
                             <Star 
                               key={i} 
-                        className={`w-3 h-3 ${i < Math.min(5, Math.floor(stats.creditScore / 170)) ? 'text-yellow-400 fill-current' : 'text-gray-600'}`} 
+                        className={`w-3 h-3 ${i < 0 ? 'text-yellow-400 fill-current' : 'text-gray-600'}`} 
                             />
                           ))}
                         </div>

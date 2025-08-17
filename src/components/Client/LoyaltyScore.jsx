@@ -1,9 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useNavigate } from 'react-router-dom';
+import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
 import Card from '../UI/Card';
 import Button from '../UI/Button';
+import { getLoans, getPayments } from '../../utils/supabaseAPI';
 import { 
   Star, 
   Award, 
@@ -29,53 +31,33 @@ import { formatCurrency } from '../../utils/helpers';
 
 const LoyaltyScore = () => {
   const navigate = useNavigate();
-  const { } = useNotifications();
+  const { user } = useAuth();
+  const { showSuccess, showError } = useNotifications();
   const [activeTab, setActiveTab] = useState('overview');
   const [showInfoModal, setShowInfoModal] = useState(false);
+  const [loading, setLoading] = useState(true);
 
-  // Données du score de fidélité
-  const [loyaltyData] = useState({
-    currentScore: 75,
-    maxScore: 100,
-    level: 'Gold',
-    nextLevel: 'Platinum',
+  // Données du score de fidélité dynamiques
+  const [loyaltyData, setLoyaltyData] = useState({
+    currentScore: 0,
+    maxScore: 5, // Score maximum de 5 points
+    level: 'Bronze',
+    nextLevel: 'Silver',
     pointsToNextLevel: 1,
-    completedLoans: 3,
+    completedLoans: 0,
     loansForNextBonus: 1,
-    totalSavings: 15000,
-    phoneCreditEarned: 500,
-    nextReward: 'Forfait d\'appel 500 FCFA',
-    history: [
-      {
-        id: 1,
-        date: '2024-01-15',
-        action: 'Prêt remboursé avant échéance',
-        points: 5,
-        type: 'bonus'
-      },
-      {
-        id: 2,
-        date: '2024-01-10',
-        action: 'Prêt remboursé avant échéance',
-        points: 5,
-        type: 'bonus'
-      },
-      {
-        id: 3,
-        date: '2024-01-05',
-        action: 'Prêt remboursé avant échéance',
-        points: 5,
-        type: 'bonus'
-      }
-    ]
+    totalSavings: 0,
+    phoneCreditEarned: 0,
+    nextReward: 'Premier bonus après 1 remboursement',
+    history: []
   });
 
   const levels = [
-    { name: 'Bronze', minScore: 0, maxScore: 25, color: 'from-amber-600 to-amber-800', icon: Star },
-    { name: 'Silver', minScore: 26, maxScore: 50, color: 'from-gray-400 to-gray-600', icon: Award },
-    { name: 'Gold', minScore: 51, maxScore: 75, color: 'from-yellow-400 to-yellow-600', icon: Trophy },
-    { name: 'Platinum', minScore: 76, maxScore: 90, color: 'from-blue-400 to-blue-600', icon: Crown },
-    { name: 'Diamond', minScore: 91, maxScore: 100, color: 'from-purple-400 to-purple-600', icon: Diamond }
+    { name: 'Bronze', minScore: 0, maxScore: 1, color: 'from-amber-600 to-amber-800', icon: Star },
+    { name: 'Silver', minScore: 2, maxScore: 2, color: 'from-gray-400 to-gray-600', icon: Award },
+    { name: 'Gold', minScore: 3, maxScore: 3, color: 'from-yellow-400 to-yellow-600', icon: Trophy },
+    { name: 'Platinum', minScore: 4, maxScore: 4, color: 'from-blue-400 to-blue-600', icon: Crown },
+    { name: 'Diamond', minScore: 5, maxScore: 5, color: 'from-purple-400 to-purple-600', icon: Diamond }
   ];
 
   const currentLevel = levels.find(level => 
@@ -91,6 +73,76 @@ const LoyaltyScore = () => {
     const level = levels.find(l => score >= l.minScore && score <= l.maxScore);
     return level ? level.icon : Star;
   };
+
+  // Fonction pour calculer le score de fidélité basé sur les remboursements
+  const calculateLoyaltyScore = useCallback(async () => {
+    if (!user?.id) {
+      setLoading(false);
+      return;
+    }
+
+    try {
+      setLoading(true);
+      
+      // Récupérer les prêts et paiements de l'utilisateur
+      const loansResult = await getLoans(user.id);
+      const paymentsResult = await getPayments(user.id);
+
+      if (loansResult.success && paymentsResult.success) {
+        const loans = loansResult.data || [];
+        const payments = paymentsResult.data || [];
+
+        // Pour les comptes existants, commencer à 0/5
+        // Seuls les nouveaux remboursements (après cette mise à jour) compteront
+        const currentScore = 0; // Tous les comptes commencent à 0
+        
+        // Pour l'instant, aucun prêt remboursé dans le nouveau système
+        const completedLoans = [];
+        const onTimeRepayments = 0;
+        
+        // Déterminer le niveau actuel et le prochain
+        const currentLevel = levels.find(level => 
+          currentScore >= level.minScore && currentScore <= level.maxScore
+        );
+        
+        const nextLevel = levels.find(level => level.minScore > currentScore) || currentLevel;
+        const pointsToNextLevel = nextLevel ? nextLevel.minScore - currentScore : 0;
+        
+        // Pour les comptes existants, pas d'économies encore
+        const totalSavings = 0;
+
+        // Historique vide pour les comptes existants
+        const history = [];
+
+        // Déterminer la prochaine récompense (pour score 0)
+        const nextReward = 'Premier bonus après 1 remboursement';
+
+        setLoyaltyData({
+          currentScore: 0, // Force à 0 pour tous les comptes existants
+          maxScore: 5,
+          level: 'Bronze', // Niveau de base
+          nextLevel: 'Silver', // Prochain niveau
+          pointsToNextLevel: 1, // 1 point pour atteindre Silver
+          completedLoans: 0, // Aucun prêt remboursé dans le nouveau système
+          loansForNextBonus: 1, // 1 remboursement pour le premier bonus
+          totalSavings: 0, // Pas d'économies encore
+          phoneCreditEarned: 0, // Pas de crédit téléphonique encore
+          nextReward,
+          history: [] // Historique vide
+        });
+      }
+    } catch (error) {
+      console.error('[LOYALTY] Erreur lors du calcul du score:', error);
+      showError('Erreur lors du chargement du score de fidélité');
+    } finally {
+      setLoading(false);
+    }
+  }, [user?.id, showError]);
+
+  // Charger les données au montage du composant
+  useEffect(() => {
+    calculateLoyaltyScore();
+  }, [calculateLoyaltyScore]);
 
   const benefits = [
     {
@@ -126,22 +178,22 @@ const LoyaltyScore = () => {
   const howItWorks = [
     {
       step: 1,
-      title: 'Effectuez 4 cycles de prêt',
-      description: 'Demandez et obtenez 4 prêts consécutifs (un seul à la fois)',
+      title: 'Remboursez un prêt',
+      description: 'Remboursez votre prêt dans les délais impartis',
       icon: Target,
       color: 'from-blue-500 to-blue-600'
     },
     {
       step: 2,
-      title: 'Remboursez à temps',
-      description: 'Remboursez chaque prêt avant l\'échéance',
+      title: 'Gagnez 1 point',
+      description: 'Votre score de fidélité augmente de 1 point',
       icon: CheckCircle,
       color: 'from-green-500 to-green-600'
     },
     {
       step: 3,
-      title: 'Gagnez 5 points',
-      description: 'Votre score de fidélité augmente de 5 points',
+      title: 'Progressez vers le niveau supérieur',
+      description: 'Atteignez le niveau suivant avec plus de remboursements',
       icon: TrendingUp,
       color: 'from-purple-500 to-purple-600'
     },
@@ -196,6 +248,14 @@ const LoyaltyScore = () => {
           transition={{ duration: 0.5 }}
           className="mb-8"
         >
+          {loading ? (
+            <Card className="bg-gradient-to-br from-white to-gray-50 border-0 shadow-xl">
+              <div className="p-8 text-center">
+                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600 mx-auto mb-4"></div>
+                <p className="text-gray-600">Chargement du score de fidélité...</p>
+              </div>
+            </Card>
+          ) : (
           <Card className="bg-gradient-to-br from-white to-gray-50 border-0 shadow-xl">
             <div className="p-8 text-center">
               <div className="flex justify-center mb-6">
@@ -208,11 +268,23 @@ const LoyaltyScore = () => {
               </div>
               
               <h2 className="text-4xl font-bold text-gray-900 font-montserrat mb-2">
-                {loyaltyData.currentScore}/100
+                {loyaltyData.currentScore}/5
               </h2>
               <p className="text-xl font-semibold text-gray-700 font-montserrat mb-4">
                 Niveau {currentLevel?.name}
               </p>
+              
+              {/* Note informative pour les comptes existants */}
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 mb-6 max-w-md mx-auto">
+                <div className="flex items-center space-x-2 mb-2">
+                  <Info size={16} className="text-blue-600" />
+                  <p className="text-sm font-medium text-blue-800">Système mis à jour</p>
+                </div>
+                <p className="text-xs text-blue-700">
+                  Le système de score de fidélité a été mis à jour. Tous les comptes commencent maintenant à 0/5 points. 
+                  Votre progression se fera à partir de vos prochains remboursements.
+                </p>
+              </div>
               
                              <div className="w-full max-w-md mx-auto mb-6">
                  <div className="flex justify-between text-sm text-gray-600 mb-2">
@@ -227,7 +299,7 @@ const LoyaltyScore = () => {
                      transition={{ duration: 1, delay: 0.5 }}
                    />
                  </div>
-                 <p className="text-xs text-gray-500 mt-1">75% du score maximum atteint</p>
+                 <p className="text-xs text-gray-500 mt-1">{Math.round((loyaltyData.currentScore / loyaltyData.maxScore) * 100)}% du score maximum atteint</p>
                </div>
 
               <div className="grid grid-cols-3 gap-4 max-w-md mx-auto">
@@ -246,6 +318,7 @@ const LoyaltyScore = () => {
               </div>
             </div>
           </Card>
+          )}
         </motion.div>
 
         {/* Navigation des onglets */}
@@ -474,7 +547,7 @@ const LoyaltyScore = () => {
                       <div className="space-y-2">
                         <div className="flex items-center space-x-2">
                           <CheckCircle size={16} className="text-green-600" />
-                          <span className="text-sm font-montserrat">Score de fidélité +5 points</span>
+                          <span className="text-sm font-montserrat">Score de fidélité +1 point</span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <CheckCircle size={16} className="text-green-600" />
@@ -586,9 +659,9 @@ const LoyaltyScore = () => {
                 <div className="bg-blue-50 p-4 rounded-lg">
                   <h4 className="font-semibold text-blue-900 mb-2">Comment gagner des points :</h4>
                   <ul className="space-y-1 text-blue-800">
-                    <li>• Rembourser 4 prêts consécutifs avant échéance (un seul prêt à la fois)</li>
-                    <li>• +5 points par cycle de 4 prêts</li>
-                    <li>• Score maximum : 100 points</li>
+                    <li>• Rembourser un prêt dans les délais impartis</li>
+                    <li>• +1 point par remboursement à temps</li>
+                    <li>• Score maximum : 5 points</li>
                   </ul>
                 </div>
 

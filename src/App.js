@@ -19,6 +19,9 @@ import Settings from './components/Admin/Settings';
 import LoanRequest from './components/Client/LoanRequest';
 import LoanHistory from './components/Client/LoanHistory';
 import Repayment from './components/Client/Repayment';
+import RepaymentSuccess from './components/Client/RepaymentSuccess';
+import RepaymentFailure from './components/Client/RepaymentFailure';
+import RepaymentCancel from './components/Client/RepaymentCancel';
 import Profile from './components/Client/Profile';
 import Menu from './components/Client/Menu';
 import ABEpargne from './components/Client/ABEpargne';
@@ -252,6 +255,30 @@ function App() {
                 element={
                   <ProtectedRoute>
                     <Repayment />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/remboursement/success" 
+                element={
+                  <ProtectedRoute>
+                    <RepaymentSuccess />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/remboursement/failure" 
+                element={
+                  <ProtectedRoute>
+                    <RepaymentFailure />
+                  </ProtectedRoute>
+                } 
+              />
+              <Route 
+                path="/remboursement/cancel" 
+                element={
+                  <ProtectedRoute>
+                    <RepaymentCancel />
                   </ProtectedRoute>
                 } 
               />
