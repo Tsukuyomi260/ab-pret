@@ -9,6 +9,9 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
+// Route de test pour vérifier que l'API fonctionne
+app.get("/api/health", (req, res) => res.json({ ok: true }));
+
 // Configuration FedaPay
 if (process.env.FEDAPAY_SECRET_KEY) {
   const FedaPay = require('fedapay');

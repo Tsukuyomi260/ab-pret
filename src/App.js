@@ -30,6 +30,7 @@ import CoachingFinance from './components/Client/CoachingFinance';
 
 import LoyaltyScore from './components/Client/LoyaltyScore';
 import TestOTP from './components/TestOTP';
+import TestHealth from './components/TestHealth';
 import './styles/globals.css';
 
 // Composant de configuration pour Supabase manquant
@@ -382,8 +383,9 @@ function App() {
                 } 
               />
 
-              {/* Route de test temporaire */}
+              {/* Routes de test temporaires */}
               <Route path="/test-otp" element={<TestOTP />} />
+              <Route path="/test-health" element={<TestHealth />} />
 
               {/* Redirection par défaut */}
               <Route path="/" element={<Navigate to="/login" />} />

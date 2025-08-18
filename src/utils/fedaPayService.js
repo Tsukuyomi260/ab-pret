@@ -2,11 +2,11 @@
 // Configuration FedaPay
 const FEDAPAY_CONFIG = {
   // Remplacez par vos vraies clés FedaPay
-  publicKey: process.env.REACT_APP_FEDAPAY_PUBLIC_KEY || 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
-  secretKey: process.env.REACT_APP_FEDAPAY_SECRET_KEY || 'sk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx',
+  publicKey: process.env.REACT_APP_FEDAPAY_PUBLIC_KEY || 'pk_test_xxxxxxxxxxxxxxxxxfgxxxxxxxxxxxx',
+  secretKey: process.env.REACT_APP_FEDAPAY_SECRET_KEY || 'sk_test_xxxxxxxxxxxxxxxxxgfxxxxxxxxxxxx',
   baseUrl: process.env.REACT_APP_FEDAPAY_BASE_URL || 'https://api.fedapay.com/v1',
   currency: 'XOF', // Franc CFA
-  country: 'CI' // Côte d'Ivoire
+  country: 'BJ' // Bénin
 };
 
 // Log de la configuration pour débogage
