@@ -1,29 +1,22 @@
 const express = require('express');
 const cors = require('cors');
 const bodyParser = require('body-parser');
+const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 
-// Load env from .env if present
+
+// Load env from .env.local first, then .env
+require('dotenv').config({ path: '.env.local' });
 require('dotenv').config();
 
 const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 
+
+
+
 // Route de test pour vérifier que l'API fonctionne
 app.get("/api/health", (req, res) => res.json({ ok: true }));
-
-// Configuration FedaPay
-if (process.env.FEDAPAY_SECRET_KEY) {
-  const FedaPay = require('fedapay');
-  FedaPay.setApiKey(process.env.FEDAPAY_SECRET_KEY);
-  FedaPay.setEnvironment(process.env.FEDAPAY_ENVIRONMENT || 'sandbox');
-  console.log('[FEDAPAY] Configuration chargée:', {
-    environment: process.env.FEDAPAY_ENVIRONMENT || 'sandbox',
-    secretKey: process.env.FEDAPAY_SECRET_KEY ? `${process.env.FEDAPAY_SECRET_KEY.substring(0, 10)}...` : 'NON CONFIGURÉE'
-  });
-} else {
-  console.log('[FEDAPAY] Mode simulation - FEDAPAY_SECRET_KEY non configurée');
-}
 
 // Mode SMS: 'live' (production) ou 'echo' (développement)
 let SMS_MODE = process.env.SMS_MODE || 'echo'; // Utiliser la variable d'environnement ou echo par défaut
@@ -221,7 +214,9 @@ app.post('/api/fedapay/create-transaction', async (req, res) => {
     }
 
     // Construire les URLs de callback
-    const baseUrl = `${req.protocol}://${req.get('host')}`;
+    // Utiliser le port 3000 pour les redirections frontend
+    const baseUrl = `${req.protocol}://${req.get('host').replace(':5000', ':3000')}`;
+    
     const successUrl = `${baseUrl}/remboursement/success?transaction_id={transaction_id}&amount=${amount}&loan_id=${loanId}&user_id=${userId}`;
     const failureUrl = `${baseUrl}/remboursement/failure?transaction_id={transaction_id}&amount=${amount}&loan_id=${loanId}&user_id=${userId}`;
     const cancelUrl = `${baseUrl}/remboursement/cancel?transaction_id={transaction_id}&amount=${amount}&loan_id=${loanId}&user_id=${userId}`;
@@ -259,52 +254,54 @@ app.post('/api/fedapay/create-transaction', async (req, res) => {
       metadata
     });
 
-    // Mode développement : simulation FedaPay
-    if (process.env.NODE_ENV === 'development' || !process.env.FEDAPAY_SECRET_KEY) {
-      console.log('[FEDAPAY_SERVER] Mode développement - Simulation FedaPay');
-      
-      const mockTransaction = {
-        id: `mock_${Date.now()}`,
-        redirect_url: `https://fedapay.com/checkout/mock_${Date.now()}`,
-        status: 'pending'
-      };
-
-      console.log('[FEDAPAY_SERVER] Transaction simulée créée:', mockTransaction);
-
-      res.json({ 
-        success: true,
-        url: mockTransaction.redirect_url,
-        transaction_id: mockTransaction.id,
-        public_key: process.env.FEDAPAY_PUBLIC_KEY || 'pk_test_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx'
+    // Vérifier si FedaPay est configuré
+    if (!process.env.FEDAPAY_SECRET_KEY) {
+      console.log('[FEDAPAY_SERVER] Erreur: FEDAPAY_SECRET_KEY non configurée');
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Configuration FedaPay manquante. Veuillez configurer FEDAPAY_SECRET_KEY dans .env.local'
       });
-      return;
     }
 
     // Configuration FedaPay pour la production
-    const FedaPay = require('fedapay');
-    FedaPay.setApiKey(process.env.FEDAPAY_SECRET_KEY);
-    FedaPay.setEnvironment(process.env.FEDAPAY_ENVIRONMENT || 'sandbox');
+    const fedapayBaseUrl = process.env.FEDAPAY_ENVIRONMENT === 'live' 
+      ? 'https://api.fedapay.com/v1' 
+      : 'https://api-sandbox.fedapay.com/v1';
 
-    // Créer la transaction FedaPay
-    const transaction = await FedaPay.Transaction.create({
-      amount,
-      description: description || `Remboursement prêt #${loanId}`,
-      currency: { iso: "XOF" },
-      customer: {
-        firstname: customer.firstname,
-        lastname: customer.lastname,
-        email: customer.email,
-        phone_number: customer.phone ? {
-          number: customer.phone,
-          country: "BJ"
-        } : undefined
+    // Créer la transaction FedaPay via API directe
+    const transactionResponse = await fetch(`${fedapayBaseUrl}/transactions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${process.env.FEDAPAY_SECRET_KEY}`
       },
-      metadata,
-      callback_url: `${baseUrl}/api/fedapay/webhook`,
-      success_url: successUrl,
-      failure_url: failureUrl,
-      cancel_url: cancelUrl
+      body: JSON.stringify({
+        amount,
+        description: description || `Remboursement prêt #${loanId}`,
+        currency: { iso: "XOF" },
+        customer: {
+          firstname: customer.firstname,
+          lastname: customer.lastname,
+          email: customer.email,
+          phone_number: customer.phone ? {
+            number: customer.phone,
+            country: "BJ"
+          } : undefined
+        },
+        metadata,
+        callback_url: `${baseUrl}/api/fedapay/webhook`,
+        success_url: successUrl,
+        failure_url: failureUrl,
+        cancel_url: cancelUrl
+      })
     });
+
+    if (!transactionResponse.ok) {
+      const errorData = await transactionResponse.json();
+      throw new Error(`FedaPay API Error: ${errorData.message || transactionResponse.statusText}`);
+    }
+
+    const transaction = await transactionResponse.json();
 
     console.log('[FEDAPAY_SERVER] Transaction FedaPay créée:', transaction.id);
 
@@ -317,10 +314,12 @@ app.post('/api/fedapay/create-transaction', async (req, res) => {
 
   } catch (error) {
     console.error('[FEDAPAY_SERVER] Erreur création transaction:', error);
+    
+    // Pour afficher le vrai détail
     res.status(500).json({ 
       success: false, 
       error: 'Erreur de création de la transaction',
-      details: error.message
+      details: error.message || error.toString()  // 👈 cette ligne est importante
     });
   }
 });
@@ -450,7 +449,11 @@ app.get('/api/fedapay/transaction/:id', async (req, res) => {
       });
     }
 
-    const response = await fetch(`${FEDAPAY_CONFIG.baseUrl}/transactions/${id}`, {
+    const fedapayBaseUrl = process.env.FEDAPAY_ENVIRONMENT === 'live' 
+      ? 'https://api.fedapay.com/v1' 
+      : 'https://api-sandbox.fedapay.com/v1';
+
+    const response = await fetch(`${fedapayBaseUrl}/transactions/${id}`, {
       headers: {
         'Authorization': `Bearer ${FEDAPAY_CONFIG.secretKey}`
       }
@@ -476,6 +479,29 @@ app.get('/api/fedapay/transaction/:id', async (req, res) => {
       success: false, 
       error: 'Erreur interne du serveur' 
     });
+  }
+});
+
+// Route de test FedaPay
+app.get('/api/fedapay/test', async (req, res) => {
+  try {
+    const response = await fetch('https://api-sandbox.fedapay.com/v1/currencies', {
+      headers: {
+        'Authorization': `Bearer ${process.env.FEDAPAY_SECRET_KEY}`,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      throw new Error(data.message || 'Erreur FedaPay');
+    }
+
+    res.json({ success: true, currencies: data });
+  } catch (err) {
+    console.error('Erreur FedaPay test:', err);
+    res.status(500).json({ success: false, error: err.message });
   }
 });
 

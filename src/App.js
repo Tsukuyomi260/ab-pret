@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { testAllConnections } from './utils/supabaseAPI';
+import { Toaster } from 'react-hot-toast';
 import Layout from './components/Common/Layout';
 import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
@@ -31,6 +32,7 @@ import CoachingFinance from './components/Client/CoachingFinance';
 import LoyaltyScore from './components/Client/LoyaltyScore';
 import TestOTP from './components/TestOTP';
 import TestHealth from './components/TestHealth';
+import TestFedaPay from './components/TestFedaPay';
 import './styles/globals.css';
 
 // Composant de configuration pour Supabase manquant
@@ -386,6 +388,7 @@ function App() {
               {/* Routes de test temporaires */}
               <Route path="/test-otp" element={<TestOTP />} />
               <Route path="/test-health" element={<TestHealth />} />
+              <Route path="/test-fedapay" element={<TestFedaPay />} />
 
               {/* Redirection par défaut */}
               <Route path="/" element={<Navigate to="/login" />} />
@@ -394,6 +397,30 @@ function App() {
             </Routes>
           </div>
         </Router>
+        <Toaster 
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: {
+              background: '#363636',
+              color: '#fff',
+            },
+            success: {
+              duration: 3000,
+              iconTheme: {
+                primary: '#4ade80',
+                secondary: '#fff',
+              },
+            },
+            error: {
+              duration: 5000,
+              iconTheme: {
+                primary: '#ef4444',
+                secondary: '#fff',
+              },
+            },
+          }}
+        />
       </NotificationProvider>
     </AuthProvider>
   );
