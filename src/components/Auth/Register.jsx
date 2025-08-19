@@ -153,7 +153,7 @@ const Register = () => {
         email: formData.email
       });
       
-          // 1) Créer l'utilisateur Auth via téléphone (OTP déjà validé en étape précédente)
+          // 1) Créer l'utilisateur Auth via téléphone (sans OTP)
     const signUp = await signUpWithPhone(formData.phone, formData.password, {
       firstName: formData.firstName,
       lastName: formData.lastName,

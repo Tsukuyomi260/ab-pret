@@ -9,7 +9,7 @@ import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
 import CreateAccount from './components/Auth/CreateAccount';
 import PendingApproval from './components/Auth/PendingApproval';
-import VerifyOTP from './components/Auth/VerifyOTP';
+
 import ClientDashboard from './components/Client/Dashboard';
 import AdminDashboard from './components/Admin/AdminDashboard';
 import LoanRequests from './components/Admin/LoanRequests';
@@ -219,14 +219,7 @@ function App() {
                   </PublicRoute>
                 } 
               />
-              <Route 
-                path="/verify-otp" 
-                element={
-                  <PublicRoute>
-                    <VerifyOTP />
-                  </PublicRoute>
-                } 
-              />
+
 
               {/* Routes protégées - Client */}
               <Route 

@@ -7,7 +7,7 @@ import Card from '../UI/Card';
 import Button from '../UI/Button';
 import Input from '../UI/Input';
 import NotificationBell from '../UI/NotificationBell';
-import LoanCalculator from '../UI/LoanCalculator';
+
 import { 
   ArrowLeft, 
   AlertCircle, 
@@ -1025,17 +1025,74 @@ const LoanRequest = () => {
                       </Card>
                     </div>
 
-                    {/* Calculatrice */}
+                    {/* Détails du calcul */}
                     <div className="space-y-6">
-                      <LoanCalculator 
-                        onCalculate={handleCalculation}
-                        initialAmount={formData.amount}
-                        initialDuration={formData.duration}
-                        syncWithForm={true}
-                        showResults={false}
-                      />
-                      
-
+                      {calculation ? (
+                        <Card className="bg-white">
+                          <div className="p-6">
+                            <div className="flex items-center space-x-3 mb-6">
+                              <BarChart3 size={24} className="text-primary-600" />
+                              <h3 className="text-xl font-semibold text-secondary-900 font-montserrat">
+                                Détails du calcul
+                              </h3>
+                            </div>
+                            
+                            <div className="space-y-4">
+                              <div className="p-4 bg-green-50 rounded-xl border border-green-200">
+                                <h4 className="font-semibold text-green-900 font-montserrat mb-3 flex items-center">
+                                  <BarChart3 className="w-5 h-5 mr-2" />
+                                  Récapitulatif du prêt
+                                </h4>
+                                <div className="space-y-3 text-sm">
+                                  <div className="flex justify-between items-center p-2 bg-white/60 rounded-lg">
+                                    <span className="text-green-700 font-montserrat">Taux d'intérêt:</span>
+                                    <span className="font-bold text-green-900 font-montserrat">
+                                      {calculation.interestRate}%
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between items-center p-2 bg-white/60 rounded-lg">
+                                    <span className="text-green-700 font-montserrat">Intérêts:</span>
+                                    <span className="font-bold text-green-900 font-montserrat">
+                                      {formatCurrency(calculation.interestAmount)}
+                                    </span>
+                                  </div>
+                                  <div className="flex justify-between items-center p-2 bg-green-100 rounded-lg border border-green-300">
+                                    <span className="text-green-800 font-semibold font-montserrat">Total à rembourser:</span>
+                                    <span className="font-bold text-green-900 text-lg font-montserrat">
+                                      {formatCurrency(calculation.totalAmount)}
+                                    </span>
+                                  </div>
+                                  <div className="text-center p-2 bg-blue-50 rounded-lg border border-blue-200">
+                                    <span className="text-blue-700 text-xs font-montserrat">
+                                      Paiement unique de <span className="font-bold">{formatCurrency(calculation.paymentAmount)}</span> à la fin de la période
+                                    </span>
+                                  </div>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        </Card>
+                      ) : (
+                        <Card className="bg-white">
+                          <div className="p-6">
+                            <div className="flex items-center space-x-3 mb-6">
+                              <BarChart3 size={24} className="text-primary-600" />
+                              <h3 className="text-xl font-semibold text-secondary-900 font-montserrat">
+                                Détails du calcul
+                              </h3>
+                            </div>
+                            
+                            <div className="text-center py-8">
+                              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                                <BarChart3 size={24} className="text-gray-400" />
+                              </div>
+                              <p className="text-gray-500 font-montserrat">
+                                Les détails du calcul s'afficheront ici une fois que vous aurez saisi le montant et la durée.
+                              </p>
+                            </div>
+                          </div>
+                        </Card>
+                      )}
                     </div>
                   </motion.div>
                 )}
@@ -1221,67 +1278,30 @@ const LoanRequest = () => {
                         </p>
                       </div>
                       
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-                        <div className="space-y-4">
-                          <div className="p-4 bg-accent-50 rounded-xl">
-                            <h4 className="font-semibold text-secondary-900 font-montserrat mb-2">Détails du prêt</h4>
-                            <div className="space-y-2 text-sm">
-                              <div className="flex justify-between">
-                                <span className="text-secondary-600 font-montserrat">Catégorie:</span>
-                                <span className="font-medium text-secondary-900 font-montserrat">
-                                  {loanCategories.find(c => c.id === selectedCategory)?.name}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-secondary-600 font-montserrat">Montant:</span>
-                                <span className="font-medium text-secondary-900 font-montserrat">
-                                  {formatCurrency(parseFloat(formData.amount) || 0)}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-secondary-600 font-montserrat">Durée:</span>
-                                <span className="font-medium text-secondary-900 font-montserrat">
-                                  {LOAN_CONFIG.durations.find(d => d.days === parseInt(formData.duration))?.label}
-                                </span>
-                              </div>
+                                            <div className="max-w-2xl mx-auto mb-8">
+                        <div className="p-4 bg-accent-50 rounded-xl">
+                          <h4 className="font-semibold text-secondary-900 font-montserrat mb-2">Détails du prêt</h4>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-secondary-600 font-montserrat">Catégorie:</span>
+                              <span className="font-medium text-secondary-900 font-montserrat">
+                                {loanCategories.find(c => c.id === selectedCategory)?.name}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-secondary-600 font-montserrat">Montant:</span>
+                              <span className="font-medium text-secondary-900 font-montserrat">
+                                {formatCurrency(parseFloat(formData.amount) || 0)}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-secondary-600 font-montserrat">Durée:</span>
+                              <span className="font-medium text-secondary-900 font-montserrat">
+                                {LOAN_CONFIG.durations.find(d => d.days === parseInt(formData.duration))?.label}
+                              </span>
                             </div>
                           </div>
                         </div>
-
-                        {/* Détails du calcul */}
-                        {calculation && (
-                          <div className="p-4 bg-green-50 rounded-xl border border-green-200">
-                            <h4 className="font-semibold text-green-900 font-montserrat mb-3 flex items-center">
-                              <BarChart3 className="w-5 h-5 mr-2" />
-                              Détails du calcul
-                            </h4>
-                            <div className="space-y-3 text-sm">
-                              <div className="flex justify-between items-center p-2 bg-white/60 rounded-lg">
-                                <span className="text-green-700 font-montserrat">Taux d'intérêt:</span>
-                                <span className="font-bold text-green-900 font-montserrat">
-                                  {calculation.interestRate}%
-                                </span>
-                              </div>
-                              <div className="flex justify-between items-center p-2 bg-white/60 rounded-lg">
-                                <span className="text-green-700 font-montserrat">Intérêts:</span>
-                                <span className="font-bold text-green-900 font-montserrat">
-                                  {formatCurrency(calculation.interestAmount)}
-                                </span>
-                              </div>
-                              <div className="flex justify-between items-center p-2 bg-green-100 rounded-lg border border-green-300">
-                                <span className="text-green-800 font-semibold font-montserrat">Total à rembourser:</span>
-                                <span className="font-bold text-green-900 text-lg font-montserrat">
-                                  {formatCurrency(calculation.totalAmount)}
-                                </span>
-                              </div>
-                              <div className="text-center p-2 bg-blue-50 rounded-lg border border-blue-200">
-                                <span className="text-blue-700 text-xs font-montserrat">
-                                  Paiement unique de <span className="font-bold">{formatCurrency(calculation.paymentAmount)}</span> à la fin de la période
-                                </span>
-                              </div>
-                            </div>
-                          </div>
-                        )}
                       </div>
 
                       {/* Notice de téléchargement */}

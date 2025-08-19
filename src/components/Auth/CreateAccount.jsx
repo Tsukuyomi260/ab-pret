@@ -12,16 +12,13 @@ import {
   CheckCircle, 
   Mail, 
   User, 
-  Shield, 
-  Phone,
-  Clock,
-  RefreshCw,
   Eye,
   EyeOff,
-  MapPin
+  MapPin,
+  Phone,
+  Shield
 } from 'lucide-react';
 import { validateEmail } from '../../utils/helpers';
-import { generateOTP, verifyOTP } from '../../utils/supabaseAPI';
 import { validateBeninPhoneNumber } from '../../utils/smsService';
 
 const CreateAccount = () => {
@@ -43,20 +40,13 @@ const CreateAccount = () => {
     confirmPassword: ''
   });
 
-  // Étape 2 - OTP
-  const [otp, setOtp] = useState(['', '', '', '', '', '']);
-  const [otpSent, setOtpSent] = useState(false);
-  const [otpTimer, setOtpTimer] = useState(0);
-  const [requestId, setRequestId] = useState(null);
-
-  // Étape 3 - Confirmation
+  // Étape 2 - Confirmation
   const [isConfirmed, setIsConfirmed] = useState(false);
 
   const steps = [
     { id: 1, title: 'Informations de base', icon: User },
-    { id: 2, title: 'Vérification OTP', icon: Shield },
-    { id: 3, title: 'Confirmation', icon: CheckCircle },
-    { id: 4, title: 'Inscription complète', icon: Phone }
+    { id: 2, title: 'Confirmation', icon: CheckCircle },
+    { id: 3, title: 'Inscription complète', icon: Phone }
   ];
 
   const handleBasicInfoChange = (e) => {
@@ -113,116 +103,37 @@ const CreateAccount = () => {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleOtpChange = (index, value) => {
-    if (value.length > 1) return; // Empêcher plus d'un caractère
-    
-    const newOtp = [...otp];
-    newOtp[index] = value;
-    setOtp(newOtp);
 
-    // Auto-focus sur le champ suivant
-    if (value && index < 5) {
-      const nextInput = document.querySelector(`input[name="otp-${index + 1}"]`);
-      if (nextInput) nextInput.focus();
-    }
-  };
-
-  const handleKeyDown = (index, e) => {
-    if (e.key === 'Backspace' && !otp[index] && index > 0) {
-      const prevInput = document.querySelector(`input[name="otp-${index - 1}"]`);
-      if (prevInput) prevInput.focus();
-    }
-  };
-
-  const sendOtp = async () => {
-    try {
-      setLoading(true);
-      
-      const result = await generateOTP(basicInfo.phoneNumber, 'registration');
-      
-      if (result.success) {
-        setOtpSent(true);
-        setRequestId(result.requestId);
-        setOtpTimer(60);
-        
-        const timer = setInterval(() => {
-          setOtpTimer(prev => {
-            if (prev <= 1) {
-              clearInterval(timer);
-              return 0;
-            }
-            return prev - 1;
-          });
-        }, 1000);
-
-        showSuccess(result.message || 'Code OTP envoyé avec succès par SMS');
-      } else {
-        showError(result.error || 'Erreur lors de l\'envoi du code OTP');
-      }
-    } catch (error) {
-      console.error('[AUTH] Erreur lors de l\'envoi OTP:', error.message);
-      showError('Erreur lors de l\'envoi du code OTP');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const verifyOtp = async () => {
-    const otpString = otp.join('');
-    if (otpString.length !== 6) {
-      showError('Veuillez saisir le code complet');
-      return;
-    }
-
-    try {
-      setLoading(true);
-      
-      const result = await verifyOTP(basicInfo.phoneNumber, otpString, requestId);
-      
-      if (result.success) {
-        setCurrentStep(3);
-        showSuccess('Code OTP vérifié avec succès');
-      } else {
-        showError(result.error || 'Code OTP incorrect');
-      }
-    } catch (error) {
-      console.error('[AUTH] Erreur lors de la vérification OTP:', error.message);
-      showError('Erreur lors de la vérification');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleNext = () => {
     if (currentStep === 1) {
       if (validateBasicInfo()) {
         setCurrentStep(2);
-        sendOtp();
       }
     } else if (currentStep === 2) {
-      verifyOtp();
-    } else if (currentStep === 3) {
       setIsConfirmed(true);
       setTimeout(() => {
-        setCurrentStep(4);
+        setCurrentStep(3);
       }, 2000);
-    } else if (currentStep === 4) {
-      // Rediriger vers l'inscription complète
-      console.log('[CREATEACCOUNT] Données transmises:', basicInfo);
-      navigate('/register', { 
-        state: { 
-          basicInfo: {
-            firstName: basicInfo.firstName,
-            lastName: basicInfo.lastName,
-            email: basicInfo.email, // Ajouter l'email
-            phoneNumber: basicInfo.phoneNumber,
-            address: basicInfo.address, // Ajouter l'adresse
-            password: basicInfo.password,
-            confirmPassword: basicInfo.confirmPassword
-          },
-          fromCreateAccount: true 
-        } 
-      });
+    } else if (currentStep === 3) {
+      // Rediriger vers l'inscription complète après un délai
+      setTimeout(() => {
+        console.log('[CREATEACCOUNT] Données transmises:', basicInfo);
+        navigate('/register', { 
+          state: { 
+            basicInfo: {
+              firstName: basicInfo.firstName,
+              lastName: basicInfo.lastName,
+              email: basicInfo.email, // Ajouter l'email
+              phoneNumber: basicInfo.phoneNumber,
+              address: basicInfo.address, // Ajouter l'adresse
+              password: basicInfo.password,
+              confirmPassword: basicInfo.confirmPassword
+            },
+            fromCreateAccount: true 
+          } 
+        });
+      }, 3000); // Délai de 3 secondes pour voir l'étape 3
     }
   };
 
@@ -334,67 +245,31 @@ const CreateAccount = () => {
     >
       <div className="text-center mb-8">
         <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Phone size={24} className="text-primary-600" />
+          <CheckCircle size={24} className="text-primary-600" />
         </div>
         <h2 className="text-2xl font-bold text-gray-900 mb-2">
-          Vérification par SMS
+          Confirmation
         </h2>
         <p className="text-gray-600">
-          Nous avons envoyé un code à <span className="font-semibold">{basicInfo.phoneNumber}</span>
+          Vérifiez vos informations avant de continuer
         </p>
       </div>
 
-      <div className="space-y-6">
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-3">
-            Code de vérification
-          </label>
-          <div className="flex justify-center space-x-2">
-            {otp.map((digit, index) => (
-              <input
-                key={index}
-                type="text"
-                name={`otp-${index}`}
-                value={digit}
-                onChange={(e) => handleOtpChange(index, e.target.value)}
-                onKeyDown={(e) => handleKeyDown(index, e)}
-                className="w-12 h-12 text-center text-lg font-semibold border-2 border-gray-300 rounded-lg focus:border-primary-500 focus:ring-2 focus:ring-primary-200 transition-colors"
-                maxLength={1}
-                inputMode="numeric"
-              />
-            ))}
+      <div className="space-y-4">
+        <div className="bg-gray-50 rounded-lg p-4">
+          <h3 className="font-semibold text-gray-900 mb-3">Informations personnelles</h3>
+          <div className="space-y-2 text-sm">
+            <p><span className="font-medium">Nom complet:</span> {basicInfo.firstName} {basicInfo.lastName}</p>
+            <p><span className="font-medium">Téléphone:</span> {basicInfo.phoneNumber}</p>
+            {basicInfo.email && <p><span className="font-medium">Email:</span> {basicInfo.email}</p>}
+            <p><span className="font-medium">Adresse:</span> {basicInfo.address}</p>
           </div>
         </div>
-
-        <div className="text-center space-y-4">
-          <Button
-            onClick={verifyOtp}
-            disabled={loading || otp.join('').length !== 6}
-            className="w-full"
-          >
-            {loading ? (
-              <RefreshCw size={16} className="animate-spin" />
-            ) : (
-              <>
-                <CheckCircle size={16} />
-                <span>Vérifier le code</span>
-              </>
-            )}
-          </Button>
-
-          <div className="text-sm text-gray-600">
-            {otpTimer > 0 ? (
-              <p>Renvoyer le code dans {otpTimer}s</p>
-            ) : (
-              <button
-                onClick={sendOtp}
-                disabled={loading}
-                className="text-primary-600 hover:text-primary-700 font-medium"
-              >
-                Renvoyer le code
-              </button>
-            )}
-          </div>
+        
+        <div className="text-center">
+          <p className="text-sm text-gray-600 mb-4">
+            En continuant, vous acceptez nos conditions d'utilisation et notre politique de confidentialité.
+          </p>
         </div>
       </div>
     </motion.div>
@@ -440,57 +315,7 @@ const CreateAccount = () => {
     </motion.div>
   );
 
-  const renderStep4 = () => (
-    <motion.div
-      initial={{ opacity: 0, x: 20 }}
-      animate={{ opacity: 1, x: 0 }}
-      className="space-y-6"
-    >
-      <div className="text-center mb-8">
-        <div className="w-16 h-16 bg-primary-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <Phone size={24} className="text-primary-600" />
-        </div>
-        <h2 className="text-2xl font-bold text-gray-900 mb-2">
-          Complétez votre profil
-        </h2>
-        <p className="text-gray-600">
-          Quelques informations supplémentaires pour finaliser votre inscription
-        </p>
-      </div>
 
-      <div className="bg-gray-50 rounded-lg p-6 space-y-4">
-        <h3 className="font-semibold text-gray-900">Informations à fournir :</h3>
-        <ul className="space-y-2 text-sm text-gray-600">
-          <li className="flex items-center space-x-2">
-            <CheckCircle size={14} className="text-green-600" />
-            <span>Numéro de téléphone</span>
-          </li>
-          <li className="flex items-center space-x-2">
-            <CheckCircle size={14} className="text-green-600" />
-            <span>Informations personnelles</span>
-          </li>
-          <li className="flex items-center space-x-2">
-            <CheckCircle size={14} className="text-green-600" />
-            <span>Contact d'urgence</span>
-          </li>
-          <li className="flex items-center space-x-2">
-            <CheckCircle size={14} className="text-green-600" />
-            <span>Documents d'identité</span>
-          </li>
-        </ul>
-      </div>
-
-      <div className="text-center">
-        <Button
-          onClick={handleNext}
-          className="w-full"
-        >
-          <span>Continuer l'inscription</span>
-          <ArrowRight size={16} />
-        </Button>
-      </div>
-    </motion.div>
-  );
 
   const renderStepContent = () => {
     switch (currentStep) {
@@ -500,8 +325,6 @@ const CreateAccount = () => {
         return renderStep2();
       case 3:
         return renderStep3();
-      case 4:
-        return renderStep4();
       default:
         return null;
     }
@@ -564,21 +387,21 @@ const CreateAccount = () => {
             </Button>
           )}
           
-          {currentStep < steps.length && (
-            <Button
-              onClick={handleNext}
-              disabled={loading}
-              className="flex items-center space-x-2 ml-auto"
-            >
-              <span>
-                {currentStep === 1 ? 'Continuer' :
-                 currentStep === 2 ? 'Vérifier' :
-                 currentStep === 3 ? 'Continuer' :
-                 'Suivant'}
-              </span>
-              <ArrowRight size={16} />
-            </Button>
-          )}
+                     {currentStep <= steps.length && (
+             <Button
+               onClick={handleNext}
+               disabled={loading}
+               className="flex items-center space-x-2 ml-auto"
+             >
+               <span>
+                 {currentStep === 1 ? 'Continuer' :
+                  currentStep === 2 ? 'Continuer' :
+                  currentStep === 3 ? 'Continuer vers l\'inscription complète' :
+                  'Suivant'}
+               </span>
+               <ArrowRight size={16} />
+             </Button>
+           )}
         </div>
 
         {/* Lien de connexion */}
