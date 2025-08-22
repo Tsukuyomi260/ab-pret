@@ -53,6 +53,9 @@ const LoanRequest = () => {
     duration: 5,
     purpose: '',
     employmentStatus: 'self-employed',
+    momoNumber: '',
+    momoNetwork: '',
+    momoName: '',
     category: '',
     documents: []
   });
@@ -229,9 +232,9 @@ const LoanRequest = () => {
         if (!calculation || 
             calculation.principal !== result.principal || 
             calculation.duration !== result.duration) {
-          handleCalculation(result);
-        }
+        handleCalculation(result);
       }
+    }
     }
   }, [formData.amount, formData.duration]); // Supprimé handleCalculation des dépendances
 
@@ -258,6 +261,18 @@ const LoanRequest = () => {
       case 3:
         if (!formData.purpose.trim()) {
           newErrors.purpose = 'Veuillez préciser l\'objet du prêt';
+        }
+        if (!formData.employmentStatus) {
+          newErrors.employmentStatus = 'Veuillez sélectionner votre statut professionnel';
+        }
+        if (!formData.momoNumber.trim()) {
+          newErrors.momoNumber = 'Veuillez saisir votre numéro Momo';
+        }
+        if (!formData.momoNetwork) {
+          newErrors.momoNetwork = 'Veuillez sélectionner votre réseau mobile';
+        }
+        if (!formData.momoName.trim()) {
+          newErrors.momoName = 'Veuillez saisir le nom sur le numéro Momo';
         }
         break;
     }
@@ -310,8 +325,13 @@ const LoanRequest = () => {
       // duration_months existe dans la base, pas purpose
       duration_months: formData.duration, // ✅ Champ correct
       interest_rate: 10.0, // ✅ Champ requis par la base
-      status: 'pending'
-      // ❌ purpose n'existe pas dans la base actuellement
+      status: 'pending',
+      // Informations Momo
+      momo_number: formData.momoNumber,
+      momo_network: formData.momoNetwork,
+      momo_name: formData.momoName,
+      // Objet du prêt
+      purpose: formData.purpose || getPurposeText()
     };
     
     try {
@@ -335,13 +355,13 @@ const LoanRequest = () => {
           type: 'info',
           priority: 'high'
         });
-
-        setSubmitted(true);
-        
-        setTimeout(() => {
-          showSuccess('Demande de prêt soumise avec succès ! Notre équipe vous contactera dans les 24h.');
-          navigate('/dashboard');
-        }, 1500);
+      
+      setSubmitted(true);
+      
+      setTimeout(() => {
+        showSuccess('Demande de prêt soumise avec succès ! Notre équipe vous contactera dans les 24h.');
+        navigate('/dashboard');
+      }, 1500);
       } else {
         console.error('[LOAN] ❌ Échec de la création:', result.error);
         throw new Error(result.error || 'Erreur lors de la création de la demande');
@@ -476,7 +496,7 @@ const LoanRequest = () => {
     
     const engagementText = [
       `Je soussigne(e) ${clientName}, etudiant(e) en ${filiere} en ${anneeEtude},`,
-      `reconnais avoir recu un pret de ${montantPret} de la part de AB Campus Finance,`,
+              `reconnais avoir recu un pret de ${montantPret} de la part de AB Campus Finance,`,
       `a rembourser avant ${dureePret}.`,
       '',
       'En cas de retard de paiement, une pénalité de 2% par jour sera appliquée.',
@@ -509,15 +529,15 @@ const LoanRequest = () => {
     doc.setTextColor(...darkColor);
     
     if (calculation) {
-      const creditInfo = [
-        `Montant du pret: ${formatAmountFCFA(calculation.principal)}`,
-        `Taux d'interet: ${calculation.interestRate}%`,
-        `Interets: ${formatAmountFCFA(calculation.interestAmount)}`,
-        `Montant total a rembourser: ${formatAmountFCFA(calculation.totalAmount)}`,
-        `Duree: ${calculation.durationLabel}`,
+             const creditInfo = [
+         `Montant du pret: ${formatAmountFCFA(calculation.principal)}`,
+         `Taux d'interet: ${calculation.interestRate}%`,
+         `Interets: ${formatAmountFCFA(calculation.interestAmount)}`,
+         `Montant total a rembourser: ${formatAmountFCFA(calculation.totalAmount)}`,
+         `Duree: ${calculation.durationLabel}`,
         `Objectif: ${getPurposeText()}`,
         `Pénalité de retard: 2% par jour`
-      ];
+       ];
       
       creditInfo.forEach((info, index) => {
         doc.text(info, 25, yPosition + (index * 12));
@@ -531,18 +551,21 @@ const LoanRequest = () => {
     
     doc.setFontSize(16);
     doc.setTextColor(...accentColor);
-    doc.text('INFORMATIONS DU CLIENT', 20, yPosition);
+         doc.text('INFORMATIONS DU CLIENT', 20, yPosition);
     
     yPosition += 20;
     doc.setFontSize(11);
     doc.setTextColor(...darkColor);
     
-    const clientInfo = [
-      `Nom et prenom: ${clientName}`,
-      `Filiere: ${filiere}`,
-      `Annee d'etude: ${anneeEtude}`,
-      `Statut: ${formData.employmentStatus === 'self-employed' ? 'Independent' : 'Etudiant'}`
-    ];
+         const clientInfo = [
+       `Nom et prenom: ${clientName}`,
+       `Filiere: ${filiere}`,
+       `Annee d'etude: ${anneeEtude}`,
+      `Statut: ${formData.employmentStatus === 'self-employed' ? 'Independent' : 'Etudiant'}`,
+      `Numero Momo: ${formData.momoNumber}`,
+      `Reseau: ${formData.momoNetwork}`,
+      `Nom sur le numero: ${formData.momoName}`
+     ];
     
     clientInfo.forEach((info, index) => {
       doc.text(info, 25, yPosition + (index * 12));
@@ -1140,6 +1163,42 @@ const LoanRequest = () => {
                           <option value="self-employed">Indépendant</option>
                           <option value="student">Étudiant</option>
                         </Input>
+
+                        <Input
+                          label="Numéro Momo"
+                          type="tel"
+                          name="momoNumber"
+                          value={formData.momoNumber}
+                          onChange={handleChange}
+                          placeholder="Ex: 01234567"
+                          error={errors.momoNumber}
+                          required
+                        />
+
+                        <Input
+                          label="Réseau"
+                          type="select"
+                          name="momoNetwork"
+                          value={formData.momoNetwork}
+                          onChange={handleChange}
+                          required
+                        >
+                          <option value="">Sélectionner un réseau</option>
+                          <option value="MTN">MTN</option>
+                          <option value="Moov">Moov</option>
+                          <option value="Celtiis">Celtiis</option>
+                        </Input>
+
+                        <Input
+                          label="Nom sur le numéro"
+                          type="text"
+                          name="momoName"
+                          value={formData.momoName}
+                          onChange={handleChange}
+                          placeholder="Le nom qui apparaît sur le numéro Momo"
+                          error={errors.momoName}
+                          required
+                        />
                       </div>
                     </Card>
 
@@ -1147,23 +1206,19 @@ const LoanRequest = () => {
                     <div className="space-y-6">
                       <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
                         <div className="flex items-center space-x-3 mb-4">
-                          <Clock className="w-6 h-6" />
+                          <AlertCircle className="w-6 h-6" />
                           <h3 className="text-lg font-semibold font-montserrat">
-                            Délais de traitement
+                            Informations importantes
                           </h3>
                         </div>
                         <div className="space-y-3">
                           <div className="flex items-center space-x-3">
                             <CheckCircle className="w-5 h-5 text-green-300" />
-                            <span className="font-montserrat">Validation automatique : 2h</span>
+                            <span className="font-montserrat">Validation automatique en 1h max</span>
                           </div>
                           <div className="flex items-center space-x-3">
-                            <CheckCircle className="w-5 h-5 text-green-300" />
-                            <span className="font-montserrat">Validation manuelle : 24h</span>
-                          </div>
-                          <div className="flex items-center space-x-3">
-                            <CheckCircle className="w-5 h-5 text-green-300" />
-                            <span className="font-montserrat">Versement : 48h max</span>
+                            <AlertCircle className="w-5 h-5 text-yellow-300" />
+                            <span className="font-montserrat">Le numéro momo doit porter obligatoirement le nom du propriétaire du compte AB Campus finance</span>
                           </div>
                         </div>
                       </Card>
@@ -1278,30 +1333,60 @@ const LoanRequest = () => {
                         </p>
                       </div>
                       
-                                            <div className="max-w-2xl mx-auto mb-8">
-                        <div className="p-4 bg-accent-50 rounded-xl">
-                          <h4 className="font-semibold text-secondary-900 font-montserrat mb-2">Détails du prêt</h4>
-                          <div className="space-y-2 text-sm">
+                                            <div className="max-w-2xl mx-auto mb-8 space-y-4">
+                          <div className="p-4 bg-accent-50 rounded-xl">
+                            <h4 className="font-semibold text-secondary-900 font-montserrat mb-2">Détails du prêt</h4>
+                            <div className="space-y-2 text-sm">
+                              <div className="flex justify-between">
+                                <span className="text-secondary-600 font-montserrat">Catégorie:</span>
+                                <span className="font-medium text-secondary-900 font-montserrat">
+                                  {loanCategories.find(c => c.id === selectedCategory)?.name}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-secondary-600 font-montserrat">Montant:</span>
+                                <span className="font-medium text-secondary-900 font-montserrat">
+                                  {formatCurrency(parseFloat(formData.amount) || 0)}
+                                </span>
+                              </div>
+                              <div className="flex justify-between">
+                                <span className="text-secondary-600 font-montserrat">Durée:</span>
+                                <span className="font-medium text-secondary-900 font-montserrat">
+                                  {LOAN_CONFIG.durations.find(d => d.days === parseInt(formData.duration))?.label}
+                                </span>
+                              </div>
                             <div className="flex justify-between">
-                              <span className="text-secondary-600 font-montserrat">Catégorie:</span>
+                              <span className="text-secondary-600 font-montserrat">Statut professionnel:</span>
                               <span className="font-medium text-secondary-900 font-montserrat">
-                                {loanCategories.find(c => c.id === selectedCategory)?.name}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-secondary-600 font-montserrat">Montant:</span>
-                              <span className="font-medium text-secondary-900 font-montserrat">
-                                {formatCurrency(parseFloat(formData.amount) || 0)}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-secondary-600 font-montserrat">Durée:</span>
-                              <span className="font-medium text-secondary-900 font-montserrat">
-                                {LOAN_CONFIG.durations.find(d => d.days === parseInt(formData.duration))?.label}
+                                {formData.employmentStatus === 'self-employed' ? 'Indépendant' : 'Étudiant'}
                               </span>
                             </div>
                           </div>
                         </div>
+
+                        <div className="p-4 bg-blue-50 rounded-xl">
+                          <h4 className="font-semibold text-blue-900 font-montserrat mb-2">Informations de paiement</h4>
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-blue-700 font-montserrat">Numéro Momo:</span>
+                              <span className="font-medium text-blue-900 font-montserrat">
+                                {formData.momoNumber}
+                                </span>
+                              </div>
+                            <div className="flex justify-between">
+                              <span className="text-blue-700 font-montserrat">Réseau:</span>
+                              <span className="font-medium text-blue-900 font-montserrat">
+                                {formData.momoNetwork}
+                                </span>
+                              </div>
+                            <div className="flex justify-between">
+                              <span className="text-blue-700 font-montserrat">Nom sur le numéro:</span>
+                              <span className="font-medium text-blue-900 font-montserrat">
+                                {formData.momoName}
+                                </span>
+                              </div>
+                              </div>
+                            </div>
                       </div>
 
                       {/* Notice de téléchargement */}
@@ -1385,18 +1470,18 @@ const LoanRequest = () => {
                       </Button>
                     ) : (
                       // Bouton normal pour les autres étapes
-                      <Button
-                        onClick={nextStep}
-                        className="flex items-center space-x-2 bg-primary-500 hover:bg-primary-600 relative overflow-hidden"
+                    <Button
+                      onClick={nextStep}
+                      className="flex items-center space-x-2 bg-primary-500 hover:bg-primary-600 relative overflow-hidden"
+                    >
+                      <span>Suivant</span>
+                      <motion.div
+                        whileHover={{ rotate: 10 }}
+                        transition={{ duration: 0.3 }}
                       >
-                        <span>Suivant</span>
-                        <motion.div
-                          whileHover={{ rotate: 10 }}
-                          transition={{ duration: 0.3 }}
-                        >
-                          <ArrowRight className="w-4 h-4" />
-                        </motion.div>
-                      </Button>
+                        <ArrowRight className="w-4 h-4" />
+                      </motion.div>
+                    </Button>
                     )}
                   </motion.div>
                 ) : (

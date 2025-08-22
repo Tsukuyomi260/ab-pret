@@ -1,7 +1,6 @@
 -- =====================================================
 -- AJOUT DE LA CONTRAINTE DE VALIDATION DU MONTANT MINIMUM
 -- =====================================================
-
 -- Vérifier que la table loans existe
 DO $$
 BEGIN

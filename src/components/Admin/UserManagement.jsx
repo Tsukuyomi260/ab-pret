@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../context/NotificationContext';
 import { getAllUsers, updateUserStatus } from '../../utils/supabaseAPI';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import { 
   ArrowLeft, 
   Search, 
@@ -18,7 +18,16 @@ import {
   Calendar,
   RefreshCw,
   FileText,
-  User
+  User,
+  X,
+  MapPin,
+  GraduationCap,
+  Building,
+  Shield,
+  AlertTriangle,
+  FileImage,
+  Home,
+  CreditCard
 } from 'lucide-react';
 import Card from '../UI/Card';
 import Button from '../UI/Button';
@@ -30,6 +39,8 @@ const UserManagement = () => {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [selectedUser, setSelectedUser] = useState(null);
+  const [showDetailsModal, setShowDetailsModal] = useState(false);
 
   useEffect(() => {
     loadUsers();
@@ -54,7 +65,28 @@ const UserManagement = () => {
           totalLoans: 0, // À calculer si nécessaire
           activeLoans: 0, // À calculer si nécessaire
           totalAmount: 0, // À calculer si nécessaire
-          verified: user.status === 'approved'
+          verified: user.status === 'approved',
+          // Informations personnelles
+          filiere: user.filiere || 'Non spécifiée',
+          anneeEtude: user.annee_etude || 'Non spécifiée',
+          entite: user.entite || 'Non spécifiée',
+          address: user.address || 'Non spécifiée',
+          facebookName: user.facebook_name || 'Non spécifié',
+          // Informations du témoin
+          temoinName: user.temoin_name || 'Non spécifié',
+          temoinQuartier: user.temoin_quartier || 'Non spécifié',
+          temoinPhone: user.temoin_phone || 'Non spécifié',
+          temoinEmail: user.temoin_email || 'Non spécifié',
+          // Informations d'urgence
+          emergencyName: user.emergency_name || 'Non spécifié',
+          emergencyRelation: user.emergency_relation || 'Non spécifié',
+          emergencyPhone: user.emergency_phone || 'Non spécifié',
+          emergencyEmail: user.emergency_email || 'Non spécifié',
+          emergencyAddress: user.emergency_address || 'Non spécifié',
+          // Documents
+          userIdentityCard: user.user_identity_card_name || 'Non spécifié',
+          temoinIdentityCard: user.temoin_identity_card_name || 'Non spécifié',
+          studentCard: user.student_card_name || 'Non spécifié'
         }));
         
         setUsers(formattedUsers);
@@ -108,6 +140,16 @@ const UserManagement = () => {
       console.error('[ADMIN] Erreur lors du rejet:', error.message);
       showError('Erreur lors du rejet');
     }
+  };
+
+  const handleViewDetails = (user) => {
+    setSelectedUser(user);
+    setShowDetailsModal(true);
+  };
+
+  const closeDetailsModal = () => {
+    setShowDetailsModal(false);
+    setSelectedUser(null);
   };
 
   const getStatusColor = (status) => {
@@ -304,6 +346,7 @@ const UserManagement = () => {
                       <Button
                     variant="outline"
                     className="flex items-center space-x-2"
+                    onClick={() => handleViewDetails(user)}
                   >
                     <Eye size={16} />
                     <span>Voir détails</span>
@@ -331,6 +374,301 @@ const UserManagement = () => {
           )}
         </div>
       </div>
+
+      {/* Modal de détails */}
+      <AnimatePresence>
+        {showDetailsModal && selectedUser && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
+            onClick={closeDetailsModal}
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0, y: 20 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+              className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header du modal - Style Apple */}
+              <div className="bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold font-montserrat">
+                      Profil Utilisateur
+                    </h2>
+                    <p className="text-blue-100 text-sm mt-1">
+                      {selectedUser.firstName} {selectedUser.lastName}
+                    </p>
+                  </div>
+                  <button
+                    onClick={closeDetailsModal}
+                    className="p-2 hover:bg-white/20 rounded-full transition-colors"
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
+              </div>
+
+              {/* Contenu du modal - Scrollable */}
+              <div className="overflow-y-auto max-h-[calc(90vh-120px)]">
+                <div className="p-6 space-y-6">
+                    
+                  {/* Informations personnelles */}
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border border-blue-200">
+                    <h3 className="text-lg font-semibold text-blue-900 font-montserrat mb-4 flex items-center">
+                      <User className="w-5 h-5 mr-2" />
+                      Informations Personnelles
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-sm text-blue-700 font-medium">Nom complet</p>
+                          <p className="text-blue-900 font-semibold text-lg">
+                            {selectedUser.firstName} {selectedUser.lastName}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-blue-700 font-medium flex items-center">
+                            <Mail className="w-4 h-4 mr-1" />
+                            Email
+                          </p>
+                          <p className="text-blue-900">{selectedUser.email}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-blue-700 font-medium flex items-center">
+                            <Phone className="w-4 h-4 mr-1" />
+                            Téléphone
+                          </p>
+                          <p className="text-blue-900">{selectedUser.phone}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-blue-700 font-medium flex items-center">
+                            <Home className="w-4 h-4 mr-1" />
+                            Adresse
+                          </p>
+                          <p className="text-blue-900">{selectedUser.address}</p>
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-sm text-blue-700 font-medium flex items-center">
+                            <GraduationCap className="w-4 h-4 mr-1" />
+                            Filière
+                          </p>
+                          <p className="text-blue-900">{selectedUser.filiere}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-blue-700 font-medium">Année d'étude</p>
+                          <p className="text-blue-900">{selectedUser.anneeEtude}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-blue-700 font-medium flex items-center">
+                            <Building className="w-4 h-4 mr-1" />
+                            Entité
+                          </p>
+                          <p className="text-blue-900">{selectedUser.entite}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-blue-700 font-medium">Nom Facebook</p>
+                          <p className="text-blue-900">{selectedUser.facebookName}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Informations du témoin */}
+                  <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-6 border border-green-200">
+                    <h3 className="text-lg font-semibold text-green-900 font-montserrat mb-4 flex items-center">
+                      <Shield className="w-5 h-5 mr-2" />
+                      Informations du Témoin
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-sm text-green-700 font-medium">Nom du témoin</p>
+                          <p className="text-green-900 font-semibold">{selectedUser.temoinName}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-green-700 font-medium flex items-center">
+                            <MapPin className="w-4 h-4 mr-1" />
+                            Quartier
+                          </p>
+                          <p className="text-green-900">{selectedUser.temoinQuartier}</p>
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-sm text-green-700 font-medium flex items-center">
+                            <Phone className="w-4 h-4 mr-1" />
+                            Téléphone
+                          </p>
+                          <p className="text-green-900">{selectedUser.temoinPhone}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-green-700 font-medium flex items-center">
+                            <Mail className="w-4 h-4 mr-1" />
+                            Email
+                          </p>
+                          <p className="text-green-900">{selectedUser.temoinEmail}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Contact d'urgence */}
+                  <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-2xl p-6 border border-red-200">
+                    <h3 className="text-lg font-semibold text-red-900 font-montserrat mb-4 flex items-center">
+                      <AlertTriangle className="w-5 h-5 mr-2" />
+                      Contact d'Urgence
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-sm text-red-700 font-medium">Nom du contact</p>
+                          <p className="text-red-900 font-semibold">{selectedUser.emergencyName}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-red-700 font-medium">Relation</p>
+                          <p className="text-red-900">{selectedUser.emergencyRelation}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-red-700 font-medium flex items-center">
+                            <Phone className="w-4 h-4 mr-1" />
+                            Téléphone
+                          </p>
+                          <p className="text-red-900">{selectedUser.emergencyPhone}</p>
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-sm text-red-700 font-medium flex items-center">
+                            <Mail className="w-4 h-4 mr-1" />
+                            Email
+                          </p>
+                          <p className="text-red-900">{selectedUser.emergencyEmail}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-red-700 font-medium flex items-center">
+                            <Home className="w-4 h-4 mr-1" />
+                            Adresse
+                          </p>
+                          <p className="text-red-900">{selectedUser.emergencyAddress}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Documents */}
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-6 border border-purple-200">
+                    <h3 className="text-lg font-semibold text-purple-900 font-montserrat mb-4 flex items-center">
+                      <FileImage className="w-5 h-5 mr-2" />
+                      Documents
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <p className="text-sm text-purple-700 font-medium">Carte d'identité</p>
+                        <p className="text-purple-900 font-semibold">{selectedUser.userIdentityCard}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-purple-700 font-medium">Carte d'identité témoin</p>
+                        <p className="text-purple-900 font-semibold">{selectedUser.temoinIdentityCard}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-purple-700 font-medium">Carte d'étudiant</p>
+                        <p className="text-purple-900 font-semibold">{selectedUser.studentCard}</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Informations du compte */}
+                  <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl p-6 border border-orange-200">
+                    <h3 className="text-lg font-semibold text-orange-900 font-montserrat mb-4 flex items-center">
+                      <CreditCard className="w-5 h-5 mr-2" />
+                      Informations du Compte
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-sm text-orange-700 font-medium">Statut du compte</p>
+                          <span className={`px-3 py-1 rounded-full text-xs font-medium flex items-center justify-center space-x-1 w-fit ${getStatusColor(selectedUser.status)}`}>
+                            {getStatusIcon(selectedUser.status)}
+                            <span>{getStatusText(selectedUser.status)}</span>
+                          </span>
+                        </div>
+                        <div>
+                          <p className="text-sm text-orange-700 font-medium">Date d'inscription</p>
+                          <p className="text-orange-900">
+                            {new Date(selectedUser.registrationDate).toLocaleDateString('fr-FR', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric',
+                              hour: '2-digit',
+                              minute: '2-digit'
+                            })}
+                          </p>
+                        </div>
+                      </div>
+                      <div className="space-y-3">
+                        <div>
+                          <p className="text-sm text-orange-700 font-medium">Prêts totaux</p>
+                          <p className="text-orange-900 font-semibold text-xl">{selectedUser.totalLoans}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-orange-700 font-medium">Prêts actifs</p>
+                          <p className="text-orange-900 font-semibold text-xl">{selectedUser.activeLoans}</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                </div>
+              </div>
+
+              {/* Footer du modal */}
+              <div className="bg-gray-50 border-t border-gray-200 p-6">
+                <div className="flex items-center justify-end space-x-3">
+                  <Button
+                    variant="outline"
+                    onClick={closeDetailsModal}
+                    className="flex items-center space-x-2"
+                  >
+                    <X size={16} />
+                    <span>Fermer</span>
+                  </Button>
+                  {selectedUser.status === 'pending' && (
+                    <Button
+                      onClick={() => {
+                        handleApproveUser(selectedUser.id);
+                        closeDetailsModal();
+                      }}
+                      className="flex items-center space-x-2 bg-green-500 hover:bg-green-600"
+                    >
+                      <UserCheck size={16} />
+                      <span>Approuver</span>
+                    </Button>
+                  )}
+                  {selectedUser.status === 'active' && (
+                    <Button
+                      onClick={() => {
+                        handleSuspendUser(selectedUser.id);
+                        closeDetailsModal();
+                      }}
+                      variant="outline"
+                      className="flex items-center space-x-2 border-red-200 text-red-600 hover:bg-red-50"
+                    >
+                      <UserX size={16} />
+                      <span>Suspendre</span>
+                    </Button>
+                  )}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };

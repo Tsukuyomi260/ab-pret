@@ -206,7 +206,7 @@ const FedaPayEmbed = ({
                     type="tel"
                     value={phoneNumber}
                     onChange={(e) => setPhoneNumber(e.target.value)}
-                    placeholder="Ex: +225 0701234567"
+                    placeholder="Ex: +229 12345678"
                     className="w-full p-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   />
                 </div>

@@ -395,6 +395,7 @@ export const updateUserProfile = async (userId, profileData) => {
     if (profileData.filiere) updateData.filiere = profileData.filiere;
     if (profileData.annee_etude) updateData.annee_etude = profileData.annee_etude;
     if (profileData.entite) updateData.entite = profileData.entite;
+    if (profileData.facebook_name) updateData.facebook_name = profileData.facebook_name;
 
     // Ajouter les informations du témoin
     if (profileData.temoin_name) updateData.temoin_name = profileData.temoin_name;
@@ -412,6 +413,12 @@ export const updateUserProfile = async (userId, profileData) => {
     // Ajouter les noms des documents
     if (profileData.user_identity_card_name) updateData.user_identity_card_name = profileData.user_identity_card_name;
     if (profileData.temoin_identity_card_name) updateData.temoin_identity_card_name = profileData.temoin_identity_card_name;
+    if (profileData.student_card_name) updateData.student_card_name = profileData.student_card_name;
+
+    // Ajouter les URLs des documents
+    if (profileData.user_identity_card_url) updateData.user_identity_card_url = profileData.user_identity_card_url;
+    if (profileData.temoin_identity_card_url) updateData.temoin_identity_card_url = profileData.temoin_identity_card_url;
+    if (profileData.student_card_url) updateData.student_card_url = profileData.student_card_url;
 
     // 1. Mettre à jour la table users
     const { error: userError } = await supabase
@@ -451,14 +458,40 @@ export const updateUserProfile = async (userId, profileData) => {
 
 export const getAllUsers = async () => {
   try {
-    const { data, error } = await supabase
+    // Récupérer tous les utilisateurs avec leurs informations complètes
+    const { data: users, error: usersError } = await supabase
       .from('users')
       .select('*')
       .order('created_at', { ascending: false });
 
-    if (error) throw error;
+    if (usersError) throw usersError;
 
-    return { success: true, data };
+    // Récupérer tous les prêts pour calculer les statistiques
+    const { data: loans, error: loansError } = await supabase
+      .from('loans')
+      .select('id, user_id, status, amount')
+      .order('created_at', { ascending: false });
+
+    if (loansError) throw loansError;
+
+    // Calculer les statistiques pour chaque utilisateur
+    const usersWithStats = users.map(user => {
+      const userLoans = loans.filter(loan => loan.user_id === user.id);
+      const totalLoans = userLoans.length;
+      const activeLoans = userLoans.filter(loan => 
+        loan.status === 'approved' || loan.status === 'active'
+      ).length;
+      const totalAmount = userLoans.reduce((sum, loan) => sum + (loan.amount || 0), 0);
+
+      return {
+        ...user,
+        totalLoans,
+        activeLoans,
+        totalAmount
+      };
+    });
+
+    return { success: true, data: usersWithStats };
   } catch (error) {
     console.error('[SUPABASE] Erreur lors de la récupération des utilisateurs:', error.message);
     return { success: false, error: error.message };
@@ -527,7 +560,25 @@ export const getLoans = async (userId = null) => {
           id,
           first_name,
           last_name,
-          email
+          email,
+          phone_number,
+          filiere,
+          annee_etude,
+          entite,
+          address,
+          facebook_name,
+          temoin_name,
+          temoin_quartier,
+          temoin_phone,
+          temoin_email,
+          emergency_name,
+          emergency_relation,
+          emergency_phone,
+          emergency_email,
+          emergency_address,
+          user_identity_card_name,
+          temoin_identity_card_name,
+          student_card_name
         )
       `)
       .order('created_at', { ascending: false });

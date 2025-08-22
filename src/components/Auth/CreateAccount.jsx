@@ -33,9 +33,10 @@ const CreateAccount = () => {
   const [basicInfo, setBasicInfo] = useState({
     firstName: '',
     lastName: '',
-    email: '', // Ajouter l'email
+    email: '',
+    facebookName: '',
     phoneNumber: '',
-    address: '', // Ajouter l'adresse
+    address: '',
     password: '',
     confirmPassword: ''
   });
@@ -80,9 +81,16 @@ const CreateAccount = () => {
       newErrors.address = 'L\'adresse est requise';
     }
 
-    // Validation de l'email (optionnel mais doit être valide si fourni)
-    if (basicInfo.email && !validateEmail(basicInfo.email)) {
+    // Validation de l'email
+    if (!basicInfo.email.trim()) {
+      newErrors.email = 'L\'adresse email est requise';
+    } else if (!validateEmail(basicInfo.email)) {
       newErrors.email = 'Email invalide';
+    }
+
+    // Validation du champ Facebook
+    if (!basicInfo.facebookName.trim()) {
+      newErrors.facebookName = 'Le nom du profil Facebook est requis';
     }
 
     // Validation du numéro de téléphone béninois
@@ -124,9 +132,10 @@ const CreateAccount = () => {
             basicInfo: {
               firstName: basicInfo.firstName,
               lastName: basicInfo.lastName,
-              email: basicInfo.email, // Ajouter l'email
+              email: basicInfo.email,
+              facebookName: basicInfo.facebookName,
               phoneNumber: basicInfo.phoneNumber,
-              address: basicInfo.address, // Ajouter l'adresse
+              address: basicInfo.address,
               password: basicInfo.password,
               confirmPassword: basicInfo.confirmPassword
             },
@@ -180,14 +189,24 @@ const CreateAccount = () => {
         </div>
 
         <Input
-          label="Adresse email (optionnel)"
+          label="Adresse email"
           type="email"
           name="email"
           value={basicInfo.email}
           onChange={handleBasicInfoChange}
           error={errors.email}
           icon={Mail}
-          placeholder="votre@email.com (optionnel)"
+          placeholder="votre@email.com"
+        />
+
+        <Input
+          label="Nom du profil Facebook"
+          name="facebookName"
+          value={basicInfo.facebookName}
+          onChange={handleBasicInfoChange}
+          error={errors.facebookName}
+          icon={User}
+          placeholder="Votre nom de profil Facebook"
         />
 
         <Input
@@ -198,7 +217,7 @@ const CreateAccount = () => {
           onChange={handleBasicInfoChange}
           error={errors.phoneNumber}
           icon={Phone}
-          placeholder="Ex: 0123456789 ou +229 12345678"
+                     placeholder="Ex: 01234567 ou +229 12345678"
         />
 
         <Input
@@ -260,8 +279,9 @@ const CreateAccount = () => {
           <h3 className="font-semibold text-gray-900 mb-3">Informations personnelles</h3>
           <div className="space-y-2 text-sm">
             <p><span className="font-medium">Nom complet:</span> {basicInfo.firstName} {basicInfo.lastName}</p>
+            <p><span className="font-medium">Email:</span> {basicInfo.email}</p>
+            <p><span className="font-medium">Nom Facebook:</span> {basicInfo.facebookName}</p>
             <p><span className="font-medium">Téléphone:</span> {basicInfo.phoneNumber}</p>
-            {basicInfo.email && <p><span className="font-medium">Email:</span> {basicInfo.email}</p>}
             <p><span className="font-medium">Adresse:</span> {basicInfo.address}</p>
           </div>
         </div>
@@ -294,24 +314,7 @@ const CreateAccount = () => {
         <h2 className="text-2xl font-bold text-gray-900 mb-2">
           Compte créé avec succès !
         </h2>
-        <p className="text-gray-600">
-          Votre compte a été créé avec succès. Nous allons maintenant compléter votre profil.
-        </p>
       </div>
-
-      <motion.div
-        initial={{ opacity: 0 }}
-        animate={{ opacity: 1 }}
-        transition={{ delay: 0.5 }}
-        className="bg-blue-50 border border-blue-200 rounded-lg p-4"
-      >
-        <div className="flex items-center space-x-2">
-          <Shield size={16} className="text-blue-600" />
-          <p className="text-sm text-blue-800">
-            Vos données sont sécurisées et protégées par notre système de sécurité avancé.
-          </p>
-        </div>
-      </motion.div>
     </motion.div>
   );
 
