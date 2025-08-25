@@ -41,7 +41,7 @@ const FedaPaySimpleButton = () => {
       disabled={!scriptLoaded}
       className="w-full p-4 border rounded bg-green-600 text-white hover:bg-green-700 transition"
     >
-      Payer 1000 FCFA
+      Payer 1000 FCFA- Frais de création
     </button>
   );
 };
