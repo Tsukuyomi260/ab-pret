@@ -1021,6 +1021,128 @@ export const updateSavingsAccount = async (userId, updateData) => {
   }
 };
 
+// Fonction pour vérifier si l'utilisateur a un plan d'épargne configuré
+export const getSavingsPlanStatus = async (userId) => {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Configuration Supabase manquante' };
+    }
+
+    // Vérifier si l'utilisateur a un compte épargne
+    const { data: savingsAccount, error: accountError } = await supabase
+      .from('savings_accounts')
+      .select('*')
+      .eq('user_id', userId)
+      .single();
+
+    if (accountError && accountError.code === 'PGRST116') {
+      // Pas de compte épargne
+      return { 
+        success: true, 
+        data: { 
+          hasAccount: false, 
+          hasConfiguredPlan: false, 
+          isFirstVisit: true 
+        } 
+      };
+    } else if (accountError) {
+      throw accountError;
+    }
+
+    // Vérifier s'il y a des transactions (indique un plan actif)
+    const { data: transactions, error: transactionsError } = await supabase
+      .from('savings_transactions')
+      .select('id, type, created_at')
+      .eq('user_id', userId)
+      .order('created_at', { ascending: false })
+      .limit(1);
+
+    if (transactionsError) throw transactionsError;
+
+    const hasTransactions = transactions && transactions.length > 0;
+    const hasConfiguredPlan = hasTransactions || (savingsAccount.balance > 0);
+
+    return { 
+      success: true, 
+      data: { 
+        hasAccount: true, 
+        hasConfiguredPlan: hasConfiguredPlan, 
+        isFirstVisit: !hasConfiguredPlan,
+        account: savingsAccount,
+        lastTransaction: transactions?.[0] || null
+      } 
+    };
+  } catch (error) {
+    console.error('[SUPABASE] Erreur lors de la vérification du statut du plan d\'épargne:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+// Fonction pour créer un plan d'épargne
+export const createSavingsPlan = async (userId, planData) => {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Configuration Supabase manquante' };
+    }
+
+    const planConfig = {
+      user_id: userId,
+      fixed_amount: parseFloat(planData.fixedAmount),
+      frequency: parseInt(planData.frequency),
+      duration: parseInt(planData.duration),
+      total_deposits: planData.totalDeposits,
+      total_amount: planData.totalAmount,
+      estimated_benefits: planData.estimatedBenefits,
+      status: 'active',
+      created_at: new Date().toISOString(),
+      start_date: new Date().toISOString()
+    };
+
+    const { data, error } = await supabase
+      .from('savings_plans')
+      .insert([planConfig])
+      .select()
+      .single();
+
+    if (error) throw error;
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('[SUPABASE] Erreur lors de la création du plan d\'épargne:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+// Fonction pour récupérer le plan d'épargne actif
+export const getActiveSavingsPlan = async (userId) => {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Configuration Supabase manquante' };
+    }
+
+    const { data, error } = await supabase
+      .from('savings_plans')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('status', 'active')
+      .order('created_at', { ascending: false })
+      .limit(1)
+      .single();
+
+    if (error && error.code === 'PGRST116') {
+      // Pas de plan actif
+      return { success: true, data: null };
+    } else if (error) {
+      throw error;
+    }
+
+    return { success: true, data };
+  } catch (error) {
+    console.error('[SUPABASE] Erreur lors de la récupération du plan d\'épargne:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
 // ===== FEDAPAY LOAN REPAYMENT =====
 
 export const processFedaPayLoanRepayment = async (transactionData) => {

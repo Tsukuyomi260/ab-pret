@@ -5,11 +5,15 @@ import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
 import Card from '../UI/Card';
 import Button from '../UI/Button';
+import FedaPayButton from '../UI/FedaPayButton';
 import { 
   getSavingsAccount, 
   getSavingsTransactions, 
   createSavingsTransaction, 
-  updateSavingsAccount 
+  updateSavingsAccount,
+  getSavingsPlanStatus,
+  createSavingsPlan,
+  getActiveSavingsPlan
 } from '../../utils/supabaseAPI';
 import { 
   PiggyBank,
@@ -179,6 +183,33 @@ const ABEpargne = () => {
 
       try {
         setLoading(true);
+        
+        // Vérifier le statut du plan d'épargne
+        const planStatusResult = await getSavingsPlanStatus(user.id);
+        
+        if (planStatusResult.success) {
+          const planStatus = planStatusResult.data;
+          
+          // Mettre à jour le statut du compte
+          setAccountStatus({
+            hasAccount: planStatus.hasAccount,
+            hasConfiguredPlan: planStatus.hasConfiguredPlan,
+            isFirstVisit: planStatus.isFirstVisit
+          });
+
+          // Si c'est la première visite, afficher le modal de configuration
+          if (planStatus.isFirstVisit) {
+            setShowPlanConfigModal(true);
+          }
+
+          // Récupérer le plan actif s'il existe
+          if (planStatus.hasConfiguredPlan) {
+            const activePlanResult = await getActiveSavingsPlan(user.id);
+            if (activePlanResult.success && activePlanResult.data) {
+              setActivePlan(activePlanResult.data);
+            }
+          }
+        }
         
         // Récupérer le compte épargne et les transactions
         const [accountResult, transactionsResult] = await Promise.all([
@@ -423,6 +454,188 @@ const ABEpargne = () => {
       ...prev,
       [field]: value
     }));
+  };
+
+  // Fonction pour créer le plan d'épargne
+  const handleCreatePlan = async () => {
+    console.log('[ABEPARGNE] handleCreatePlan appelé');
+    console.log('[ABEPARGNE] planConfig:', planConfig);
+    console.log('[ABEPARGNE] user:', user);
+    
+    // Vérification du montant minimum
+    if (planConfig.fixedAmount < 300) {
+      showError('Le montant minimum est de 300 FCFA');
+      return;
+    }
+
+    // Vérifie si le script FedaPay est chargé
+    console.log('[ABEPARGNE] Vérification du script FedaPay...');
+    console.log('[ABEPARGNE] Script element:', document.getElementById('fedapay-checkout'));
+    console.log('[ABEPARGNE] window.FedaPay disponible:', !!window.FedaPay);
+    console.log('[ABEPARGNE] Type de window.FedaPay:', typeof window.FedaPay);
+    
+    if (!document.getElementById('fedapay-checkout')) {
+      console.log('[ABEPARGNE] Chargement du script FedaPay...');
+      const script = document.createElement('script');
+      script.src = 'https://cdn.fedapay.com/checkout.js?v=1.1.6';
+      script.id = 'fedapay-checkout';
+      script.onload = () => {
+        console.log('[ABEPARGNE] Script FedaPay chargé avec succès');
+        console.log('[ABEPARGNE] window.FedaPay après chargement:', window.FedaPay);
+        console.log('[ABEPARGNE] Type de window.FedaPay après chargement:', typeof window.FedaPay);
+        launchFedaPay();
+      };
+      script.onerror = (error) => {
+        console.error('[ABEPARGNE] Erreur lors du chargement du script FedaPay:', error);
+        console.error('[ABEPARGNE] URL du script:', script.src);
+        showError('Erreur lors du chargement du système de paiement');
+      };
+      document.body.appendChild(script);
+      console.log('[ABEPARGNE] Script ajouté au DOM');
+    } else {
+      console.log('[ABEPARGNE] Script FedaPay déjà chargé, lancement...');
+      console.log('[ABEPARGNE] window.FedaPay déjà disponible:', window.FedaPay);
+      launchFedaPay();
+    }
+
+    function launchFedaPay() {
+      console.log('[ABEPARGNE] launchFedaPay appelé');
+      console.log('[ABEPARGNE] window.FedaPay:', window.FedaPay);
+      
+      if (window.FedaPay) {
+        console.log('[ABEPARGNE] Initialisation de FedaPay...');
+        try {
+          console.log('[ABEPARGNE] Configuration FedaPay:', {
+            public_key: 'pk_sandbox_ZXhGKFGNXwn853-mYF9pANmi',
+            amount: planConfig.fixedAmount,
+            customer: {
+              firstname: user.firstname || 'Client',
+              lastname: user.lastname || '',
+              email: user.email || 'client@example.com',
+              phone: user.phone || '97000000'
+            }
+          });
+
+          // Vérifier que le montant est valide
+          if (!planConfig.fixedAmount || planConfig.fixedAmount < 100) {
+            throw new Error('Montant invalide: ' + planConfig.fixedAmount);
+          }
+
+          // Configuration FedaPay avec gestion d'erreur améliorée
+          const fedapayConfig = {
+            public_key: 'pk_sandbox_ZXhGKFGNXwn853-mYF9pANmi',
+            transaction: {
+              amount: parseInt(planConfig.fixedAmount), // S'assurer que c'est un entier
+              description: "Paiement du plan d'épargne AB Campus Finance",
+              currency: {
+                iso: 'XOF'
+              }
+            },
+            customer: {
+              firstname: user.firstname || 'Client',
+              lastname: user.lastname || '',
+              email: user.email || 'client@example.com',
+              phone_number: {
+                number: user.phone || '97000000',
+                country: 'BJ'
+              }
+            },
+            onSuccess: (response) => {
+              console.log('[ABEPARGNE] Paiement réussi:', response);
+              createSavingsPlanAfterPayment(response);
+            },
+            onError: (error) => {
+              console.error('[ABEPARGNE] Erreur de paiement:', error);
+              showError('Erreur lors du paiement: ' + (error.message || 'Paiement échoué'));
+            },
+            onClose: () => {
+              console.log('[ABEPARGNE] Modal FedaPay fermé');
+            }
+          };
+
+          console.log('[ABEPARGNE] Configuration complète:', fedapayConfig);
+          
+          // Attendre un peu avant d'initialiser
+          setTimeout(() => {
+            window.FedaPay.init(fedapayConfig);
+            console.log('[ABEPARGNE] FedaPay initialisé avec succès et modal ouvert');
+            
+            setTimeout(() => {
+              if (window.FedaPay && typeof window.FedaPay.init === 'function') {
+                console.log('[DEBUG] Tentative d\'ouverture manuelle de la modal...');
+                window.FedaPay.init({
+                  public_key: 'pk_sandbox_ZXhGKFGNXwn853-mYF9pANmi',
+                  transaction: {
+                    amount: parseInt(planConfig.fixedAmount),
+                    description: "Paiement du plan d'épargne AB Campus Finance",
+                    currency: {
+                      iso: 'XOF'
+                    }
+                  },
+                  customer: {
+                    firstname: user.firstname || 'Client',
+                    lastname: user.lastname || '',
+                    email: user.email || 'client@example.com',
+                    phone_number: {
+                      number: user.phone || '97000000',
+                      country: 'BJ'
+                    }
+                  },
+                  // Ajoute un callback simple :
+                  onSuccess: function () {
+                    console.log('[DEBUG] Paiement réussi');
+                  },
+                  onError: function (e) {
+                    console.error('[DEBUG] Erreur de paiement', e);
+                  }
+                });
+              }
+            }, 100);
+          }, 500);
+          
+        } catch (error) {
+          console.error('[ABEPARGNE] Erreur détaillée lors de l\'initialisation de FedaPay:', error);
+          console.error('[ABEPARGNE] Stack trace:', error.stack);
+          showError('Erreur lors de l\'initialisation du paiement: ' + error.message);
+        }
+      } else {
+        console.error('[ABEPARGNE] FedaPay n\'est pas disponible');
+        showError('Système de paiement non disponible');
+      }
+    }
+  };
+
+  // Fonction pour créer le plan d'épargne après paiement réussi
+  const createSavingsPlanAfterPayment = async (paymentResponse) => {
+    console.log('[ABEPARGNE] Création du plan après paiement:', paymentResponse);
+    
+    try {
+      // Créer le plan d'épargne
+      const planResult = await createSavingsPlan(user.id, planConfig);
+      
+      if (planResult.success) {
+        // Mettre à jour l'état local
+        setActivePlan(planResult.data);
+        setAccountStatus(prev => ({
+          ...prev,
+          hasConfiguredPlan: true,
+          isFirstVisit: false
+        }));
+        
+        // Fermer le modal de configuration
+        setShowPlanConfigModal(false);
+        
+        showSuccess('Plan d\'épargne créé avec succès après paiement !');
+        
+        // Recharger les données en appelant useEffect
+        window.location.reload();
+      } else {
+        showError('Erreur lors de la création du plan d\'épargne');
+      }
+    } catch (error) {
+      console.error('[ABEPARGNE] Erreur lors de la création du plan après paiement:', error);
+      showError('Erreur lors de la création du plan');
+    }
   };
 
   // Fonction pour calculer les données du tableau de bord - ÉTAPE 3
@@ -1196,10 +1409,21 @@ const ABEpargne = () => {
                 transition={{ duration: 0.6, delay: 0.1 }}
                 className="text-4xl lg:text-6xl font-bold text-gray-900 font-montserrat mb-4"
               >
+                {accountStatus.isFirstVisit ? (
+                  <>
+                    Bienvenue sur{' '}
+                    <span className="bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 bg-clip-text text-transparent">
+                      AB Épargne
+                    </span>
+                  </>
+                ) : (
+                  <>
                 Mon{' '}
                 <span className="bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 bg-clip-text text-transparent">
                   Compte Épargne
                 </span>
+                  </>
+                )}
               </motion.h1>
 
               <motion.p
@@ -1208,8 +1432,47 @@ const ABEpargne = () => {
                 transition={{ duration: 0.6, delay: 0.2 }}
                 className="text-lg text-gray-600 font-montserrat"
               >
-                Gérez vos économies et suivez vos objectifs financiers
+                {accountStatus.isFirstVisit 
+                  ? 'Commencez votre voyage vers l\'indépendance financière'
+                  : 'Gérez vos économies et suivez vos objectifs financiers'
+                }
               </motion.p>
+
+              {/* Message spécial pour les nouveaux utilisateurs */}
+              {accountStatus.isFirstVisit && (
+                <motion.div
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ duration: 0.6, delay: 0.3 }}
+                  className="mt-6 p-6 bg-gradient-to-r from-green-50 to-emerald-50 rounded-2xl border border-green-200 max-w-2xl mx-auto"
+                >
+                  <div className="flex items-center justify-center mb-4">
+                    <div className="p-3 bg-green-100 rounded-full">
+                      <Trophy size={24} className="text-green-600" />
+                    </div>
+                  </div>
+                  <h3 className="text-xl font-bold text-gray-900 mb-3">
+                    🎉 Prêt à commencer votre épargne ?
+                  </h3>
+                  <p className="text-gray-700 mb-4">
+                    Configurez votre premier plan d'épargne personnalisé et commencez à construire votre avenir financier dès aujourd'hui !
+                  </p>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">5%</div>
+                      <div className="text-gray-600">Intérêts mensuels</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">300 FCFA</div>
+                      <div className="text-gray-600">Montant minimum</div>
+                    </div>
+                    <div className="text-center">
+                      <div className="text-2xl font-bold text-green-600">24/7</div>
+                      <div className="text-gray-600">Suivi en temps réel</div>
+                    </div>
+                  </div>
+                </motion.div>
+              )}
             </div>
 
             {/* Actions principales - ÉTAPE 7 (Boutons pleine largeur) */}
@@ -1256,8 +1519,17 @@ const ABEpargne = () => {
                   onClick={() => setShowPlanConfigModal(true)}
                   className="w-full h-20 bg-gradient-to-r from-purple-500 to-pink-600 hover:from-purple-600 hover:to-pink-700 text-white shadow-md hover:shadow-lg rounded-xl flex flex-col items-center justify-center space-y-1"
                 >
+                  {accountStatus.isFirstVisit ? (
+                    <>
+                      <Trophy size={24} />
+                      <span className="text-sm font-medium">Commencer</span>
+                    </>
+                  ) : (
+                    <>
                   <Calculator size={24} />
                   <span className="text-sm font-medium">Plan</span>
+                    </>
+                  )}
                 </Button>
               </motion.div>
             </motion.div>
@@ -1312,6 +1584,7 @@ const ABEpargne = () => {
             </motion.div>
 
             {/* Tableau de bord principal - ÉTAPE 3 */}
+            {!accountStatus.isFirstVisit && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1509,6 +1782,7 @@ const ABEpargne = () => {
                 </div>
               )}
             </motion.div>
+            )}
 
 
 
@@ -1613,6 +1887,7 @@ const ABEpargne = () => {
             )}
 
             {/* Statistiques */}
+            {!accountStatus.isFirstVisit && (
             <motion.div
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
@@ -1672,6 +1947,7 @@ const ABEpargne = () => {
                 </div>
               </Card>
             </motion.div>
+            )}
 
             {/* Historique des transactions - ÉTAPE 3 */}
             <motion.div
@@ -1763,10 +2039,26 @@ const ABEpargne = () => {
                       <div className="p-4 bg-gray-100 rounded-full w-fit mx-auto mb-4">
                         <FileText size={32} className="text-gray-400" />
                       </div>
-                      <h4 className="text-lg font-semibold text-gray-900 mb-2">Aucune transaction</h4>
+                      <h4 className="text-lg font-semibold text-gray-900 mb-2">
+                        {accountStatus.isFirstVisit ? 'Bienvenue sur AB Épargne !' : 'Aucune transaction'}
+                      </h4>
                       <p className="text-gray-600">
-                        Commencez par faire votre premier dépôt pour voir l'historique ici
+                        {accountStatus.isFirstVisit 
+                          ? 'Configurez votre premier plan d\'épargne pour commencer votre voyage financier'
+                          : 'Commencez par faire votre premier dépôt pour voir l\'historique ici'
+                        }
                       </p>
+                      {accountStatus.isFirstVisit && (
+                        <div className="mt-4">
+                          <Button
+                            onClick={() => setShowPlanConfigModal(true)}
+                            className="bg-green-600 hover:bg-green-700 text-white"
+                          >
+                            <Trophy size={20} className="mr-2" />
+                            Commencer mon épargne
+                          </Button>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>
@@ -2249,8 +2541,23 @@ const ABEpargne = () => {
               <div className="p-3 bg-purple-100 rounded-full w-fit mx-auto mb-4">
                 <Calculator size={24} className="text-purple-600" />
               </div>
-              <h3 className="text-2xl font-bold text-gray-900">Configuration du plan d'épargne</h3>
-              <p className="text-gray-600 mt-2">Personnalisez votre plan d'épargne</p>
+              <h3 className="text-2xl font-bold text-gray-900">
+                {accountStatus.isFirstVisit ? 'Bienvenue sur AB Épargne !' : 'Configuration du plan d\'épargne'}
+              </h3>
+              <p className="text-gray-600 mt-2">
+                {accountStatus.isFirstVisit 
+                  ? 'Configurez votre premier plan d\'épargne pour commencer à économiser'
+                  : 'Personnalisez votre plan d\'épargne'
+                }
+              </p>
+              {accountStatus.isFirstVisit && (
+                <div className="mt-4 p-4 bg-green-50 rounded-xl border border-green-200">
+                  <p className="text-sm text-green-700">
+                    🎉 Félicitations ! Vous êtes sur le point de créer votre premier plan d'épargne. 
+                    Choisissez vos paramètres et commencez votre voyage vers l'indépendance financière.
+                  </p>
+                </div>
+              )}
             </div>
 
             <div className="space-y-6">
@@ -2365,24 +2672,30 @@ const ABEpargne = () => {
               )}
 
               {/* Actions */}
-              <div className="flex space-x-3">
+              <div className="flex flex-col space-y-2">
+                <FedaPayButton
+                  amount={planConfig.fixedAmount}
+                  email={user.email}
+                  firstname={user.first_name || user.fullName?.split(' ')[0] || 'Client'}
+                  lastname={user.last_name || user.fullName?.split(' ').slice(1).join(' ') || 'Campus'}
+                  phone={user.phone || '97000000'}
+                  onSuccess={(response) => {
+                    console.log('[ABEPARGNE] Paiement FedaPay réussi:', response);
+                    showSuccess('Paiement réussi ! Votre plan d\'épargne va être créé.');
+                    setShowPlanConfigModal(false);
+                    // TODO: Créer le plan d'épargne dans la base de données
+                  }}
+                  onError={(error) => {
+                    console.error('[ABEPARGNE] Erreur paiement FedaPay:', error);
+                    showError('Erreur lors du paiement. Veuillez réessayer.');
+                  }}
+                />
                 <Button
                   onClick={() => setShowPlanConfigModal(false)}
                   variant="outline"
-                  className="flex-1"
+                  className="w-full p-4 border border-gray-300 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent"
                 >
                   Annuler
-                </Button>
-                <Button
-                  onClick={() => {
-                    setShowPlanConfigModal(false);
-                    // Afficher le modal de paiement des frais
-                    setShowFeesPaymentModal(true);
-                  }}
-                  className="flex-1 bg-purple-600 hover:bg-purple-700"
-                  disabled={planConfig.fixedAmount < 300}
-                >
-                  Continuer
                 </Button>
               </div>
             </div>

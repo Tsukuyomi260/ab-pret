@@ -4,6 +4,7 @@ import { AuthProvider, useAuth } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { testAllConnections } from './utils/supabaseAPI';
 import { Toaster } from 'react-hot-toast';
+import updateNotifier from './utils/updateNotifier';
 import Layout from './components/Common/Layout';
 import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
@@ -34,6 +35,31 @@ import TestOTP from './components/TestOTP';
 import TestHealth from './components/TestHealth';
 import TestFedaPay from './components/TestFedaPay';
 import './styles/globals.css';
+
+// Composant de notification de mise à jour
+const UpdateNotification = ({ onUpdate }) => {
+  return (
+    <div className="fixed bottom-4 right-4 bg-blue-600 text-white p-4 rounded-lg shadow-lg z-50 max-w-sm">
+      <div className="flex items-center space-x-3">
+        <div className="flex-shrink-0">
+          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
+          </svg>
+        </div>
+        <div className="flex-1">
+          <p className="text-sm font-medium">Nouvelle version disponible</p>
+          <p className="text-xs opacity-90">Cliquez pour mettre à jour</p>
+        </div>
+        <button
+          onClick={onUpdate}
+          className="flex-shrink-0 bg-white text-blue-600 px-3 py-1 rounded text-sm font-medium hover:bg-blue-50 transition-colors"
+        >
+          Mettre à jour
+        </button>
+      </div>
+    </div>
+  );
+};
 
 // Composant de configuration pour Supabase manquant
 const ConfigurationPage = () => {
@@ -102,80 +128,223 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
   }
 
   if (!isAuthenticated) {
-    return <Navigate to="/login" />;
-  }
-
-  // Rediriger les admins vers leur dashboard s'ils essaient d'accéder aux pages client
-  if (!adminOnly && user?.role === 'admin') {
-    return <Navigate to="/admin" />;
+    return <Navigate to="/login" replace />;
   }
 
   if (adminOnly && user?.role !== 'admin') {
-    return <Navigate to="/dashboard" />;
-  }
-
-  return <Layout>{children}</Layout>;
-};
-
-// Composant pour les routes publiques (redirections si connecté)
-const PublicRoute = ({ children }) => {
-  const { isAuthenticated, user, loading } = useAuth();
-
-  // Ne pas bloquer la page publique pendant le chargement de l'auth
-  if (loading) return children;
-
-  if (isAuthenticated) {
-    // Rediriger vers la page appropriée selon le rôle
-    if (user?.role === 'admin') {
-      return <Navigate to="/admin" />;
-    } else {
-      return <Navigate to="/dashboard" />;
-    }
+    return <Navigate to="/dashboard" replace />;
   }
 
   return children;
 };
 
-function App() {
-  const [isConfigured, setIsConfigured] = useState(true); // Par défaut, on suppose que c'est configuré
-  const [isChecking, setIsChecking] = useState(true);
+// Composant principal de l'application
+const AppContent = () => {
+  const [showUpdateNotification, setShowUpdateNotification] = useState(false);
 
-  // Test de connexion au démarrage (uniquement en développement)
   useEffect(() => {
-    if (process.env.NODE_ENV === 'development') {
-      setIsChecking(true);
-      testAllConnections().then(result => {
-        if (result.success) {
-          console.log('[APP] ✅ Configuration Supabase validée');
-          setIsConfigured(true);
-        } else {
-          console.error('[APP] ❌ Erreur de configuration Supabase:', result.error);
-          setIsConfigured(false);
-        }
-        setIsChecking(false);
-      }).catch(error => {
-        console.error('[APP] ❌ Erreur lors du test de connexion:', error);
-        setIsConfigured(false);
-        setIsChecking(false);
-      });
-    } else {
-      setIsChecking(false);
-    }
+    // Démarrer la vérification des mises à jour
+    updateNotifier.startChecking(() => {
+      setShowUpdateNotification(true);
+    });
+
+    // Nettoyer à la fermeture
+    return () => {
+      updateNotifier.stopChecking();
+    };
   }, []);
 
-  // Afficher un loader pendant la vérification
-  if (isChecking) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-blue-50 to-indigo-100">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-blue-600 mx-auto mb-4"></div>
-          <p className="text-gray-600">Vérification de la configuration...</p>
-        </div>
-      </div>
-    );
-  }
+  const handleUpdate = () => {
+    updateNotifier.applyUpdate();
+  };
 
-  // Si Supabase n'est pas configuré, afficher la page de configuration
+  return (
+    <>
+      <Router>
+        <Routes>
+          <Route path="/login" element={<Login />} />
+          <Route path="/register" element={<Register />} />
+          <Route path="/create-account" element={<CreateAccount />} />
+          <Route path="/pending-approval" element={<PendingApproval />} />
+          
+          <Route path="/dashboard" element={
+            <ProtectedRoute>
+              <Layout>
+                <ClientDashboard />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/admin" element={
+            <ProtectedRoute adminOnly>
+              <Layout>
+                <AdminDashboard />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/admin/loan-requests" element={
+            <ProtectedRoute adminOnly>
+              <Layout>
+                <LoanRequests />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/admin/users" element={
+            <ProtectedRoute adminOnly>
+              <Layout>
+                <UserManagement />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/admin/analytics" element={
+            <ProtectedRoute adminOnly>
+              <Layout>
+                <Analytics />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/admin/settings" element={
+            <ProtectedRoute adminOnly>
+              <Layout>
+                <Settings />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/loan-request" element={
+            <ProtectedRoute>
+              <Layout>
+                <LoanRequest />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/loan-history" element={
+            <ProtectedRoute>
+              <Layout>
+                <LoanHistory />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/repayment" element={
+            <ProtectedRoute>
+              <Layout>
+                <Repayment />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/repayment/success" element={
+            <ProtectedRoute>
+              <Layout>
+                <RepaymentSuccess />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/repayment/failure" element={
+            <ProtectedRoute>
+              <Layout>
+                <RepaymentFailure />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/repayment/cancel" element={
+            <ProtectedRoute>
+              <Layout>
+                <RepaymentCancel />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/profile" element={
+            <ProtectedRoute>
+              <Layout>
+                <Profile />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/menu" element={
+            <ProtectedRoute>
+              <Layout>
+                <Menu />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/ab-epargne" element={
+            <ProtectedRoute>
+              <Layout>
+                <ABEpargne />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/ab-logement" element={
+            <ProtectedRoute>
+              <Layout>
+                <ABLogement />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/coaching-finance" element={
+            <ProtectedRoute>
+              <Layout>
+                <CoachingFinance />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/loyalty-score" element={
+            <ProtectedRoute>
+              <Layout>
+                <LoyaltyScore />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/test-otp" element={<TestOTP />} />
+          <Route path="/test-health" element={<TestHealth />} />
+          <Route path="/test-fedapay" element={<TestFedaPay />} />
+          
+          <Route path="/" element={<Navigate to="/dashboard" replace />} />
+        </Routes>
+      </Router>
+
+      {/* Notification de mise à jour */}
+      {showUpdateNotification && (
+        <UpdateNotification onUpdate={handleUpdate} />
+      )}
+    </>
+  );
+};
+
+// Composant principal avec les providers
+const App = () => {
+  const [isConfigured, setIsConfigured] = useState(false);
+
+  useEffect(() => {
+    const checkConfiguration = async () => {
+      try {
+        const result = await testAllConnections();
+        setIsConfigured(result.success);
+      } catch (error) {
+        console.error('Erreur lors de la vérification de la configuration:', error);
+        setIsConfigured(false);
+      }
+    };
+
+    checkConfiguration();
+  }, []);
+
   if (!isConfigured) {
     return <ConfigurationPage />;
   }
@@ -183,240 +352,11 @@ function App() {
   return (
     <AuthProvider>
       <NotificationProvider>
-        <Router>
-          <div className="App">
-            <Routes>
-              {/* Routes publiques */}
-              <Route 
-                path="/login" 
-                element={
-                  <PublicRoute>
-                    <Login />
-                  </PublicRoute>
-                } 
-              />
-              <Route 
-                path="/create-account" 
-                element={
-                  <PublicRoute>
-                    <CreateAccount />
-                  </PublicRoute>
-                } 
-              />
-              <Route 
-                path="/register" 
-                element={
-                  <PublicRoute>
-                    <Register />
-                  </PublicRoute>
-                } 
-              />
-              <Route 
-                path="/pending-approval" 
-                element={
-                  <PublicRoute>
-                    <PendingApproval />
-                  </PublicRoute>
-                } 
-              />
-
-
-              {/* Routes protégées - Client */}
-              <Route 
-                path="/dashboard" 
-                element={
-                  <ProtectedRoute>
-                    <ClientDashboard />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/loan-request" 
-                element={
-                  <ProtectedRoute>
-                    <LoanRequest />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/loan-history" 
-                element={
-                  <ProtectedRoute>
-                    <LoanHistory />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/repayment" 
-                element={
-                  <ProtectedRoute>
-                    <Repayment />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/remboursement/success" 
-                element={
-                  <ProtectedRoute>
-                    <RepaymentSuccess />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/remboursement/failure" 
-                element={
-                  <ProtectedRoute>
-                    <RepaymentFailure />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/remboursement/cancel" 
-                element={
-                  <ProtectedRoute>
-                    <RepaymentCancel />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/profile" 
-                element={
-                  <ProtectedRoute>
-                    <Profile />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route
-                path="/menu"
-                element={
-                  <ProtectedRoute>
-                    <Menu />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/ab-epargne"
-                element={
-                  <ProtectedRoute>
-                    <ABEpargne />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/ab-logement"
-                element={
-                  <ProtectedRoute>
-                    <ABLogement />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/ab-nutrition"
-                element={
-                  <ProtectedRoute>
-                    <CoachingFinance />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
-                path="/coaching-finance"
-                element={
-                  <ProtectedRoute>
-                    <CoachingFinance />
-                  </ProtectedRoute>
-                }
-              />
-              
-              <Route
-                path="/loyalty-score"
-                element={
-                  <ProtectedRoute>
-                    <LoyaltyScore />
-                  </ProtectedRoute>
-                }
-              />
-
-              {/* Routes protégées - Admin */}
-              <Route 
-                path="/admin" 
-                element={
-                  <ProtectedRoute adminOnly={true}>
-                    <AdminDashboard />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/admin/loan-requests" 
-                element={
-                  <ProtectedRoute adminOnly={true}>
-                    <LoanRequests />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/admin/user-management" 
-                element={
-                  <ProtectedRoute adminOnly={true}>
-                    <UserManagement />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/admin/analytics" 
-                element={
-                  <ProtectedRoute adminOnly={true}>
-                    <Analytics />
-                  </ProtectedRoute>
-                } 
-              />
-              <Route 
-                path="/admin/settings" 
-                element={
-                  <ProtectedRoute adminOnly={true}>
-                    <Settings />
-                  </ProtectedRoute>
-                } 
-              />
-
-              {/* Routes de test temporaires */}
-              <Route path="/test-otp" element={<TestOTP />} />
-              <Route path="/test-health" element={<TestHealth />} />
-              <Route path="/test-fedapay" element={<TestFedaPay />} />
-
-              {/* Redirection par défaut */}
-              <Route path="/" element={<Navigate to="/login" />} />
-              
-
-            </Routes>
-          </div>
-        </Router>
-        <Toaster 
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: {
-              background: '#363636',
-              color: '#fff',
-            },
-            success: {
-              duration: 3000,
-              iconTheme: {
-                primary: '#4ade80',
-                secondary: '#fff',
-              },
-            },
-            error: {
-              duration: 5000,
-              iconTheme: {
-                primary: '#ef4444',
-                secondary: '#fff',
-              },
-            },
-          }}
-        />
+        <AppContent />
+        <Toaster position="top-right" />
       </NotificationProvider>
     </AuthProvider>
   );
-}
+};
 
 export default App;
