@@ -64,6 +64,17 @@ const Repayment = () => {
             const nextPaymentDay = daysSinceLoan + daysInMonth - (daysSinceLoan % daysInMonth);
             const nextPaymentDate = new Date(loanDate.getTime() + (nextPaymentDay * 24 * 60 * 60 * 1000));
 
+            // Debug: Afficher les calculs du montant à rembourser
+            console.log('[REPAYMENT] Calcul du montant à rembourser:', {
+              loanId: activeLoan.id,
+              originalAmount: activeLoan.amount,
+              interestRate: activeLoan.interest_rate || 0,
+              totalAmount: totalAmount,
+              paidAmount: paidAmount,
+              remainingAmount: remainingAmount,
+              calculation: `${activeLoan.amount} * (1 + ${activeLoan.interest_rate || 0}/100) = ${totalAmount}`
+            });
+
             const formattedLoan = {
               id: activeLoan.id,
               amount: activeLoan.amount,
@@ -167,7 +178,7 @@ const Repayment = () => {
                 <div className="flex items-center justify-between mb-6">
                   <h3 className="font-semibold text-gray-900 text-xl font-montserrat">Prêt #{currentLoan.id}</h3>
                   <span className="text-sm text-primary-600 font-medium bg-primary-100/80 px-4 py-2 rounded-full">
-                    {formatCurrency(currentLoan.remainingAmount)} restant
+                    {formatCurrency(currentLoan.remainingAmount)} à rembourser
                   </span>
                 </div>
                 
@@ -181,7 +192,7 @@ const Repayment = () => {
                     <p className="font-semibold text-xl text-gray-900">{formatCurrency(currentLoan.paidAmount)}</p>
                   </div>
                   <div className="p-4 bg-white/60 rounded-xl border border-white/50">
-                    <span className="text-gray-600 text-xs uppercase tracking-wide">Reste à payer</span>
+                    <span className="text-gray-600 text-xs uppercase tracking-wide">Montant à rembourser</span>
                     <p className="font-semibold text-xl text-gray-900">{formatCurrency(currentLoan.remainingAmount)}</p>
                   </div>
                 </div>
@@ -191,6 +202,7 @@ const Repayment = () => {
               <div className="mt-6">
                 <RembourserButton
                   loan={currentLoan}
+                  user={user}
                   onSuccess={handleRepaymentSuccess}
                   onError={handleRepaymentError}
                 />

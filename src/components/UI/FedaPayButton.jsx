@@ -13,7 +13,7 @@ const FedaPaySimpleButton = () => {
       setScriptLoaded(true);
       if (window.FedaPay && buttonRef.current) {
         window.FedaPay.init(buttonRef.current, {
-          public_key: 'pk_live_3ZqlymxZDICZhLHG5pH5Iaz_',
+          public_key: 'pk_sandbox_ZXhGKFGNXwn853-mYF9pANmi',
           transaction: {
             amount: 1000,
             description: 'Paiement rapide',
@@ -23,7 +23,18 @@ const FedaPaySimpleButton = () => {
             email: 'client@example.com',
             lastname: 'Nom'
           },
-          modal: true
+          modal: true,
+          onSuccess: function (response) {
+            console.log('[FedaPay] Paiement réussi ✅', response);
+            // 👉 Ajoute ici une redirection ou action après paiement
+          },
+          onError: function (error) {
+            console.error('[FedaPay] Erreur de paiement ❌', error);
+            // 👉 Affiche une alerte ou message d’erreur à l’utilisateur
+          },
+          onClose: function () {
+            console.log('[FedaPay] Modal fermée 🔒');
+          }
         });
       }
     };
@@ -39,7 +50,7 @@ const FedaPaySimpleButton = () => {
     <button
       ref={buttonRef}
       disabled={!scriptLoaded}
-      className="w-full p-4 border rounded bg-green-600 text-white hover:bg-green-700 transition"
+      className="w-full p-4 border rounded bg-violet-600 text-white hover:bg-green-700 transition"
     >
       Payer 1000 FCFA- Frais de création
     </button>

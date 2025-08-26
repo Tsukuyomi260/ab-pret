@@ -199,6 +199,14 @@ const AppContent = () => {
             </ProtectedRoute>
           } />
           
+          <Route path="/admin/user-management" element={
+            <ProtectedRoute adminOnly>
+              <Layout>
+                <UserManagement />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          
           <Route path="/admin/analytics" element={
             <ProtectedRoute adminOnly>
               <Layout>

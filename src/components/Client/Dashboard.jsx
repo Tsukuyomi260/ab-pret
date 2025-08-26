@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Card from '../UI/Card';
 import Button from '../UI/Button';
 import NotificationBell from '../UI/NotificationBell';
+import SavingsPlanGuard from '../Common/SavingsPlanGuard';
 import { getLoans, getPayments } from '../../utils/supabaseAPI';
 import { 
   CreditCard, 
@@ -29,7 +30,8 @@ import {
   Phone,
   Zap,
   CheckCircle2,
-  Heart
+  Heart,
+  GraduationCap
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 
@@ -261,8 +263,9 @@ const ClientDashboard = () => {
   }
 
   return (
-    <div className="bg-gradient-to-br from-primary-50 via-accent-50 to-secondary-50">
-      <style>{gradientAnimation}</style>
+    <SavingsPlanGuard>
+      <div className="bg-gradient-to-br from-primary-50 via-accent-50 to-secondary-50">
+        <style>{gradientAnimation}</style>
       
       {/* Header mobile optimisé */}
       <div className="relative bg-white/80 backdrop-blur-sm border-b border-accent-200 px-4 py-4">
@@ -499,13 +502,48 @@ const ClientDashboard = () => {
               </div>
             </motion.div>
 
+            {/* Coaching et Finance Entrepreneuriale */}
+            <motion.div
+              whileHover={{ scale: 1.02, y: -2 }}
+              whileTap={{ scale: 0.98 }}
+              className="group cursor-pointer"
+              onClick={() => navigate('/coaching-finance')}
+            >
+              <div className="relative overflow-hidden bg-gradient-to-r from-orange-500 via-orange-600 to-red-600 rounded-3xl p-6 shadow-lg hover:shadow-xl transition-all duration-300">
+                {/* Effet de brillance */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full transition-transform duration-700" />
+                
+                <div className="relative flex items-center justify-between">
+                  <div className="flex items-center space-x-4">
+                    <div className="relative">
+                      <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center">
+                        <GraduationCap size={28} className="text-white" />
+                      </div>
+                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-yellow-400 rounded-full flex items-center justify-center">
+                        <span className="text-xs font-bold text-white">🔥</span>
+                      </div>
+                    </div>
+                    <div>
+                      <h4 className="text-lg font-bold text-white font-montserrat">Coaching et Finance Entrepreneuriale</h4>
+                      <p className="text-orange-100 text-sm font-montserrat">Développez votre business</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <div className="text-2xl font-bold text-white">🚀</div>
+                    <div className="text-xs text-orange-200">Expert</div>
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
 
           </div>
 
 
           </motion.div>
       </div>
-    </div>
+      </div>
+    </SavingsPlanGuard>
   );
 };
 

@@ -154,27 +154,27 @@ const UserManagement = () => {
 
   const getStatusColor = (status) => {
     switch (status) {
-      case 'active': return 'bg-green-100 text-green-700';
+      case 'approved': return 'bg-green-100 text-green-700';
       case 'pending': return 'bg-yellow-100 text-yellow-700';
-      case 'suspended': return 'bg-red-100 text-red-700';
+      case 'rejected': return 'bg-red-100 text-red-700';
       default: return 'bg-gray-100 text-gray-700';
     }
   };
 
   const getStatusIcon = (status) => {
     switch (status) {
-      case 'active': return <CheckCircle size={16} />;
+      case 'approved': return <CheckCircle size={16} />;
       case 'pending': return <Clock size={16} />;
-      case 'suspended': return <XCircle size={16} />;
+      case 'rejected': return <XCircle size={16} />;
       default: return <Clock size={16} />;
     }
   };
 
   const getStatusText = (status) => {
     switch (status) {
-      case 'active': return 'Actif';
+      case 'approved': return 'Approuvé';
       case 'pending': return 'En attente';
-      case 'suspended': return 'Suspendu';
+      case 'rejected': return 'Rejeté';
       default: return 'Inconnu';
     }
   };
@@ -196,6 +196,19 @@ const UserManagement = () => {
                          user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          user.email.toLowerCase().includes(searchTerm.toLowerCase());
     const matchesStatus = statusFilter === 'all' || user.status === statusFilter;
+    
+    // Debug: Afficher les informations de filtrage
+    console.log('[USER_MANAGEMENT] Filtrage:', {
+      userId: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      status: user.status,
+      statusFilter: statusFilter,
+      matchesSearch: matchesSearch,
+      matchesStatus: matchesStatus,
+      finalResult: matchesSearch && matchesStatus
+    });
+    
     return matchesSearch && matchesStatus;
   });
 
@@ -254,9 +267,9 @@ const UserManagement = () => {
                 className="px-4 py-3 border border-gray-200 rounded-lg focus:ring-2 focus:ring-primary-500 focus:border-transparent"
                   >
                     <option value="all">Tous les statuts</option>
-                    <option value="active">Actifs</option>
+                    <option value="approved">Approuvés</option>
                     <option value="pending">En attente</option>
-                    <option value="suspended">Suspendus</option>
+                    <option value="rejected">Rejetés</option>
                   </select>
                 </div>
               </div>
@@ -333,14 +346,14 @@ const UserManagement = () => {
                       <span>Approuver</span>
                     </Button>
                   )}
-                  {user.status === 'active' && (
+                  {user.status === 'approved' && (
                       <Button
                       onClick={() => handleSuspendUser(user.id)}
                       variant="outline"
                       className="flex items-center space-x-2 border-red-200 text-red-600 hover:bg-red-50"
                     >
                       <UserX size={16} />
-                      <span>Suspendre</span>
+                      <span>Rejeter</span>
                       </Button>
                     )}
                       <Button

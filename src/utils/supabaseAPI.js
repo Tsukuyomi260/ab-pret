@@ -47,6 +47,86 @@ export const testAllConnections = async () => {
   }
 };
 
+// ===== TRADUCTION DES ERREURS =====
+
+const translateSupabaseError = (error) => {
+  const errorMessage = error.message || error;
+  const errorDetails = error.details || '';
+  const errorHint = error.hint || '';
+  
+  // Combiner tous les détails d'erreur pour une meilleure détection
+  const fullErrorText = `${errorMessage} ${errorDetails} ${errorHint}`.toLowerCase();
+  
+  // Erreurs de téléphone déjà utilisé
+  if (fullErrorText.includes('phone_number') && (fullErrorText.includes('duplicate') || fullErrorText.includes('unique'))) {
+    return 'Ce numéro de téléphone est déjà utilisé pour créer un compte. Veuillez utiliser un autre numéro de téléphone.';
+  }
+  
+  // Erreurs d'email déjà utilisé
+  if (fullErrorText.includes('email') && (fullErrorText.includes('duplicate') || fullErrorText.includes('unique'))) {
+    return 'Cette adresse email est déjà utilisée. Veuillez utiliser une autre adresse email.';
+  }
+  
+  // Erreurs de mot de passe
+  if (fullErrorText.includes('password')) {
+    if (fullErrorText.includes('weak')) {
+      return 'Le mot de passe est trop faible. Il doit contenir au moins 6 caractères.';
+    }
+    return 'Erreur avec le mot de passe. Veuillez vérifier votre saisie.';
+  }
+  
+  // Erreurs de validation
+  if (fullErrorText.includes('invalid')) {
+    if (fullErrorText.includes('email')) {
+      return 'Adresse email invalide. Veuillez vérifier votre saisie.';
+    }
+    if (fullErrorText.includes('phone')) {
+      return 'Numéro de téléphone invalide. Veuillez vérifier votre saisie.';
+    }
+    return 'Données invalides. Veuillez vérifier vos informations.';
+  }
+  
+  // Erreurs de réseau
+  if (fullErrorText.includes('network') || fullErrorText.includes('fetch')) {
+    return 'Erreur de connexion. Veuillez vérifier votre connexion internet et réessayer.';
+  }
+  
+  // Erreurs de serveur
+  if (fullErrorText.includes('server') || fullErrorText.includes('500')) {
+    return 'Erreur du serveur. Veuillez réessayer dans quelques minutes.';
+  }
+  
+  // Erreurs de quota/limite
+  if (fullErrorText.includes('quota') || fullErrorText.includes('limit')) {
+    return 'Limite de tentatives atteinte. Veuillez réessayer plus tard.';
+  }
+  
+  // Erreurs génériques - plus spécifiques
+  if (fullErrorText.includes('already registered')) {
+    // Essayer de détecter quelle information spécifique est en conflit
+    if (fullErrorText.includes('phone')) {
+      return 'Un compte existe déjà avec ce numéro de téléphone.';
+    }
+    if (fullErrorText.includes('email')) {
+      return 'Un compte existe déjà avec cette adresse email.';
+    }
+    return 'Un compte existe déjà avec ces informations.';
+  }
+  
+  if (fullErrorText.includes('user already registered')) {
+    if (fullErrorText.includes('phone')) {
+      return 'Un utilisateur existe déjà avec ce numéro de téléphone.';
+    }
+    if (fullErrorText.includes('email')) {
+      return 'Un utilisateur existe déjà avec cette adresse email.';
+    }
+    return 'Un utilisateur avec ces informations existe déjà.';
+  }
+  
+  // Par défaut, retourner le message d'erreur original
+  return errorMessage;
+};
+
 // ===== AUTHENTIFICATION =====
 
 export const signUpWithPhone = async (phoneNumber, password, userData) => {
@@ -93,7 +173,10 @@ export const signUpWithPhone = async (phoneNumber, password, userData) => {
       }
     });
 
-    if (authError) throw authError;
+    if (authError) {
+      console.error('[SUPABASE] Erreur Auth:', authError);
+      throw new Error(translateSupabaseError(authError));
+    }
 
     // Insérer les données utilisateur dans notre table users
     const { error: userError } = await supabase
@@ -108,7 +191,10 @@ export const signUpWithPhone = async (phoneNumber, password, userData) => {
         status: 'approved'
       }]);
 
-    if (userError) throw userError;
+    if (userError) {
+      console.error('[SUPABASE] Erreur insertion utilisateur:', userError);
+      throw new Error(translateSupabaseError(userError));
+    }
 
     // Log de bienvenue (SMS temporairement désactivé)
     console.log(`[SUPABASE] ✅ Utilisateur créé: ${userData.firstName} ${userData.lastName} (${phoneNumber})`);
@@ -116,7 +202,8 @@ export const signUpWithPhone = async (phoneNumber, password, userData) => {
     return { success: true, user: authData.user };
   } catch (error) {
     console.error('[SUPABASE] Erreur lors de l\'inscription:', error.message);
-    return { success: false, error: error.message };
+    const translatedError = translateSupabaseError(error);
+    return { success: false, error: translatedError };
   }
 };
 
@@ -141,7 +228,10 @@ export const signUpWithEmail = async (email, password, userData) => {
       }
     });
 
-    if (authError) throw authError;
+    if (authError) {
+      console.error('[SUPABASE] Erreur Auth:', authError);
+      throw new Error(translateSupabaseError(authError));
+    }
 
     // Insérer les données utilisateur dans notre table users
     const { error: userError } = await supabase
@@ -156,7 +246,10 @@ export const signUpWithEmail = async (email, password, userData) => {
         status: 'approved'
       }]);
 
-    if (userError) throw userError;
+    if (userError) {
+      console.error('[SUPABASE] Erreur insertion utilisateur:', userError);
+      throw new Error(translateSupabaseError(userError));
+    }
 
     // Log de bienvenue (SMS temporairement désactivé)
     if (userData.phoneNumber) {
@@ -166,7 +259,8 @@ export const signUpWithEmail = async (email, password, userData) => {
     return { success: true, user: authData.user };
   } catch (error) {
     console.error('[SUPABASE] Erreur lors de l\'inscription:', error.message);
-    return { success: false, error: error.message };
+    const translatedError = translateSupabaseError(error);
+    return { success: false, error: translatedError };
   }
 };
 
@@ -187,7 +281,7 @@ export const signInWithEmail = async (email, password) => {
 
     if (authError) {
       console.error('[SUPABASE] Erreur d\'authentification:', authError.message);
-      throw authError;
+      throw new Error(translateSupabaseError(authError));
     }
 
     if (!authData.user) {
@@ -299,7 +393,7 @@ export const signInWithPhone = async (phoneNumber, password) => {
         };
       }
       
-      throw authError;
+      throw new Error(translateSupabaseError(authError));
     }
 
     if (!authData.user) {
@@ -322,18 +416,20 @@ export const signInWithPhone = async (phoneNumber, password) => {
     
   } catch (error) {
     console.error('[SUPABASE] Erreur lors de la connexion (téléphone):', error.message);
-    return { success: false, error: error.message };
+    const translatedError = translateSupabaseError(error);
+    return { success: false, error: translatedError };
   }
 };
 
 export const signOut = async () => {
   try {
     const { error } = await supabase.auth.signOut();
-    if (error) throw error;
+    if (error) throw new Error(translateSupabaseError(error));
     return { success: true };
   } catch (error) {
     console.error('[SUPABASE] Erreur lors de la déconnexion:', error.message);
-    return { success: false, error: error.message };
+    const translatedError = translateSupabaseError(error);
+    return { success: false, error: translatedError };
   }
 };
 
@@ -1085,18 +1181,26 @@ export const createSavingsPlan = async (userId, planData) => {
       return { success: false, error: 'Configuration Supabase manquante' };
     }
 
+    console.log('[SUPABASE] Création du plan d\'épargne pour user:', userId);
+    console.log('[SUPABASE] Données du plan:', planData);
+
     const planConfig = {
       user_id: userId,
       fixed_amount: parseFloat(planData.fixedAmount),
       frequency: parseInt(planData.frequency),
       duration: parseInt(planData.duration),
-      total_deposits: planData.totalDeposits,
-      total_amount: planData.totalAmount,
-      estimated_benefits: planData.estimatedBenefits,
+      total_deposits: planData.totalDeposits || 0,
+      total_amount: planData.totalAmount || 0,
+      estimated_benefits: planData.estimatedBenefits || 0,
       status: 'active',
       created_at: new Date().toISOString(),
-      start_date: new Date().toISOString()
+      start_date: new Date().toISOString(),
+      completed_deposits: 0,
+      current_balance: 0,
+      total_interest_earned: 0
     };
+
+    console.log('[SUPABASE] Configuration du plan à insérer:', planConfig);
 
     const { data, error } = await supabase
       .from('savings_plans')
@@ -1104,8 +1208,12 @@ export const createSavingsPlan = async (userId, planData) => {
       .select()
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('[SUPABASE] Erreur lors de l\'insertion:', error);
+      throw error;
+    }
 
+    console.log('[SUPABASE] Plan créé avec succès:', data);
     return { success: true, data };
   } catch (error) {
     console.error('[SUPABASE] Erreur lors de la création du plan d\'épargne:', error.message);

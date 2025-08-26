@@ -1147,7 +1147,17 @@ const LoanRequest = () => {
                           name="purpose"
                           value={formData.purpose}
                           onChange={handleChange}
-                          placeholder="Décrivez en détail l'utilisation prévue du prêt..."
+                          placeholder="Exemples : 
+• Financement de mes études universitaires
+• Achat de matériel informatique pour mon business
+• Paiement des frais de scolarité
+• Développement de mon activité commerciale
+• Achat de fournitures scolaires
+• Financement d'un projet entrepreneurial
+• Paiement de loyer étudiant
+• Achat de vêtements et accessoires pour la vente
+
+Décrivez en détail votre projet..."
                           error={errors.purpose}
                           required
                         />

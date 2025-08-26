@@ -197,7 +197,7 @@ const ABEpargne = () => {
             isFirstVisit: planStatus.isFirstVisit
           });
 
-          // Si c'est la première visite, afficher le modal de configuration
+          // Si c'est la première visite sur AB Épargne, afficher le modal de configuration
           if (planStatus.isFirstVisit) {
             setShowPlanConfigModal(true);
           }
@@ -542,6 +542,10 @@ const ABEpargne = () => {
             },
             onSuccess: (response) => {
               console.log('[ABEPARGNE] Paiement réussi:', response);
+              console.log('[ABEPARGNE] Type de response:', typeof response);
+              console.log('[ABEPARGNE] Response complète:', JSON.stringify(response, null, 2));
+              
+              // Appeler la fonction de création du plan
               createSavingsPlanAfterPayment(response);
             },
             onError: (error) => {
@@ -555,43 +559,9 @@ const ABEpargne = () => {
 
           console.log('[ABEPARGNE] Configuration complète:', fedapayConfig);
           
-          // Attendre un peu avant d'initialiser
-          setTimeout(() => {
-            window.FedaPay.init(fedapayConfig);
-            console.log('[ABEPARGNE] FedaPay initialisé avec succès et modal ouvert');
-            
-            setTimeout(() => {
-              if (window.FedaPay && typeof window.FedaPay.init === 'function') {
-                console.log('[DEBUG] Tentative d\'ouverture manuelle de la modal...');
-                window.FedaPay.init({
-                  public_key: 'pk_sandbox_ZXhGKFGNXwn853-mYF9pANmi',
-                  transaction: {
-                    amount: parseInt(planConfig.fixedAmount),
-                    description: "Paiement du plan d'épargne AB Campus Finance",
-                    currency: {
-                      iso: 'XOF'
-                    }
-                  },
-                  customer: {
-                    firstname: user.firstname || 'Client',
-                    lastname: user.lastname || '',
-                    email: user.email || 'client@example.com',
-                    phone_number: {
-                      number: user.phone || '97000000',
-                      country: 'BJ'
-                    }
-                  },
-                  // Ajoute un callback simple :
-                  onSuccess: function () {
-                    console.log('[DEBUG] Paiement réussi');
-                  },
-                  onError: function (e) {
-                    console.error('[DEBUG] Erreur de paiement', e);
-                  }
-                });
-              }
-            }, 100);
-          }, 500);
+          // Initialiser FedaPay avec la configuration
+          window.FedaPay.init(fedapayConfig);
+          console.log('[ABEPARGNE] FedaPay initialisé avec succès');
           
         } catch (error) {
           console.error('[ABEPARGNE] Erreur détaillée lors de l\'initialisation de FedaPay:', error);
@@ -607,7 +577,10 @@ const ABEpargne = () => {
 
   // Fonction pour créer le plan d'épargne après paiement réussi
   const createSavingsPlanAfterPayment = async (paymentResponse) => {
+    console.log('[ABEPARGNE] ===== DÉBUT CRÉATION PLAN =====');
     console.log('[ABEPARGNE] Création du plan après paiement:', paymentResponse);
+    console.log('[ABEPARGNE] User ID:', user?.id);
+    console.log('[ABEPARGNE] Plan config:', planConfig);
     
     try {
       // Créer le plan d'épargne
@@ -625,17 +598,21 @@ const ABEpargne = () => {
         // Fermer le modal de configuration
         setShowPlanConfigModal(false);
         
-        showSuccess('Plan d\'épargne créé avec succès après paiement !');
+        showSuccess('Plan d\'épargne créé avec succès ! Vous pouvez maintenant commencer votre épargne.');
         
-        // Recharger les données en appelant useEffect
-        window.location.reload();
+        // Recharger les données pour afficher le plan configuré
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500);
       } else {
-        showError('Erreur lors de la création du plan d\'épargne');
+        showError('Erreur lors de la création du plan d\'épargne: ' + (planResult.error || 'Erreur inconnue'));
       }
     } catch (error) {
       console.error('[ABEPARGNE] Erreur lors de la création du plan après paiement:', error);
-      showError('Erreur lors de la création du plan');
+      showError('Erreur lors de la création du plan: ' + error.message);
     }
+    
+    console.log('[ABEPARGNE] ===== FIN CRÉATION PLAN =====');
   };
 
   // Fonction pour calculer les données du tableau de bord - ÉTAPE 3
@@ -2681,9 +2658,7 @@ const ABEpargne = () => {
                   phone={user.phone || '97000000'}
                   onSuccess={(response) => {
                     console.log('[ABEPARGNE] Paiement FedaPay réussi:', response);
-                    showSuccess('Paiement réussi ! Votre plan d\'épargne va être créé.');
-                    setShowPlanConfigModal(false);
-                    // TODO: Créer le plan d'épargne dans la base de données
+                    createSavingsPlanAfterPayment(response);
                   }}
                   onError={(error) => {
                     console.error('[ABEPARGNE] Erreur paiement FedaPay:', error);

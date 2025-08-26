@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import SavingsPlanGuard from '../Common/SavingsPlanGuard';
 
 import { 
   Home,
@@ -66,7 +67,8 @@ const Menu = () => {
   ];
 
   return (
-    <div className="bg-gradient-to-br from-primary-50 via-accent-50 to-secondary-50 pt-0">
+    <SavingsPlanGuard>
+      <div className="bg-gradient-to-br from-primary-50 via-accent-50 to-secondary-50 pt-0">
       {/* Section Hero - En-tête principal */}
       <div className="relative overflow-hidden">
         {/* Background avec gradient animé */}
@@ -148,7 +150,8 @@ const Menu = () => {
           </div>
         </div>
       </div>
-    </div>
+      </div>
+    </SavingsPlanGuard>
   );
 };
 

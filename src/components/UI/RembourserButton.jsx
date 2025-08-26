@@ -1,15 +1,99 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CreditCard, Loader } from 'lucide-react';
-import { useAuth } from '../../context/AuthContext';
 import { toast } from 'react-hot-toast';
 
-const RembourserButton = ({ loan, onSuccess, onError }) => {
-  const [loading, setLoading] = useState(false);
-  const [transactionData, setTransactionData] = useState(null);
+const RembourserButton = ({ loan, user, onSuccess, onError }) => {
+  const buttonRef = useRef(null);
   const navigate = useNavigate();
-  const { user } = useAuth();
 
+  useEffect(() => {
+    // Vérifier que les données nécessaires sont présentes
+    if (!loan || !user) {
+      console.error('[FEDAPAY_CHECKOUT] Données manquantes:', { loan, user });
+      return;
+    }
+
+    // Injecter le script FedaPay si pas encore présent
+    const existingScript = document.getElementById('fedapay-checkout');
+    if (!existingScript) {
+      const script = document.createElement('script');
+      script.src = 'https://cdn.fedapay.com/checkout.js?v=1.1.7';
+      script.id = 'fedapay-checkout';
+      script.onload = () => {
+        // Initialiser FedaPay une fois le script chargé
+        initializeFedaPay();
+      };
+      document.body.appendChild(script);
+    } else {
+      // Si script déjà chargé, on init directement
+      initializeFedaPay();
+    }
+  }, [loan, user]);
+
+  const initializeFedaPay = () => {
+    if (!window.FedaPay || !buttonRef.current || !loan || !user) {
+      return;
+    }
+
+    console.log('[FEDAPAY_CHECKOUT] Initialisation avec données:', {
+      loanId: loan.id,
+      userId: user.id,
+      amount: loan.remainingAmount || loan.amount,
+      customerEmail: user.email,
+      calculation: `Montant original: ${loan.amount}, Montant avec intérêts: ${loan.totalAmount}, Montant payé: ${loan.paidAmount}, Montant à rembourser: ${loan.remainingAmount}`
+    });
+
+    window.FedaPay.init(buttonRef.current, {
+      public_key: 'pk_live_3ZqlymxZDICZhLHG5pH5Iaz_', // 
+      transaction: {
+        amount: loan.remainingAmount || loan.amount,
+        description: `Remboursement prêt #${loan.id}`,
+        currency: { iso: 'XOF' }
+      },
+      customer: {
+        email: user.email,
+        lastname: user.full_name || user.name || 'Client',
+        phone_number: {
+          number: user.phone?.replace('+225', '') || '97000000',
+          country: 'CI' // Côte d'Ivoire
+        }
+      },
+      onSuccess: (transaction) => {
+        console.log('[FEDAPAY_CHECKOUT] Paiement réussi:', transaction);
+        
+        // Afficher un toast de succès
+        toast.success('Remboursement effectué avec succès !');
+        
+        // Appeler le callback de succès
+        onSuccess?.('Remboursement effectué avec succès');
+        
+        // Rediriger vers la page de succès
+        const successUrl = `/remboursement/success?transaction_id=${transaction.id}&amount=${loan.remainingAmount || loan.amount}&loan_id=${loan.id}`;
+        navigate(successUrl);
+      },
+      onError: (error) => {
+        console.error('[FEDAPAY_CHECKOUT] Erreur de paiement:', error);
+        
+        // Afficher un toast d'erreur
+        toast.error(`Erreur de paiement: ${error.message || 'Paiement échoué'}`);
+        
+        // Appeler le callback d'erreur
+        onError?.(error.message || 'Paiement échoué');
+      },
+      onCancel: () => {
+        console.log('[FEDAPAY_CHECKOUT] Paiement annulé par l\'utilisateur');
+        
+        // Afficher un toast d'annulation
+        toast.info('Paiement annulé');
+        
+        // Appeler le callback d'erreur
+        onError?.('Paiement annulé par l\'utilisateur');
+      }
+    });
+  };
+
+  // Fonction pour formater le montant
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('fr-CI', {
       style: 'currency',
@@ -17,129 +101,38 @@ const RembourserButton = ({ loan, onSuccess, onError }) => {
     }).format(amount / 100);
   };
 
-  const handleRembourser = async () => {
-    if (!loan || !user) {
-      onError?.('Données manquantes pour le remboursement');
-      return;
-    }
+  // Vérifier si les données sont disponibles
+  if (!loan || !user) {
+    return (
+      <button
+        disabled
+        className="w-full p-4 border border-gray-300 rounded-xl bg-gray-400 text-white cursor-not-allowed"
+      >
+        Données manquantes
+      </button>
+    );
+  }
 
-    setLoading(true);
-    try {
-      console.log('[REMBOURSER_BUTTON] Début du remboursement:', {
-        loanId: loan.id,
-        userId: user.id,
-        amount: loan.remaining_amount || loan.amount
-      });
+  const amount = loan.remainingAmount || loan.amount;
 
-      // Créer la transaction FedaPay
-      const response = await fetch('/api/fedapay/create-transaction', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          amount: loan.remaining_amount || loan.amount,
-          loanId: loan.id,
-          userId: user.id,
-          description: `Remboursement prêt #${loan.id}`,
-          customerEmail: user.email,
-          customerName: user.full_name || user.name,
-          customerPhone: user.phone
-        })
-      });
-
-      const result = await response.json();
-
-      if (!result.success) {
-        console.error('[REMBOURSER_BUTTON] Erreur serveur:', result);
-        toast.error(`Erreur: ${result?.details || result?.error}`);
-        throw new Error(result.error || result.details || 'Erreur lors de la création de la transaction');
-      }
-
-      console.log('[REMBOURSER_BUTTON] Transaction créée:', result);
-
-      // Stocker les données de transaction et rediriger directement
-      setTransactionData({
-        transactionId: result.transaction_id,
-        publicKey: result.public_key,
-        amount: loan.remaining_amount || loan.amount,
-        currency: 'XOF'
-      });
-      
-      // Redirection directe vers FedaPay
-      const paymentWindow = window.open(
-        result.url,
-        'FedaPay Payment',
-        'width=500,height=700,scrollbars=yes,resizable=yes'
-      );
-
-      // Surveiller la fermeture de la fenêtre
-      const checkClosed = setInterval(() => {
-        if (paymentWindow.closed) {
-          clearInterval(checkClosed);
-          // Vérifier le statut de la transaction
-          checkTransactionStatus(result.transaction_id, loan.id);
-        }
-      }, 1000);
-
-    } catch (error) {
-      console.error('[REMBOURSER_BUTTON] Erreur:', error);
-      toast.error(`Erreur: ${error.message || 'Erreur lors du remboursement'}`);
-      onError?.(error.message || 'Erreur lors du remboursement');
-    } finally {
-      setLoading(false);
-    }
-  };
-
-
-
-  const checkTransactionStatus = async (transactionId, loanId) => {
-    try {
-      console.log('[REMBOURSER_BUTTON] Vérification du statut:', transactionId);
-
-      const response = await fetch(`/api/fedapay/transaction/${transactionId}`);
-      const result = await response.json();
-
-      if (result.success && result.transaction.status === 'approved') {
-        console.log('[REMBOURSER_BUTTON] Paiement approuvé');
-        
-        // Rediriger vers la page de succès
-        const successUrl = `/remboursement/success?transaction_id=${transactionId}&amount=${loan.remaining_amount || loan.amount}&loan_id=${loanId}`;
-        navigate(successUrl);
-        
-        onSuccess?.('Remboursement effectué avec succès');
-      } else {
-        console.log('[REMBOURSER_BUTTON] Paiement non approuvé:', result.transaction?.status);
-        onError?.('Le paiement n\'a pas été approuvé');
-      }
-    } catch (error) {
-      console.error('[REMBOURSER_BUTTON] Erreur vérification statut:', error);
-      onError?.('Erreur lors de la vérification du paiement');
-    }
-  };
-
-
+  // Debug: Afficher les données du prêt
+  console.log('[FEDAPAY_CHECKOUT] Données du prêt reçues:', {
+    loanId: loan.id,
+    amount: loan.amount,
+    remainingAmount: loan.remainingAmount,
+    paidAmount: loan.paidAmount,
+    totalAmount: loan.totalAmount,
+    finalAmount: amount
+  });
 
   return (
-    <>
-      <button
-        onClick={handleRembourser}
-        disabled={loading}
-        className="w-full bg-primary-500 hover:bg-primary-600 disabled:bg-gray-300 text-white font-semibold py-3 px-6 rounded-xl transition-colors flex items-center justify-center space-x-2"
-      >
-        {loading ? (
-          <>
-            <Loader className="w-5 h-5 animate-spin" />
-            <span>Traitement en cours...</span>
-          </>
-        ) : (
-          <>
-            <CreditCard className="w-5 h-5" />
-            <span>Effectuer le remboursement</span>
-          </>
-        )}
-      </button>
-    </>
+    <button
+      ref={buttonRef}
+      className="w-full p-4 border border-gray-300 rounded-xl bg-purple-600 text-white hover:bg-purple-700 transition-colors flex items-center justify-center space-x-2"
+    >
+      <CreditCard className="w-5 h-5" />
+      <span>Rembourser mon prêt</span>
+    </button>
   );
 };
 
