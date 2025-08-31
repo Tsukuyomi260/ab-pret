@@ -165,6 +165,31 @@ const RembourserButton = ({ loan, user, onSuccess, onError }) => {
 
   const amount = loan.remainingAmount || loan.amount;
 
+  // Validation du montant
+  if (!amount || amount <= 0) {
+    console.error('[FEDAPAY_CHECKOUT] Montant invalide:', {
+      amount,
+      remainingAmount: loan.remainingAmount,
+      originalAmount: loan.amount,
+      loan: loan
+    });
+    return (
+      <div className="space-y-3">
+        <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
+          <p className="text-sm text-red-700">
+            <strong>❌ Erreur :</strong> Montant de remboursement invalide. Veuillez contacter le support.
+          </p>
+        </div>
+        <button
+          disabled
+          className="w-full p-4 border border-gray-300 rounded-xl bg-gray-400 text-gray-200 cursor-not-allowed"
+        >
+          Montant invalide
+        </button>
+      </div>
+    );
+  }
+
   // Debug: Afficher les données du prêt
   console.log('[FEDAPAY_CHECKOUT] Données du prêt reçues:', {
     loanId: loan.id,
@@ -172,7 +197,9 @@ const RembourserButton = ({ loan, user, onSuccess, onError }) => {
     remainingAmount: loan.remainingAmount,
     paidAmount: loan.paidAmount,
     totalAmount: loan.totalAmount,
-    finalAmount: amount
+    finalAmount: amount,
+    amountType: typeof amount,
+    amountIsValid: amount > 0
   });
 
   return (

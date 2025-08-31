@@ -74,11 +74,11 @@ const LoanRequest = () => {
     const checkExistingLoans = async () => {
       try {
         setCheckingLoans(true);
-        const loansResult = await getLoans();
+        const loansResult = await getLoans(user.id);
         
         if (loansResult.success) {
           const userLoans = loansResult.data || [];
-          // Vérifier s'il y a un prêt actif ou approuvé
+          // Vérifier s'il y a un prêt actif ou approuvé (pas les prêts complétés)
           const activeLoan = userLoans.find(loan => 
             loan.status === 'active' || loan.status === 'approved'
           );

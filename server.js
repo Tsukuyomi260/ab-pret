@@ -421,6 +421,30 @@ app.post('/api/fedapay/webhook', async (req, res) => {
         loanId = descriptionMatch[1]; // UUID string
         userId = descriptionMatch[2]; // UUID string
         console.log('[FEDAPAY_WEBHOOK] ✅ Informations extraites depuis la description:', { loanId, userId });
+      } else {
+        // Pattern alternatif: "Remboursement prêt #UUID" (sans user ID)
+        const simpleMatch = transaction.description?.match(/Remboursement prêt #([a-f0-9-]+)/);
+        if (simpleMatch) {
+          loanId = simpleMatch[1];
+          console.log('[FEDAPAY_WEBHOOK] ⚠️ Seul l\'ID du prêt extrait:', { loanId });
+          
+          // Essayer de récupérer l'utilisateur depuis la base de données
+          try {
+            const { supabase } = require('./src/utils/supabaseClient-server');
+            const { data: loanData, error: loanError } = await supabase
+              .from('loans')
+              .select('user_id')
+              .eq('id', loanId)
+              .single();
+            
+            if (!loanError && loanData) {
+              userId = loanData.user_id;
+              console.log('[FEDAPAY_WEBHOOK] ✅ User ID récupéré depuis la base:', { userId });
+            }
+          } catch (error) {
+            console.error('[FEDAPAY_WEBHOOK] ❌ Erreur récupération user ID:', error);
+          }
+        }
       }
     }
     

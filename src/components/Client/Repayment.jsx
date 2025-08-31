@@ -39,8 +39,10 @@ const Repayment = () => {
         const loans = loansResult.data || [];
         const payments = paymentsResult.data || [];
 
-        // Trouver le prêt actif ou approuvé le plus récent
-        const activeLoan = loans.find(loan => loan.status === 'active' || loan.status === 'approved');
+        // Trouver le prêt actif ou approuvé le plus récent (pas les prêts complétés)
+        const activeLoan = loans.find(loan => 
+          loan.status === 'active' || loan.status === 'approved'
+        );
         
         if (activeLoan) {
           // Calculer le montant payé pour ce prêt
@@ -49,7 +51,17 @@ const Repayment = () => {
           
           // Calculer le montant total avec intérêts
           const totalAmount = activeLoan.amount * (1 + (activeLoan.interest_rate || 0) / 100);
-          const remainingAmount = totalAmount - paidAmount;
+          const remainingAmount = Math.max(0, totalAmount - paidAmount);
+          
+          // Debug: Vérifier les calculs
+          console.log('[REPAYMENT] Calculs détaillés:', {
+            originalAmount: activeLoan.amount,
+            interestRate: activeLoan.interest_rate || 0,
+            totalAmount: totalAmount,
+            paidAmount: paidAmount,
+            remainingAmount: remainingAmount,
+            remainingAmountRounded: Math.round(remainingAmount)
+          });
           
           // Calculer la date d'échéance
           const loanDate = new Date(activeLoan.created_at);
