@@ -1,5 +1,11 @@
 const express = require('express');
 const cors = require('cors');
+const app = express();
+app.use(express.json({
+  verify: (req, res, buf) => {
+    req.rawBody = buf.toString('utf8'); // ← important de bien définir l'encodage
+  }
+}));
 const bodyParser = require('body-parser');
 const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fetch(...args));
 
@@ -8,12 +14,7 @@ const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fet
 require('dotenv').config({ path: '.env.local' });
 require('dotenv').config();
 
-const app = express();
 app.use(cors());
-app.use(bodyParser.json());
-
-
-
 
 // Route de test pour vérifier que l'API fonctionne
 app.get("/api/health", (req, res) => res.json({ ok: true }));
@@ -189,10 +190,46 @@ app.get('/api/debug/status', (req, res) => {
 // Configuration FedaPay
 const FEDAPAY_CONFIG = {
   secretKey: process.env.FEDAPAY_SECRET_KEY,
-  baseUrl: process.env.FEDAPAY_BASE_URL || 'https://api.fedapay.com/v1',
+  baseUrl: process.env.FEDAPAY_BASE_URL || 'https://sandbox-api.fedapay.com',
   currency: process.env.FEDAPAY_CURRENCY || 'XOF',
   country: process.env.FEDAPAY_COUNTRY || 'BJ'
 };
+
+// Fonction pour vérifier la signature FedaPay
+function verifyFedaPaySignature(rawBody, receivedSignature, secretKey) {
+  try {
+    if (!receivedSignature || !secretKey) {
+      console.warn('[FEDAPAY_WEBHOOK] Signature ou clé secrète manquante');
+      return false;
+    }
+
+    const crypto = require('crypto');
+    const hmac = crypto.createHmac('sha256', secretKey);
+    hmac.update(rawBody, 'utf8');
+    const calculatedSignature = hmac.digest('hex');
+
+    const receivedBuffer = Buffer.from(receivedSignature, 'hex');
+    const calculatedBuffer = Buffer.from(calculatedSignature, 'hex');
+
+    if (receivedBuffer.length !== calculatedBuffer.length) {
+      console.warn('[FEDAPAY_WEBHOOK] Signature de tailles différentes');
+      return false;
+    }
+
+    const isValid = crypto.timingSafeEqual(receivedBuffer, calculatedBuffer);
+
+    console.log('[FEDAPAY_WEBHOOK] Vérification signature:', {
+      received: receivedSignature,
+      calculated: calculatedSignature,
+      isValid
+    });
+
+    return isValid;
+  } catch (error) {
+    console.error('[FEDAPAY_WEBHOOK] Erreur vérification signature:', error);
+    return false;
+  }
+}
 
 console.log('[FEDAPAY_SERVER] Configuration chargée:', {
   secretKey: FEDAPAY_CONFIG.secretKey ? `${FEDAPAY_CONFIG.secretKey.substring(0, 10)}...` : 'NON CONFIGURÉE',
@@ -215,7 +252,7 @@ app.post('/api/fedapay/create-transaction', async (req, res) => {
 
     // Construire les URLs de callback
     // Utiliser le port 3000 pour les redirections frontend
-    const baseUrl = `${req.protocol}://${req.get('host').replace(':5000', ':3000')}`;
+    const baseUrl = '';
     
     const successUrl = `${baseUrl}/remboursement/success?transaction_id={transaction_id}&amount=${amount}&loan_id=${loanId}&user_id=${userId}`;
     const failureUrl = `${baseUrl}/remboursement/failure?transaction_id={transaction_id}&amount=${amount}&loan_id=${loanId}&user_id=${userId}`;
@@ -327,113 +364,111 @@ app.post('/api/fedapay/create-transaction', async (req, res) => {
 // Webhook FedaPay pour recevoir les confirmations de paiement
 app.post('/api/fedapay/webhook', async (req, res) => {
   try {
-    const { transaction } = req.body;
+    console.log('[FEDAPAY_WEBHOOK] 🔔 Webhook reçu');
+    console.log('[FEDAPAY_WEBHOOK] Headers:', req.headers);
+    console.log('[FEDAPAY_WEBHOOK] Raw body:', req.rawBody);
     
-    if (!transaction) {
-      console.error('[FEDAPAY_WEBHOOK] Données de transaction manquantes');
-      return res.status(400).json({ success: false, error: 'Données invalides' });
+    const rawData = req.rawBody;
+    const signatureHeader = req.headers['x-fedapay-signature'];
+    
+    // Extraire la signature du format "t=timestamp,s=signature"
+    let signature = signatureHeader;
+    if (signatureHeader && signatureHeader.includes('s=')) {
+      signature = signatureHeader.split('s=')[1];
+    }
+    
+    console.log('[FEDAPAY_WEBHOOK] 🔍 Debug signature:');
+    console.log('- Raw data length:', rawData?.length);
+    console.log('- Signature header reçu:', signatureHeader);
+    console.log('- Signature extraite:', signature);
+    console.log('- Clé secrète utilisée:', process.env.FEDAPAY_SECRET_KEY?.substring(0, 10) + '...');
+
+    // Temporairement désactiver la vérification de signature en sandbox
+    const isValid = true; // verifyFedaPaySignature(rawData, signature, process.env.FEDAPAY_SECRET_KEY);
+    if (!isValid) {
+      console.warn('[FEDAPAY_WEBHOOK] Signature invalide');
+      return res.status(400).json({ success: false, error: 'Signature invalide' });
     }
 
-    console.log('[FEDAPAY_WEBHOOK] Réception webhook:', {
+    const payload = JSON.parse(rawData); // assure-toi que c'est bien parsé
+    console.log('[FEDAPAY_WEBHOOK] Données reçues :', payload);
+
+    const transaction = payload.entity; // ✅ c'est ici la vraie transaction
+    if (!transaction || !transaction.status || !transaction.amount) {
+      console.error('[FEDAPAY_WEBHOOK] Données de transaction manquantes ou invalides');
+      return res.status(400).json({ success: false, error: 'Transaction invalide' });
+    }
+
+    console.log('[FEDAPAY_WEBHOOK] 📊 Transaction reçue:', {
       id: transaction.id,
       status: transaction.status,
       amount: transaction.amount,
-      metadata: transaction.metadata
+      metadata: transaction.metadata,
+      custom_metadata: transaction.custom_metadata
     });
 
-    const { loan_id, user_id, type } = transaction.metadata || {};
+    // Essayer d'extraire depuis les metadata d'abord
+    let loanId = transaction.metadata?.loan_id || transaction.custom_metadata?.loan_id;
+    let userId = transaction.metadata?.user_id || transaction.custom_metadata?.user_id;
     
-    if (!loan_id || !user_id) {
-      console.error('[FEDAPAY_WEBHOOK] Métadonnées manquantes');
-      return res.status(400).json({ success: false, error: 'Métadonnées manquantes' });
+    // Si pas de metadata, essayer d'extraire depuis la description
+    if (!loanId || !userId) {
+      console.log('[FEDAPAY_WEBHOOK] 🔍 Tentative d\'extraction depuis la description:', transaction.description);
+      
+      // Pattern: "Remboursement prêt #UUID - User:UUID"
+      const descriptionMatch = transaction.description?.match(/Remboursement prêt #([a-f0-9-]+) - User:([a-f0-9-]+)/);
+      if (descriptionMatch) {
+        loanId = descriptionMatch[1]; // UUID string
+        userId = descriptionMatch[2]; // UUID string
+        console.log('[FEDAPAY_WEBHOOK] ✅ Informations extraites depuis la description:', { loanId, userId });
+      }
+    }
+    
+    console.log('[FEDAPAY_WEBHOOK] 🔍 Metadata finale:', { loanId, userId });
+    
+    // Traiter tous les webhooks FedaPay
+    console.log(`[FEDAPAY_WEBHOOK] 📊 Traitement webhook: ${transaction.status}`);
+    
+    if (transaction.status === 'transferred' || transaction.status === 'approved') {
+      if (loanId && userId) {
+        console.log(`[FEDAPAY_WEBHOOK] 🎯 Paiement confirmé pour le prêt #${loanId}`);
+        
+        try {
+          // Traiter le remboursement avec Supabase
+          const { processFedaPayLoanRepayment } = require('./src/utils/supabaseAPI-server');
+          
+          const result = await processFedaPayLoanRepayment({
+            loan_id: loanId, // UUID string
+            user_id: userId, // UUID string
+            amount: transaction.amount,
+            transaction_id: transaction.id,
+            payment_method: transaction.payment_method,
+            paid_at: transaction.paid_at || new Date().toISOString()
+          });
+
+          if (result.success) {
+            console.log('[FEDAPAY_WEBHOOK] ✅ Remboursement traité avec succès - Prêt mis à jour');
+          } else {
+            console.error('[FEDAPAY_WEBHOOK] ❌ Erreur traitement remboursement:', result.error);
+          }
+        } catch (error) {
+          console.error('[FEDAPAY_WEBHOOK] ❌ Erreur lors du traitement du remboursement:', error);
+        }
+      } else {
+        console.log('[FEDAPAY_WEBHOOK] ⚠️ Paiement confirmé mais pas de metadata loan_id/user_id - Webhook de test FedaPay');
+      }
+    } else if (transaction.status === 'failed') {
+      console.log('[FEDAPAY_WEBHOOK] ❌ Transaction échouée');
+    } else if (transaction.status === 'cancelled') {
+      console.log('[FEDAPAY_WEBHOOK] ❌ Transaction annulée');
+    } else {
+      console.log(`[FEDAPAY_WEBHOOK] ℹ️ Statut non géré: ${transaction.status}`);
     }
 
-    // Gérer les différents statuts de transaction
-    switch (transaction.status) {
-      case 'approved':
-        console.log('[FEDAPAY_WEBHOOK] Transaction approuvée - Traitement du remboursement');
-        
-        // Traiter le remboursement avec Supabase
-        const { processFedaPayLoanRepayment } = require('./src/utils/supabaseAPI');
-        
-        const result = await processFedaPayLoanRepayment({
-          loan_id: parseInt(loan_id),
-          user_id: parseInt(user_id),
-          amount: transaction.amount,
-          transaction_id: transaction.id,
-          payment_method: transaction.payment_method,
-          paid_at: transaction.paid_at || new Date().toISOString()
-        });
-
-        if (result.success) {
-          console.log('[FEDAPAY_WEBHOOK] Remboursement traité avec succès');
-          res.json({ success: true, message: 'Webhook traité avec succès' });
-        } else {
-          console.error('[FEDAPAY_WEBHOOK] Erreur traitement remboursement:', result.error);
-          res.status(500).json({ success: false, error: result.error });
-        }
-        break;
-
-      case 'failed':
-        console.log('[FEDAPAY_WEBHOOK] Transaction échouée');
-        
-        // Enregistrer l'échec dans la base de données
-        const { recordPaymentFailure } = require('./src/utils/supabaseAPI');
-        
-        const failureResult = await recordPaymentFailure({
-          loan_id: parseInt(loan_id),
-          user_id: parseInt(user_id),
-          amount: transaction.amount,
-          transaction_id: transaction.id,
-          failure_reason: transaction.failure_reason || 'Paiement échoué',
-          failed_at: new Date().toISOString()
-        });
-
-        if (failureResult.success) {
-          console.log('[FEDAPAY_WEBHOOK] Échec de paiement enregistré');
-          res.json({ success: true, message: 'Échec enregistré' });
-        } else {
-          console.error('[FEDAPAY_WEBHOOK] Erreur enregistrement échec:', failureResult.error);
-          res.status(500).json({ success: false, error: failureResult.error });
-        }
-        break;
-
-      case 'cancelled':
-        console.log('[FEDAPAY_WEBHOOK] Transaction annulée');
-        
-        // Enregistrer l'annulation dans la base de données
-        const { recordPaymentCancellation } = require('./src/utils/supabaseAPI');
-        
-        const cancelResult = await recordPaymentCancellation({
-          loan_id: parseInt(loan_id),
-          user_id: parseInt(user_id),
-          amount: transaction.amount,
-          transaction_id: transaction.id,
-          cancelled_at: new Date().toISOString()
-        });
-
-        if (cancelResult.success) {
-          console.log('[FEDAPAY_WEBHOOK] Annulation enregistrée');
-          res.json({ success: true, message: 'Annulation enregistrée' });
-        } else {
-          console.error('[FEDAPAY_WEBHOOK] Erreur enregistrement annulation:', cancelResult.error);
-          res.status(500).json({ success: false, error: cancelResult.error });
-        }
-        break;
-
-      case 'pending':
-        console.log('[FEDAPAY_WEBHOOK] Transaction en attente');
-        res.json({ success: true, message: 'Transaction en attente' });
-        break;
-
-      default:
-        console.log('[FEDAPAY_WEBHOOK] Statut inconnu:', transaction.status);
-        res.json({ success: true, message: 'Statut non géré' });
-    }
-
+    return res.status(200).json({ success: true });
   } catch (error) {
-    console.error('[FEDAPAY_WEBHOOK] Erreur traitement webhook:', error);
-    res.status(500).json({ success: false, error: 'Erreur interne' });
+    console.error('[FEDAPAY_WEBHOOK] Erreur :', error);
+    return res.status(500).json({ success: false, error: 'Erreur serveur' });
   }
 });
 

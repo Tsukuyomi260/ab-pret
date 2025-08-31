@@ -21,92 +21,92 @@ const Repayment = () => {
 
 
 
-  useEffect(() => {
-    const loadActiveLoan = async () => {
-      if (!user?.id) {
-        return;
-      }
+  const loadActiveLoan = async () => {
+    if (!user?.id) {
+      return;
+    }
 
-      try {
-        setLoading(true);
+    try {
+      setLoading(true);
+      
+      // Récupérer les prêts actifs de l'utilisateur
+      const [loansResult, paymentsResult] = await Promise.all([
+        getLoans(user.id),
+        getPayments(user.id)
+      ]);
+
+      if (loansResult.success && paymentsResult.success) {
+        const loans = loansResult.data || [];
+        const payments = paymentsResult.data || [];
+
+        // Trouver le prêt actif ou approuvé le plus récent
+        const activeLoan = loans.find(loan => loan.status === 'active' || loan.status === 'approved');
         
-        // Récupérer les prêts actifs de l'utilisateur
-        const [loansResult, paymentsResult] = await Promise.all([
-          getLoans(user.id),
-          getPayments(user.id)
-        ]);
-
-        if (loansResult.success && paymentsResult.success) {
-          const loans = loansResult.data || [];
-          const payments = paymentsResult.data || [];
-
-          // Trouver le prêt actif ou approuvé le plus récent
-          const activeLoan = loans.find(loan => loan.status === 'active' || loan.status === 'approved');
+        if (activeLoan) {
+          // Calculer le montant payé pour ce prêt
+          const loanPayments = payments.filter(payment => payment.loan_id === activeLoan.id);
+          const paidAmount = loanPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
           
-          if (activeLoan) {
-            // Calculer le montant payé pour ce prêt
-            const loanPayments = payments.filter(payment => payment.loan_id === activeLoan.id);
-            const paidAmount = loanPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
-            
-            // Calculer le montant total avec intérêts
-            const totalAmount = activeLoan.amount * (1 + (activeLoan.interest_rate || 0) / 100);
-            const remainingAmount = totalAmount - paidAmount;
-            
-            // Calculer la date d'échéance
-            const loanDate = new Date(activeLoan.created_at);
-            const durationMonths = activeLoan.duration || 12;
-            const dueDate = new Date(loanDate.getTime() + (durationMonths * 30 * 24 * 60 * 60 * 1000));
-            
-            // Calculer la date du prochain paiement
-            const now = new Date();
-            const daysSinceLoan = Math.floor((now - loanDate) / (1000 * 60 * 60 * 24));
-            const daysInMonth = 30;
-            const nextPaymentDay = daysSinceLoan + daysInMonth - (daysSinceLoan % daysInMonth);
-            const nextPaymentDate = new Date(loanDate.getTime() + (nextPaymentDay * 24 * 60 * 60 * 1000));
+          // Calculer le montant total avec intérêts
+          const totalAmount = activeLoan.amount * (1 + (activeLoan.interest_rate || 0) / 100);
+          const remainingAmount = totalAmount - paidAmount;
+          
+          // Calculer la date d'échéance
+          const loanDate = new Date(activeLoan.created_at);
+          const durationDays = activeLoan.duration || 30; // duration contient le nombre de jours
+          const dueDate = new Date(loanDate.getTime() + (durationDays * 24 * 60 * 60 * 1000));
+          
+          // Calculer la date du prochain paiement
+          const now = new Date();
+          const daysSinceLoan = Math.floor((now - loanDate) / (1000 * 60 * 60 * 24));
+          const daysInMonth = 30;
+          const nextPaymentDay = daysSinceLoan + daysInMonth - (daysSinceLoan % daysInMonth);
+          const nextPaymentDate = new Date(loanDate.getTime() + (nextPaymentDay * 24 * 60 * 60 * 1000));
 
-            // Debug: Afficher les calculs du montant à rembourser
-            console.log('[REPAYMENT] Calcul du montant à rembourser:', {
-              loanId: activeLoan.id,
-              originalAmount: activeLoan.amount,
-              interestRate: activeLoan.interest_rate || 0,
-              totalAmount: totalAmount,
-              paidAmount: paidAmount,
-              remainingAmount: remainingAmount,
-              calculation: `${activeLoan.amount} * (1 + ${activeLoan.interest_rate || 0}/100) = ${totalAmount}`
-            });
-
-            const formattedLoan = {
-              id: activeLoan.id,
-              amount: activeLoan.amount,
-              monthlyPayment: activeLoan.monthly_payment || Math.round(totalAmount / durationMonths),
-              totalAmount: Math.round(totalAmount),
-              paidAmount: Math.round(paidAmount),
-              remainingAmount: Math.round(remainingAmount),
-              dueDate: dueDate.toISOString().split('T')[0],
-              nextPaymentDate: nextPaymentDate.toISOString().split('T')[0],
-              interest_rate: activeLoan.interest_rate || 0,
-              duration: activeLoan.duration || 12,
-              purpose: activeLoan.purpose || 'Non spécifié'
-            };
-
-            setCurrentLoan(formattedLoan);
-          } else {
-            // Aucun prêt actif trouvé
-            setCurrentLoan(null);
-          }
-        } else {
-          console.error('[REPAYMENT] Erreur lors du chargement des données:', {
-            loans: loansResult.error,
-            payments: paymentsResult.error
+          // Debug: Afficher les calculs du montant à rembourser
+          console.log('[REPAYMENT] Calcul du montant à rembourser:', {
+            loanId: activeLoan.id,
+            originalAmount: activeLoan.amount,
+            interestRate: activeLoan.interest_rate || 0,
+            totalAmount: totalAmount,
+            paidAmount: paidAmount,
+            remainingAmount: remainingAmount,
+            calculation: `${activeLoan.amount} * (1 + ${activeLoan.interest_rate || 0}/100) = ${totalAmount}`
           });
-        }
-      } catch (error) {
-        console.error('[REPAYMENT] Erreur lors du chargement du prêt actif:', error.message);
-      } finally {
-        setLoading(false);
-      }
-    };
 
+          const formattedLoan = {
+            id: activeLoan.id,
+            amount: activeLoan.amount,
+            monthlyPayment: activeLoan.monthly_payment || Math.round(totalAmount / durationDays),
+            totalAmount: Math.round(totalAmount),
+            paidAmount: Math.round(paidAmount),
+            remainingAmount: Math.round(remainingAmount),
+            dueDate: dueDate.toISOString().split('T')[0],
+            nextPaymentDate: nextPaymentDate.toISOString().split('T')[0],
+            interest_rate: activeLoan.interest_rate || 0,
+            duration: activeLoan.duration || 30,
+            purpose: activeLoan.purpose || 'Non spécifié'
+          };
+
+          setCurrentLoan(formattedLoan);
+        } else {
+          // Aucun prêt actif trouvé
+          setCurrentLoan(null);
+        }
+      } else {
+        console.error('[REPAYMENT] Erreur lors du chargement des données:', {
+          loans: loansResult.error,
+          payments: paymentsResult.error
+        });
+      }
+    } catch (error) {
+      console.error('[REPAYMENT] Erreur lors du chargement du prêt actif:', error.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
     loadActiveLoan();
   }, [user?.id]);
 
@@ -115,6 +115,10 @@ const Repayment = () => {
 
   const handleRepaymentSuccess = (message) => {
     showSuccess(message);
+    // Recharger les données après un remboursement réussi
+    setTimeout(() => {
+      loadActiveLoan();
+    }, 1000);
   };
 
   const handleRepaymentError = (error) => {

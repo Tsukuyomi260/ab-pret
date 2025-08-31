@@ -42,6 +42,7 @@ import {
 import { LOAN_CONFIG } from '../../utils/loanConfig';
 import { formatCurrency } from '../../utils/helpers';
 import { jsPDF } from 'jspdf/dist/jspdf.umd.min.js'
+import { getLoans } from '../../utils/supabaseAPI';
 
 const LoanRequest = () => {
   const { user } = useAuth();
@@ -65,6 +66,41 @@ const LoanRequest = () => {
   const [errors, setErrors] = useState({});
   const [selectedCategory, setSelectedCategory] = useState('');
   const [calculation, setCalculation] = useState(null);
+  const [hasActiveLoan, setHasActiveLoan] = useState(false);
+  const [checkingLoans, setCheckingLoans] = useState(true);
+
+  // Vérifier les prêts existants
+  useEffect(() => {
+    const checkExistingLoans = async () => {
+      try {
+        setCheckingLoans(true);
+        const loansResult = await getLoans();
+        
+        if (loansResult.success) {
+          const userLoans = loansResult.data || [];
+          // Vérifier s'il y a un prêt actif ou approuvé
+          const activeLoan = userLoans.find(loan => 
+            loan.status === 'active' || loan.status === 'approved'
+          );
+          
+          setHasActiveLoan(!!activeLoan);
+          
+          if (activeLoan) {
+            console.log('[LOAN_REQUEST] Prêt actif trouvé:', activeLoan);
+            showError('Vous avez déjà un prêt en cours. Vous devez le rembourser avant de faire une nouvelle demande.');
+          }
+        }
+      } catch (error) {
+        console.error('[LOAN_REQUEST] Erreur lors de la vérification des prêts:', error);
+      } finally {
+        setCheckingLoans(false);
+      }
+    };
+
+    if (user?.id) {
+      checkExistingLoans();
+    }
+  }, [user?.id, showError]);
 
   // Styles CSS pour les animations
   const gradientAnimation = `
@@ -667,7 +703,53 @@ const LoanRequest = () => {
     <div id="loan-request-page" className="bg-accent-50">
       <style>{gradientAnimation}</style>
       
-      {/* Header avec design moderne */}
+      {/* Vérification des prêts existants */}
+      {checkingLoans ? (
+        <div className="min-h-screen flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"></div>
+            <p className="text-gray-600">Vérification de vos prêts existants...</p>
+          </div>
+        </div>
+      ) : hasActiveLoan ? (
+        <div className="min-h-screen flex items-center justify-center p-4">
+          <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
+            <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-6">
+              <AlertCircle className="w-8 h-8 text-orange-600" />
+            </div>
+            <h2 className="text-2xl font-bold text-gray-900 mb-4">
+              Prêt en cours
+            </h2>
+            <p className="text-gray-600 mb-6">
+              Vous avez déjà un prêt actif. Vous devez le rembourser avant de faire une nouvelle demande.
+            </p>
+            <div className="space-y-3">
+              <Button
+                onClick={() => navigate('/repayment')}
+                className="w-full bg-primary-500 hover:bg-primary-600 text-white"
+              >
+                Rembourser mon prêt
+              </Button>
+              <Button
+                onClick={() => navigate('/loan-history')}
+                variant="outline"
+                className="w-full"
+              >
+                Voir l'historique
+              </Button>
+              <Button
+                onClick={() => navigate('/dashboard')}
+                variant="outline"
+                className="w-full"
+              >
+                Retour au tableau de bord
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : (
+        <>
+        {/* Header avec design moderne */}
       <div className="relative overflow-hidden">
         {/* Background avec gradient animé */}
         <div className="absolute inset-0 bg-gradient-to-br from-blue-500 via-purple-600 to-indigo-600 opacity-15 animate-gradient"></div>
@@ -1576,6 +1658,8 @@ Décrivez en détail votre projet..."
           </div>
         </div>
       </div>
+        </>
+      )}
     </div>
   );
 };

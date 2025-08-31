@@ -2,12 +2,16 @@ import React, { useEffect, useState } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { CheckCircle, ArrowLeft, Home } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { createPayment, updateLoanStatus } from '../../utils/supabaseAPI';
+import { useNotifications } from '../../context/NotificationContext';
 
 const RepaymentSuccess = () => {
   const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuth();
+  const { showSuccess, showError, addNotification } = useNotifications();
   const [repaymentData, setRepaymentData] = useState(null);
+  const [processing, setProcessing] = useState(false);
 
   useEffect(() => {
     // Récupérer les données de remboursement depuis l'URL ou le state
@@ -17,13 +21,90 @@ const RepaymentSuccess = () => {
     const loanId = searchParams.get('loan_id');
 
     if (transactionId && amount && loanId) {
-      setRepaymentData({
+      const data = {
         transactionId,
         amount: parseInt(amount),
         loanId
-      });
+      };
+      setRepaymentData(data);
+      
+      // Traiter le remboursement automatiquement
+      processRepayment(data);
     }
   }, [location]);
+
+  const processRepayment = async (data) => {
+    if (processing) return;
+    
+    try {
+      setProcessing(true);
+      console.log('[REPAYMENT_SUCCESS] Traitement du remboursement:', data);
+
+      // 1. Créer l'enregistrement de paiement
+      const paymentData = {
+        loan_id: data.loanId,
+        user_id: user.id,
+        amount: data.amount,
+        payment_method: 'fedapay',
+        fedapay_transaction_id: data.transactionId,
+        status: 'completed',
+        payment_date: new Date().toISOString(),
+        description: `Remboursement complet du prêt #${data.loanId}`,
+        metadata: {
+          fedapay_data: {
+            transaction_id: data.transactionId,
+            amount: data.amount,
+            payment_date: new Date().toISOString()
+          },
+          payment_type: 'loan_repayment',
+          app_source: 'ab_pret_web'
+        }
+      };
+
+      const paymentResult = await createPayment(paymentData);
+      
+      if (!paymentResult.success) {
+        throw new Error('Erreur lors de la création du paiement: ' + paymentResult.error);
+      }
+
+      console.log('[REPAYMENT_SUCCESS] Paiement créé:', paymentResult.data);
+
+      // 2. Mettre à jour le statut du prêt à "completed"
+      const loanUpdateResult = await updateLoanStatus(data.loanId, 'completed');
+      
+      if (!loanUpdateResult.success) {
+        throw new Error('Erreur lors de la mise à jour du prêt: ' + loanUpdateResult.error);
+      }
+
+      console.log('[REPAYMENT_SUCCESS] Prêt mis à jour:', loanUpdateResult.data);
+      
+      // Créer une notification pour l'admin
+      const adminNotification = {
+        title: 'Remboursement de prêt effectué',
+        message: `Le client ${user.first_name || user.fullName} a remboursé son prêt #${data.loanId} d'un montant de ${data.amount} FCFA`,
+        type: 'success',
+        priority: 'high',
+        data: {
+          loanId: data.loanId,
+          userId: user.id,
+          amount: data.amount,
+          transactionId: data.transactionId,
+          action: 'view_loan_details'
+        }
+      };
+      
+      // Ajouter la notification (sera visible par l'admin)
+      addNotification(adminNotification);
+      
+      showSuccess('Remboursement traité avec succès ! Le prêt a été marqué comme remboursé.');
+      
+    } catch (error) {
+      console.error('[REPAYMENT_SUCCESS] Erreur lors du traitement:', error);
+      showError('Erreur lors du traitement du remboursement: ' + error.message);
+    } finally {
+      setProcessing(false);
+    }
+  };
 
   const formatCurrency = (amount) => {
     return new Intl.NumberFormat('fr-CI', {
@@ -89,8 +170,12 @@ const RepaymentSuccess = () => {
           {/* Message de confirmation */}
           <div className="bg-green-50 border border-green-200 rounded-xl p-4 mb-6">
             <p className="text-green-800 text-sm">
-              <strong>Confirmation :</strong> Votre prêt a été marqué comme remboursé dans notre système. 
-              Vous recevrez bientôt un email de confirmation.
+              <strong>Confirmation :</strong> 
+              {processing ? (
+                'Traitement du remboursement en cours...'
+              ) : (
+                'Votre prêt a été marqué comme remboursé dans notre système. Vous recevrez bientôt un email de confirmation.'
+              )}
             </p>
           </div>
 

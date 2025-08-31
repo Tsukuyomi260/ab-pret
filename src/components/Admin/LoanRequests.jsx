@@ -75,6 +75,11 @@ const LoanRequests = () => {
           const totalAmount = loan.amount ? loan.amount * (1 + (loan.interest_rate || 0) / 100) : 0;
           const remainingAmount = totalAmount - paidAmount;
           
+          // Calculer la date d'échéance
+          const loanDate = new Date(loan.created_at || new Date());
+          const durationDays = loan.duration_months || 30; // duration_months contient en fait le nombre de jours
+          const dueDate = new Date(loanDate.getTime() + (durationDays * 24 * 60 * 60 * 1000));
+          
           return {
             id: loan.id,
             user: {
@@ -111,6 +116,7 @@ const LoanRequests = () => {
             purpose: loan.purpose || 'Non spécifié',
             status: loan.status || 'pending',
             requestDate: loan.created_at || new Date().toISOString(),
+            dueDate: dueDate.toISOString(), // Date d'échéance ajoutée
             priority: loan.priority || 'medium',
             dailyPenaltyRate: loan.daily_penalty_rate || 2.0,
             // Informations Momo (à récupérer depuis la base de données si disponibles)
@@ -668,10 +674,10 @@ const LoanRequests = () => {
                             {formatCurrency(selectedRequest.amount)}
                           </p>
                         </div>
-                        <div>
-                          <p className="text-sm text-orange-700 font-medium">Durée</p>
-                          <p className="text-orange-900">{selectedRequest.duration} mois</p>
-                        </div>
+                                                 <div>
+                           <p className="text-sm text-orange-700 font-medium">Durée</p>
+                           <p className="text-orange-900">{selectedRequest.duration} jours</p>
+                         </div>
                         <div>
                           <p className="text-sm text-orange-700 font-medium">Objet du prêt</p>
                           <p className="text-orange-900">{selectedRequest.purpose}</p>
@@ -700,6 +706,16 @@ const LoanRequests = () => {
                               day: 'numeric',
                               hour: '2-digit',
                               minute: '2-digit'
+                            })}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-orange-700 font-medium">Date d'échéance</p>
+                          <p className="text-orange-900 font-semibold">
+                            {new Date(selectedRequest.dueDate).toLocaleDateString('fr-FR', {
+                              year: 'numeric',
+                              month: 'long',
+                              day: 'numeric'
                             })}
                           </p>
                         </div>
