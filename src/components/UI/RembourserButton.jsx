@@ -1,50 +1,114 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { CreditCard, Loader } from 'lucide-react';
-import { toast } from 'react-hot-toast';
+import { useAuth } from '../../context/AuthContext';
+import { useNotifications } from '../../context/NotificationContext';
+import toast from 'react-hot-toast';
 
-const RembourserButton = ({ loan, user, onSuccess, onError }) => {
-  const buttonRef = useRef(null);
+const RembourserButton = ({ loan, onSuccess, onError, onCancel }) => {
+  const { user } = useAuth();
+  const { showSuccess, showError } = useNotifications();
   const navigate = useNavigate();
+  const fakeButtonRef = useRef(null); // bouton invisible FedaPay
   const [scriptLoaded, setScriptLoaded] = useState(false);
+  const [initializing, setInitializing] = useState(false);
+  const fedaPayInitialized = useRef(false); // Protection contre les appels multiples
+
+  // Fonction pour nettoyer complètement FedaPay
+  const cleanupFedaPay = () => {
+    try {
+      // Fermer et détruire l'instance FedaPay
+      if (window.FedaPay) {
+        if (window.FedaPay.close) window.FedaPay.close();
+        if (window.FedaPay.destroy) window.FedaPay.destroy();
+      }
+      
+      // Supprimer tous les éléments DOM FedaPay
+      const fedapayElements = document.querySelectorAll(
+        '.fedapay-modal, .fedapay-overlay, [class*="fedapay"], [id*="fedapay"]'
+      );
+      fedapayElements.forEach(element => {
+        if (element && element.parentNode) {
+          element.parentNode.removeChild(element);
+        }
+      });
+      
+      // Supprimer les styles FedaPay
+      const fedapayStyles = document.querySelectorAll('style[data-fedapay], link[href*="fedapay"]');
+      fedapayStyles.forEach(style => {
+        if (style && style.parentNode) {
+          style.parentNode.removeChild(style);
+        }
+      });
+      
+      console.log('[FEDAPAY] Nettoyage complet effectué');
+    } catch (e) {
+      console.log('[FEDAPAY] Erreur lors du nettoyage:', e.message);
+    }
+  };
 
   useEffect(() => {
-    // Vérifier que les données nécessaires sont présentes
-    if (!loan || !user) {
-      console.error('[FEDAPAY_CHECKOUT] Données manquantes:', { loan, user });
-      return;
-    }
+    if (!loan || !user) return;
 
-    // Injecter le script FedaPay si pas encore présent
-    const existingScript = document.getElementById('fedapay-checkout');
-    if (!existingScript) {
+    const scriptAlready = document.getElementById('fedapay-checkout');
+
+    const loadScript = () => {
       const script = document.createElement('script');
       script.src = 'https://cdn.fedapay.com/checkout.js?v=1.1.7';
       script.id = 'fedapay-checkout';
       script.onload = () => {
         setScriptLoaded(true);
-        // Initialiser FedaPay une fois le script chargé
-        initializeFedaPay();
+      };
+      script.onerror = () => {
+        showError('Erreur de chargement du script FedaPay');
       };
       document.body.appendChild(script);
+    };
+
+    if (!scriptAlready) {
+      loadScript();
     } else {
-      // Si script déjà chargé, on init directement
       setScriptLoaded(true);
-      initializeFedaPay();
     }
+
+    // Nettoyage au démontage du composant
+    return () => {
+      cleanupFedaPay();
+      fedaPayInitialized.current = false;
+      setInitializing(false);
+    };
   }, [loan, user]);
 
-  const initializeFedaPay = () => {
-    if (!window.FedaPay || !buttonRef.current || !loan || !user) {
+  const handleClick = () => {
+    if (!loan || !user || !window.FedaPay || !fakeButtonRef.current) {
+      showError('Impossible d\'initialiser le paiement.');
       return;
     }
 
-    const phoneNumber = validateAndFormatPhone(user.phone_number || user.phone);
-    
-    const fedapayConfig = {
+    // Protection contre les appels multiples
+    if (fedaPayInitialized.current || initializing) {
+      console.log('[FEDAPAY] Initialisation déjà en cours, ignoré');
+      return;
+    }
+
+    const phone = validateAndFormatPhone(user.phone_number || user.phone);
+    const amount = loan.remainingAmount || loan.amount;
+
+    setInitializing(true);
+    fedaPayInitialized.current = true;
+
+    // Nettoyer toute instance précédente si elle existe
+    if (window.FedaPay && window.FedaPay.destroy) {
+      try {
+        window.FedaPay.destroy();
+      } catch (e) {
+        console.log('[FEDAPAY] Nettoyage instance précédente:', e.message);
+      }
+    }
+
+    window.FedaPay.init(fakeButtonRef.current, {
       public_key: 'pk_sandbox_ZXhGKFGNXwn853-mYF9pANmi',
       transaction: {
-        amount: loan.remainingAmount || loan.amount,
+        amount,
         description: `Remboursement prêt #${loan.id} - User:${user.id}`,
         currency: { iso: 'XOF' }
       },
@@ -52,188 +116,106 @@ const RembourserButton = ({ loan, user, onSuccess, onError }) => {
         email: user.email,
         lastname: user.full_name || user.name || 'Client',
         phone_number: {
-          number: phoneNumber,
-          country: 'CI' // Côte d'Ivoire
+          number: phone,
+          country: 'CI'
         }
       },
       metadata: {
         loan_id: loan.id,
         user_id: user.id,
-        type: 'loan_repayment',
-        purpose: 'remboursement_pret'
+        type: 'loan_repayment'
       },
-      modal: true, // 👈 Cette ligne est cruciale pour ouvrir directement la modal
-      onSuccess: (transaction) => {
-        console.log('[FEDAPAY_CHECKOUT] Paiement réussi:', transaction);
+      modal: true,
+      onSuccess: function (response) {
+        console.log('[FEDAPAY] Paiement réussi ✅', response);
         
-        // Afficher un toast de succès
+        // Nettoyer complètement FedaPay
+        cleanupFedaPay();
+        
+        fedaPayInitialized.current = false; // Réinitialiser pour permettre un nouveau paiement
+        setInitializing(false);
+        
         toast.success('Remboursement effectué avec succès !');
-        
-        // Appeler le callback de succès
         onSuccess?.('Remboursement effectué avec succès');
-        
-        // Rediriger vers la page de succès
-        const successUrl = `/remboursement/success?transaction_id=${transaction.id}&amount=${loan.remainingAmount || loan.amount}&loan_id=${loan.id}`;
-        navigate(successUrl);
+
+        // Redirection immédiate vers le dashboard
+        setTimeout(() => {
+          navigate('/dashboard');
+          
+          // Rafraîchissement de la page pour mettre à jour les données
+          setTimeout(() => {
+            window.location.reload();
+          }, 1000);
+        }, 500);
       },
-      onError: (error) => {
-        console.error('[FEDAPAY_CHECKOUT] Erreur de paiement:', error);
+      onError: function (error) {
+        console.error('[FEDAPAY] Erreur paiement ❌', error);
         
-        // Analyser le type d'erreur
-        let errorMessage = 'Paiement échoué';
+        // Nettoyer complètement FedaPay même en cas d'erreur
+        cleanupFedaPay();
         
-        if (error.message?.includes('n\'est pas valide')) {
-          errorMessage = 'Numéro de téléphone invalide. Veuillez vérifier vos informations.';
-        } else if (error.message?.includes('création de la transaction')) {
-          errorMessage = 'Erreur lors de la création de la transaction. Veuillez réessayer.';
-        } else if (error.message) {
-          errorMessage = error.message;
-        }
+        fedaPayInitialized.current = false; // Réinitialiser pour permettre un nouveau paiement
+        setInitializing(false);
         
-        // Afficher un toast d'erreur
-        toast.error(`Erreur de paiement: ${errorMessage}`);
-        
-        // Appeler le callback d'erreur
-        onError?.(errorMessage);
+        const msg = error.message || 'Paiement échoué.';
+        toast.error(`Erreur: ${msg}`);
+        onError?.(msg);
       },
-      onCancel: () => {
-        console.log('[FEDAPAY_CHECKOUT] Paiement annulé par l\'utilisateur');
-        
-        // Afficher un toast d'annulation
-        toast.info('Paiement annulé');
-        
-        // Appeler le callback d'erreur
-        onError?.('Paiement annulé par l\'utilisateur');
+      onClose: function () {
+        console.log('[FEDAPAY] Modal fermé');
+        fedaPayInitialized.current = false; // Réinitialiser pour permettre un nouveau paiement
+        setInitializing(false);
+        onCancel?.();
       }
-    };
+    });
 
-    console.log('[FEDAPAY_CHECKOUT] Configuration complète FedaPay:', JSON.stringify(fedapayConfig, null, 2));
-    console.log('[FEDAPAY_CHECKOUT] Metadata envoyées:', fedapayConfig.metadata);
-
-    window.FedaPay.init(buttonRef.current, fedapayConfig);
+    // On "click" le bouton invisible pour lancer le paiement
+    setTimeout(() => {
+      fakeButtonRef.current?.click();
+      // Ne pas réinitialiser setInitializing(false) ici car on le fait dans les callbacks
+    }, 300);
   };
 
-  // Fonction pour valider et formater le numéro de téléphone
   const validateAndFormatPhone = (phone) => {
-    if (!phone) {
-      console.warn('[FEDAPAY_CHECKOUT] Aucun numéro de téléphone fourni, utilisation d\'un numéro de test');
-      return '01234567'; // Numéro de test valide pour FedaPay
-    }
-    
-    // Nettoyer le numéro
-    let cleanPhone = phone.toString().replace(/\D/g, '');
-    
-    // Supprimer l'indicatif pays s'il est présent
-    if (cleanPhone.startsWith('225')) {
-      cleanPhone = cleanPhone.substring(3);
-    }
-    
-    // Vérifier que le numéro a au moins 8 chiffres
-    if (cleanPhone.length < 8) {
-      console.warn('[FEDAPAY_CHECKOUT] Numéro de téléphone trop court, utilisation d\'un numéro de test');
-      return '01234567';
-    }
-    
-    // Vérifier que le numéro ne commence pas par des zéros multiples
-    if (cleanPhone.startsWith('000') || cleanPhone === '97000000') {
-      console.warn('[FEDAPAY_CHECKOUT] Numéro de téléphone invalide détecté, utilisation d\'un numéro de test');
-      return '01234567';
-    }
-    
-    return cleanPhone;
+    if (!phone) return '01234567';
+    const clean = phone.replace(/[\s\-]/g, '');
+    if (clean.startsWith('+225') || clean.startsWith('225')) return clean.slice(-8);
+    if (clean.startsWith('0')) return clean.slice(1);
+    return clean;
   };
 
-  // Fonction pour formater le montant
-  const formatCurrency = (amount) => {
-    return new Intl.NumberFormat('fr-CI', {
-      style: 'currency',
-      currency: 'XOF'
-    }).format(amount / 100);
-  };
-
-  // Vérifier si les données sont disponibles
-  if (!loan || !user) {
+  if (!loan || !loan.remainingAmount || loan.remainingAmount <= 0) {
     return (
       <button
         disabled
-        className="w-full p-4 border border-gray-300 rounded-xl bg-gray-400 text-white cursor-not-allowed"
+        className="w-full p-4 border rounded bg-gray-400 text-white cursor-not-allowed"
       >
-        Données manquantes
+        Aucun montant à rembourser
       </button>
     );
   }
-
-  const amount = loan.remainingAmount || loan.amount;
-
-  // Validation du montant
-  if (!amount || amount <= 0) {
-    console.error('[FEDAPAY_CHECKOUT] Montant invalide:', {
-      amount,
-      remainingAmount: loan.remainingAmount,
-      originalAmount: loan.amount,
-      loan: loan
-    });
-    return (
-      <div className="space-y-3">
-        <div className="p-3 bg-red-50 border border-red-200 rounded-lg">
-          <p className="text-sm text-red-700">
-            <strong>❌ Erreur :</strong> Montant de remboursement invalide. Veuillez contacter le support.
-          </p>
-        </div>
-        <button
-          disabled
-          className="w-full p-4 border border-gray-300 rounded-xl bg-gray-400 text-gray-200 cursor-not-allowed"
-        >
-          Montant invalide
-        </button>
-      </div>
-    );
-  }
-
-  // Debug: Afficher les données du prêt
-  console.log('[FEDAPAY_CHECKOUT] Données du prêt reçues:', {
-    loanId: loan.id,
-    amount: loan.amount,
-    remainingAmount: loan.remainingAmount,
-    paidAmount: loan.paidAmount,
-    totalAmount: loan.totalAmount,
-    finalAmount: amount,
-    amountType: typeof amount,
-    amountIsValid: amount > 0
-  });
 
   return (
-    <div className="space-y-3">
-      {/* Message d'information */}
-      <div className="p-3 bg-blue-50 border border-blue-200 rounded-lg">
-        <p className="text-sm text-blue-700">
-          <strong>💡 Information :</strong> Le paiement s'ouvrira directement dans une fenêtre sécurisée. Assurez-vous que votre numéro de téléphone est correct.
-        </p>
-      </div>
-      
-      {/* Bouton de remboursement */}
-      <button
-        ref={buttonRef}
-        disabled={!scriptLoaded}
-        className={`w-full p-4 border border-gray-300 rounded-xl transition-colors flex items-center justify-center space-x-2 ${
-          scriptLoaded 
-            ? 'bg-purple-600 text-white hover:bg-purple-700' 
-            : 'bg-gray-400 text-gray-200 cursor-not-allowed'
-        }`}
-      >
-        {scriptLoaded ? (
-          <>
-            <CreditCard className="w-5 h-5" />
-            <span>Rembourser mon prêt</span>
-          </>
-        ) : (
-          <>
-            <Loader className="w-5 h-5 animate-spin" />
-            <span>Chargement...</span>
-          </>
-        )}
+    <>
+      {/* Bouton invisible pour le système FedaPay */}
+      <button ref={fakeButtonRef} style={{ display: 'none' }}>
+        Payer
       </button>
-    </div>
+
+      {/* Bouton visible de l'utilisateur */}
+      <button
+        onClick={handleClick}
+        disabled={!scriptLoaded || initializing}
+        className="w-full p-4 border rounded bg-green-600 text-white hover:bg-green-700 transition disabled:bg-gray-400 disabled:cursor-not-allowed"
+      >
+        {initializing
+          ? 'Initialisation du paiement...'
+          : `Effectuer le remboursement - ${new Intl.NumberFormat('fr-CI', {
+              style: 'currency',
+              currency: 'XOF'
+            }).format(loan.remainingAmount)}`}
+      </button>
+    </>
   );
 };
 

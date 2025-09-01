@@ -360,7 +360,7 @@ const LoanRequest = () => {
       amount: parseFloat(formData.amount),
       // duration_months existe dans la base, pas purpose
       duration_months: formData.duration, // ✅ Champ correct
-      interest_rate: 10.0, // ✅ Champ requis par la base
+      interest_rate: calculation ? calculation.interestRate : LOAN_CONFIG.getInterestRate(parseInt(formData.duration)), // ✅ Calcul correct basé sur la durée
       status: 'pending',
       // Informations Momo
       momo_number: formData.momoNumber,
