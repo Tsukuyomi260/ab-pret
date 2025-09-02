@@ -47,8 +47,7 @@ const RembourserButton = ({ loan, onSuccess, onError, onCancel }) => {
   };
 
   useEffect(() => {
-    if (!loan || !user) return;
-
+    // Charger le script FedaPay une seule fois
     const scriptAlready = document.getElementById('fedapay-checkout');
 
     const loadScript = () => {
@@ -76,7 +75,7 @@ const RembourserButton = ({ loan, onSuccess, onError, onCancel }) => {
       fedaPayInitialized.current = false;
       setInitializing(false);
     };
-  }, [loan, user]);
+  }, []);
 
   const handleClick = () => {
     if (!loan || !user || !window.FedaPay || !fakeButtonRef.current) {
@@ -138,14 +137,9 @@ const RembourserButton = ({ loan, onSuccess, onError, onCancel }) => {
         toast.success('Remboursement effectué avec succès !');
         onSuccess?.('Remboursement effectué avec succès');
 
-        // Redirection immédiate vers le dashboard
+        // Redirection forcée avec rechargement complet de la page
         setTimeout(() => {
-          navigate('/dashboard');
-          
-          // Rafraîchissement de la page pour mettre à jour les données
-          setTimeout(() => {
-            window.location.reload();
-          }, 1000);
+          window.location.assign('/dashboard?refresh=1');
         }, 500);
       },
       onError: function (error) {
@@ -163,9 +157,16 @@ const RembourserButton = ({ loan, onSuccess, onError, onCancel }) => {
       },
       onClose: function () {
         console.log('[FEDAPAY] Modal fermé');
+        // Nettoyage et réinitialisation même en fermeture
+        cleanupFedaPay();
         fedaPayInitialized.current = false; // Réinitialiser pour permettre un nouveau paiement
         setInitializing(false);
         onCancel?.();
+
+        // Redirection forcée avec rechargement complet de la page
+        setTimeout(() => {
+          window.location.assign('/dashboard?refresh=1');
+        }, 300);
       }
     });
 
