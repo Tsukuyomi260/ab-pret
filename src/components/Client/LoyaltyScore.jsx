@@ -85,50 +85,85 @@ const LoyaltyScore = () => {
       setLoading(true);
       
       // Récupérer les prêts et paiements de l'utilisateur
-      const loansResult = await getLoans(user.id);
-      const paymentsResult = await getPayments(user.id);
+      const [loansResult, paymentsResult] = await Promise.all([
+        getLoans(user.id),
+        getPayments(user.id)
+      ]);
 
       if (loansResult.success && paymentsResult.success) {
         const loans = loansResult.data || [];
         const payments = paymentsResult.data || [];
 
-        // Pour les comptes existants, commencer à 0/5
-        // Seuls les nouveaux remboursements (après cette mise à jour) compteront
-        const currentScore = 0; // Tous les comptes commencent à 0
-        
-        // Pour l'instant, aucun prêt remboursé dans le nouveau système
-        const completedLoans = [];
-        const onTimeRepayments = 0;
-        
-        // Déterminer le niveau actuel et le prochain
-        const currentLevel = levels.find(level => 
-          currentScore >= level.minScore && currentScore <= level.maxScore
+        // +1 point UNIQUEMENT si remboursement avant la date d'échéance
+        // Préparer un index des prêts par id pour récupérer dates/durée
+        const loanById = new Map(
+          loans.map(loan => [loan.id, loan])
         );
-        
-        const nextLevel = levels.find(level => level.minScore > currentScore) || currentLevel;
-        const pointsToNextLevel = nextLevel ? nextLevel.minScore - currentScore : 0;
-        
-        // Pour les comptes existants, pas d'économies encore
-        const totalSavings = 0;
 
-        // Historique vide pour les comptes existants
-        const history = [];
+        const completedPayments = payments.filter(p => (p.status || '').toLowerCase() === 'completed');
 
-        // Déterminer la prochaine récompense (pour score 0)
-        const nextReward = 'Premier bonus après 1 remboursement';
+        // Ensemble des prêts remboursés à temps (unique par prêt)
+        const onTimeLoanIds = new Set();
+
+        // Historique: premier paiement à temps par prêt
+        const firstOnTimePaymentByLoan = new Map();
+
+        completedPayments.forEach(p => {
+            const loan = loanById.get(p.loan_id);
+            if (!loan) return;
+
+            const loanCreatedAt = new Date(loan.created_at || new Date());
+          const durationDays = parseInt(loan.duration_months || loan.duration || 30, 10);
+            const dueDate = new Date(loanCreatedAt.getTime() + durationDays * 24 * 60 * 60 * 1000);
+
+            const paymentDate = new Date(p.payment_date || p.created_at || new Date());
+            const isOnTime = paymentDate.getTime() <= dueDate.getTime();
+
+            if (isOnTime) {
+            onTimeLoanIds.add(p.loan_id);
+            const existing = firstOnTimePaymentByLoan.get(p.loan_id);
+            if (!existing || paymentDate.getTime() < existing.paymentDate.getTime()) {
+              firstOnTimePaymentByLoan.set(p.loan_id, { id: p.id, paymentDate });
+            }
+          }
+        });
+
+        // Score borné à 5, +1 par prêt remboursé à temps
+        const currentScore = Math.max(0, Math.min(5, onTimeLoanIds.size));
+
+        // Historique construit à partir du premier paiement à temps par prêt
+        const history = Array.from(firstOnTimePaymentByLoan.entries()).map(([loanId, info]) => ({
+          id: info.id,
+          date: info.paymentDate.toISOString(),
+          points: 1,
+          action: `Remboursement à temps du prêt #${loanId}`
+        }));
+
+        // Nombre de prêts terminés (status 'completed' ou 'remboursé')
+        const completedLoansCount = loans.filter(l => {
+          const s = (l.status || '').toLowerCase();
+          return s === 'completed' || s === 'remboursé';
+        }).length;
+
+        // Déterminer le prochain niveau
+        const nextLevelDef = levels.find(level => level.minScore > currentScore) || levels[levels.length - 1];
+        const pointsToNextLevel = Math.max(0, (nextLevelDef.minScore ?? currentScore) - currentScore);
+
+        // Récompense suivante (texte)
+        const nextReward = currentScore >= 5 ? 'Score maximum atteint' : '1 remboursement à temps = +1 point';
 
         setLoyaltyData({
-          currentScore: 0, // Force à 0 pour tous les comptes existants
+          currentScore,
           maxScore: 5,
-          level: 'Bronze', // Niveau de base
-          nextLevel: 'Silver', // Prochain niveau
-          pointsToNextLevel: 1, // 1 point pour atteindre Silver
-          completedLoans: 0, // Aucun prêt remboursé dans le nouveau système
-          loansForNextBonus: 1, // 1 remboursement pour le premier bonus
-          totalSavings: 0, // Pas d'économies encore
-          phoneCreditEarned: 0, // Pas de crédit téléphonique encore
+          level: (levels.find(l => currentScore >= l.minScore && currentScore <= l.maxScore)?.name) || 'Bronze',
+          nextLevel: nextLevelDef.name,
+          pointsToNextLevel,
+          completedLoans: completedLoansCount,
+          loansForNextBonus: Math.max(0, 1),
+          totalSavings: 0,
+          phoneCreditEarned: 0,
           nextReward,
-          history: [] // Historique vide
+          history
         });
       }
     } catch (error) {

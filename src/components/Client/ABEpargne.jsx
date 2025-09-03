@@ -507,7 +507,7 @@ const ABEpargne = () => {
         try {
           console.log('[ABEPARGNE] Configuration FedaPay:', {
             public_key: 'pk_sandbox_ZXhGKFGNXwn853-mYF9pANmi',
-            amount: planConfig.fixedAmount,
+            amount: 1000, // Frais de création fixes
             customer: {
               firstname: user.firstname || 'Client',
               lastname: user.lastname || '',
@@ -525,7 +525,7 @@ const ABEpargne = () => {
           const fedapayConfig = {
             public_key: 'pk_sandbox_ZXhGKFGNXwn853-mYF9pANmi',
             transaction: {
-              amount: parseInt(planConfig.fixedAmount), // S'assurer que c'est un entier
+              amount: 1000, // Frais de création fixes
               description: "Paiement du plan d'épargne AB Campus Finance",
               currency: {
                 iso: 'XOF'
@@ -2651,7 +2651,7 @@ const ABEpargne = () => {
               {/* Actions */}
               <div className="flex flex-col space-y-2">
                 <FedaPayButton
-                  amount={planConfig.fixedAmount}
+                  amount={1000}
                   email={user.email}
                   firstname={user.first_name || user.fullName?.split(' ')[0] || 'Client'}
                   lastname={user.last_name || user.fullName?.split(' ').slice(1).join(' ') || 'Campus'}

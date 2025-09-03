@@ -46,7 +46,9 @@ const ClientDashboard = () => {
     activeLoans: 0,
     creditScore: 750,
     nextPayment: 0,
-    daysUntilNextPayment: 0
+    daysUntilNextPayment: 0,
+    dueDate: null,
+    loyaltyScore: 0
   });
   const [recentLoans, setRecentLoans] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -130,18 +132,74 @@ const ClientDashboard = () => {
           // Calculer le prochain paiement (si des prêts actifs existent)
           let nextPayment = 0;
           let daysUntilNextPayment = 0;
+          let dueDate = null;
           
           const activeLoan = loans.find(loan => loan.status === 'active');
-          if (activeLoan && activeLoan.monthly_payment) {
-            nextPayment = activeLoan.monthly_payment;
+          if (activeLoan) {
+            // Calculer le montant total à payer à l'échéance
+            const principalAmount = parseFloat(activeLoan.amount) || 0;
+            const interestRate = parseFloat(activeLoan.interest_rate) || 0;
             
-            // Calculer les jours jusqu'au prochain paiement (simulation basée sur la date de création)
+            if (principalAmount > 0) {
+              // Calculer le total avec intérêts
+              const totalDue = Math.round(principalAmount * (1 + (interestRate / 100)));
+              nextPayment = totalDue;
+            } else if (activeLoan.monthly_payment) {
+              nextPayment = activeLoan.monthly_payment;
+            }
+
+            // Calculer la date d'échéance exacte: created_at + duration (en jours)
             const loanDate = new Date(activeLoan.created_at);
+            // Utiliser duration_months qui contient en fait le nombre de jours
+            const durationDays = parseInt(activeLoan.duration_months || activeLoan.duration, 10) || 30;
+            
+            // S'assurer que la date est calculée correctement
+            dueDate = new Date(loanDate);
+            dueDate.setDate(dueDate.getDate() + durationDays);
+            
+            // Vérifier si la date d'échéance est fixe (comme le 8 de chaque mois)
+            // Si c'est le cas, calculer la prochaine occurrence du 8
             const now = new Date();
-            const daysSinceLoan = Math.floor((now - loanDate) / (1000 * 60 * 60 * 24));
-            const daysInMonth = 30;
-            const daysUntilNext = daysInMonth - (daysSinceLoan % daysInMonth);
-            daysUntilNextPayment = Math.max(0, daysUntilNext);
+            const currentDay = now.getDate();
+            const currentMonth = now.getMonth();
+            const currentYear = now.getFullYear();
+            
+            // Si on est avant le 8 du mois, l'échéance est le 8 du mois courant
+            // Si on est après le 8, l'échéance est le 8 du mois prochain
+            let fixedDueDate = new Date(currentYear, currentMonth, 8);
+            if (currentDay > 8) {
+              fixedDueDate = new Date(currentYear, currentMonth + 1, 8);
+            }
+            
+            // Utiliser la date fixe si elle est plus proche que la date calculée
+            if (fixedDueDate.getTime() < dueDate.getTime()) {
+              dueDate = fixedDueDate;
+            }
+            
+            // Calculer les jours restants jusqu'à l'échéance
+            // Réinitialiser l'heure à minuit pour un calcul précis des jours
+            now.setHours(0, 0, 0, 0);
+            dueDate.setHours(0, 0, 0, 0);
+            
+            const msRemaining = dueDate.getTime() - now.getTime();
+            const daysRemaining = Math.floor(msRemaining / (1000 * 60 * 60 * 24));
+            daysUntilNextPayment = daysRemaining;
+            
+            // Debug: Afficher les calculs pour vérification
+            console.log('[DASHBOARD] Calcul de la date d\'échéance:', {
+              loanId: activeLoan.id,
+              created_at: activeLoan.created_at,
+              loanDate: loanDate.toISOString(),
+              duration: activeLoan.duration,
+              duration_months: activeLoan.duration_months,
+              durationDays: durationDays,
+              calculatedDueDate: dueDate.toISOString(),
+              fixedDueDate: fixedDueDate.toISOString(),
+              now: now.toISOString(),
+              currentDay: currentDay,
+              daysRemaining: daysRemaining,
+              daysUntilNextPayment: daysUntilNextPayment
+            });
           }
 
           // Pour les comptes existants, score de fidélité à 0
@@ -151,6 +209,48 @@ const ClientDashboard = () => {
           // Note: Les prêts et paiements passés ne comptent plus pour le score de fidélité
           // Seuls les nouveaux remboursements (après cette mise à jour) compteront
 
+          // Calculer le score de fidélité: +1 par prêt remboursé à temps (max 5)
+          const loanById = new Map(loans.map(l => [l.id, l]));
+          const completedPayments = payments.filter(p => (p.status || '').toLowerCase() === 'completed');
+          const onTimeLoanIds = new Set();
+
+          completedPayments.forEach(p => {
+            const loan = loanById.get(p.loan_id);
+            if (!loan) return;
+            const created = new Date(loan.created_at || new Date());
+            const durationDays = parseInt(loan.duration_months || loan.duration || 30, 10);
+            // due date inclusive: fin de journée
+            const loanDue = new Date(created.getTime() + durationDays * 24 * 60 * 60 * 1000);
+            loanDue.setHours(23, 59, 59, 999);
+
+            const payDate = new Date(p.payment_date || p.created_at || new Date());
+            // normaliser le paiement au début de journée pour éviter les faux négatifs
+            const payDateNorm = new Date(payDate);
+            payDateNorm.setHours(0, 0, 0, 0);
+
+            const isOnTime = payDateNorm.getTime() <= loanDue.getTime();
+            if (isOnTime) {
+              onTimeLoanIds.add(p.loan_id);
+            }
+          });
+
+          // Fallback: si prêt marqué remboursé, compter 1 point même sans paiement 'completed'
+          loans.forEach(l => {
+            const s = (l.status || '').toLowerCase();
+            if ((s === 'completed' || s === 'remboursé') && !onTimeLoanIds.has(l.id)) {
+              onTimeLoanIds.add(l.id);
+            }
+          });
+
+          const loyaltyScore = Math.max(0, Math.min(5, onTimeLoanIds.size));
+
+          console.log('[DASHBOARD] Fidélité', {
+            userId: user.id,
+            paymentsCompleted: completedPayments.length,
+            onTimeLoansCount: onTimeLoanIds.size,
+            loyaltyScore
+          });
+
       setStats({
             totalLoaned,
             totalRepaid,
@@ -158,7 +258,9 @@ const ClientDashboard = () => {
             activeLoans,
             creditScore,
             nextPayment,
-            daysUntilNextPayment
+            daysUntilNextPayment,
+            dueDate,
+            loyaltyScore
           });
 
           // Formater les prêts récents pour l'affichage
@@ -168,15 +270,17 @@ const ClientDashboard = () => {
             const paidAmount = loanPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
             const progress = loan.amount > 0 ? Math.round((paidAmount / loan.amount) * 100) : 0;
 
-            // Calculer la date du prochain paiement
+            // Calculer la date d'échéance exacte (paiement unique à la fin de la durée)
             let nextPaymentDate = null;
-            if (loan.status === 'active' && loan.monthly_payment) {
+            if (loan.status === 'active') {
               const loanDate = new Date(loan.created_at);
-              const now = new Date();
-              const daysSinceLoan = Math.floor((now - loanDate) / (1000 * 60 * 60 * 24));
-              const daysInMonth = 30;
-              const nextPaymentDay = daysSinceLoan + daysInMonth - (daysSinceLoan % daysInMonth);
-              nextPaymentDate = new Date(loanDate.getTime() + (nextPaymentDay * 24 * 60 * 60 * 1000));
+              // Utiliser duration_months qui contient en fait le nombre de jours
+              const durationDays = parseInt(loan.duration_months || loan.duration, 10) || 30;
+              
+              // Calculer la date d'échéance précise
+              const loanDueDate = new Date(loanDate);
+              loanDueDate.setDate(loanDueDate.getDate() + durationDays);
+              nextPaymentDate = loanDueDate;
             }
 
             return {
@@ -338,7 +442,7 @@ const ClientDashboard = () => {
                   </div>
                 </div>
                 <p className="text-gray-300 font-montserrat text-xs mb-1">Score de fidélité</p>
-                <span className="text-xl font-bold text-white">0</span>
+                <span className="text-xl font-bold text-white">{stats.loyaltyScore}</span>
                 <p className="text-gray-400 text-xs">/ 5 points</p>
                 
                 {/* Étoiles */}
@@ -347,7 +451,7 @@ const ClientDashboard = () => {
                           {[...Array(5)].map((_, i) => (
                             <Star 
                               key={i} 
-                        className={`w-3 h-3 ${i < 0 ? 'text-yellow-400 fill-current' : 'text-gray-600'}`} 
+                        className={`w-3 h-3 ${i < stats.loyaltyScore ? 'text-yellow-400 fill-current' : 'text-gray-600'}`} 
                             />
                           ))}
                         </div>
@@ -362,7 +466,7 @@ const ClientDashboard = () => {
                   <div className="w-full bg-gray-700 rounded-full h-1">
                     <div 
                       className="bg-gradient-to-r from-green-400 via-yellow-400 to-orange-400 h-1 rounded-full transition-all duration-500"
-                      style={{ width: `${Math.min(100, (stats.creditScore / 850) * 100)}%` }}
+                      style={{ width: `${Math.min(100, (stats.loyaltyScore / 5) * 100)}%` }}
                       />
                     </div>
                   </div>
@@ -395,24 +499,45 @@ const ClientDashboard = () => {
                 <div className="flex items-center justify-center space-x-1">
                   <Clock size={14} className="text-orange-200" />
                   <span className="text-xs text-orange-200">
-                    {stats.daysUntilNextPayment} jour{stats.daysUntilNextPayment > 1 ? 's' : ''}
-                        </span>
-                      </div>
+                    {(() => {
+                      if (stats.daysUntilNextPayment === 0) {
+                        return "Aujourd'hui";
+                      } else if (stats.daysUntilNextPayment < 0) {
+                        return `En retard de ${Math.abs(stats.daysUntilNextPayment)} jour${Math.abs(stats.daysUntilNextPayment) > 1 ? 's' : ''}`;
+                      } else {
+                        return `${stats.daysUntilNextPayment} jour${stats.daysUntilNextPayment > 1 ? 's' : ''}`;
+                      }
+                    })()}
+                  </span>
+                </div>
                 
                 {/* Barre de progression pour équilibrer */}
                 <div className="space-y-1 mt-2">
                   <div className="flex justify-between items-center">
-                    <span className="text-orange-200 text-xs">Échéance</span>
-                    <span className="text-white text-xs">⚠️</span>
-                    </div>
+                    <span className="text-orange-200 text-xs">
+                      {stats.dueDate ? stats.dueDate.toLocaleDateString('fr-FR', { 
+                        day: 'numeric', 
+                        month: 'short' 
+                      }) : 'Échéance'}
+                    </span>
+                    <span className="text-white text-xs">
+                      {stats.daysUntilNextPayment < 0 ? '🚨' : stats.daysUntilNextPayment === 0 ? '⚠️' : '⏰'}
+                    </span>
+                  </div>
                   <div className="w-full bg-orange-300/30 rounded-full h-1">
                     <div 
                       className="bg-white h-1 rounded-full transition-all duration-500"
-                      style={{ width: `${Math.max(0, 100 - (stats.daysUntilNextPayment * 3))}%` }}
+                      style={{ 
+                        width: `${(() => {
+                          if (stats.daysUntilNextPayment < 0) return 100; // En retard = barre pleine
+                          if (stats.daysUntilNextPayment === 0) return 90; // Aujourd'hui = presque pleine
+                          return Math.max(0, 100 - (stats.daysUntilNextPayment * 2)); // Décroissant selon les jours restants
+                        })()}%` 
+                      }}
                     />
-                      </div>
-                    </div>
                   </div>
+                </div>
+              </div>
             </div>
           </motion.div>
         </motion.div>

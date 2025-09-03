@@ -67,8 +67,7 @@ const AdminDashboard = () => {
           setPendingRegistrations(pendingUsers);
           setStats(prev => ({
             ...prev,
-            totalUsers: usersResult.data.length,
-            pendingRequests: pendingUsers.length
+            totalUsers: usersResult.data.length
           }));
         }
         
@@ -91,10 +90,26 @@ const AdminDashboard = () => {
           // Mettre à jour les statistiques des prêts
           const totalLoans = loansResult.data.length;
           const totalAmount = loansResult.data.reduce((sum, loan) => sum + (loan.amount || 0), 0);
+          // Compter les demandes de prêt en attente
+          const pendingLoans = loansResult.data.filter(loan => (loan.status || '').toLowerCase() === 'pending').length;
+          // Prêts approuvés par l'admin
+          // Règle robuste: si approved_by/approved_at est présent → approuvé par l'admin
+          // Sinon, fallback sur les statuts qui suivent l'approbation ('active' ou 'approved')
+          const approvedLoans = loansResult.data.filter(loan => {
+            const s = (loan.status || '').toLowerCase();
+            const hasAdminApproval = Boolean(loan.approved_by) || Boolean(loan.approved_at);
+            const statusLooksApproved = s === 'active' || s === 'approved';
+            return hasAdminApproval || statusLooksApproved;
+          });
+          const approvedCount = approvedLoans.length;
+          const approvedAmount = approvedLoans.reduce((sum, loan) => sum + (loan.amount || 0), 0);
           setStats(prev => ({
             ...prev,
             totalLoans,
-            totalAmount
+            totalAmount,
+            pendingRequests: pendingLoans,
+            approvedCount,
+            approvedAmount
           }));
         }
 
@@ -105,8 +120,7 @@ const AdminDashboard = () => {
             ...prev,
             totalUsers: analytics.overview?.totalUsers || prev.totalUsers,
             totalLoans: analytics.overview?.totalLoans || prev.totalLoans,
-            totalAmount: analytics.overview?.totalAmount || prev.totalAmount,
-            pendingRequests: analytics.overview?.pendingUsers || prev.pendingRequests
+            totalAmount: analytics.overview?.totalAmount || prev.totalAmount
           }));
         }
 
@@ -334,24 +348,26 @@ const AdminDashboard = () => {
                   transition={{ duration: 0.6, delay: 0.3 }}
                   className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8"
                 >
-                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-soft hover:shadow-lg transition-all duration-300">
+                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-soft hover:shadow-lg transition-all duration-300 cursor-pointer" onClick={() => navigate('/admin/loan-requests?status=approved')}>
                     <div className="flex items-center justify-between mb-3">
                       <div className="p-3 bg-primary-100 rounded-xl">
                         <CreditCard size={20} className="text-primary-600" />
             </div>
                       <span className="text-xs font-medium text-neutral-500 bg-neutral-100 px-2 py-1 rounded-full">
-                        Total
+                        Accordés
                       </span>
           </div>
-                    <p className="text-2xl font-bold text-secondary-900 font-montserrat mb-1">
-                      {formatCurrency(stats.totalAmount)}
-                    </p>
-                    <p className="text-sm text-neutral-600 font-montserrat">
-                      Prêts accordés
-                    </p>
+                    <div className="flex items-baseline gap-3">
+                      <p className="text-2xl font-bold text-secondary-900 font-montserrat">
+                        {formatCurrency(stats.approvedAmount || 0)}
+                      </p>
+                      <span className="text-sm text-neutral-500">
+                        {stats.approvedCount || 0} prêts
+                      </span>
+                    </div>
                   </div>
 
-                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-soft hover:shadow-lg transition-all duration-300">
+                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-soft hover:shadow-lg transition-all duration-300 cursor-pointer" onClick={() => navigate('/admin/user-management')}>
                     <div className="flex items-center justify-between mb-3">
                       <div className="p-3 bg-green-100 rounded-xl">
                         <Users size={20} className="text-green-600" />
@@ -368,15 +384,15 @@ const AdminDashboard = () => {
                     </p>
                   </div>
 
-                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-soft hover:shadow-lg transition-all duration-300">
+                  <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-soft hover:shadow-lg transition-all duration-300 cursor-pointer" onClick={() => navigate('/admin/loan-requests')}>
                     <div className="flex items-center justify-between mb-3">
                       <div className="p-3 bg-yellow-100 rounded-xl">
                         <Clock size={20} className="text-yellow-600" />
-                  </div>
+                      </div>
                       <span className="text-xs font-medium text-neutral-500 bg-neutral-100 px-2 py-1 rounded-full">
                         En attente
                       </span>
-                </div>
+                    </div>
                     <p className="text-2xl font-bold text-secondary-900 font-montserrat mb-1">
                       {stats.pendingRequests}
                     </p>

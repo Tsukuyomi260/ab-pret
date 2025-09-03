@@ -62,9 +62,9 @@ const UserManagement = () => {
           phone: user.phone_number || 'Non renseigné',
           status: user.status || 'pending',
           registrationDate: user.created_at || new Date().toISOString(),
-          totalLoans: 0, // À calculer si nécessaire
-          activeLoans: 0, // À calculer si nécessaire
-          totalAmount: 0, // À calculer si nécessaire
+          totalLoans: user.totalLoans || 0,
+          activeLoans: user.activeLoans || 0,
+          totalAmount: user.totalAmount || 0,
           verified: user.status === 'approved',
           // Informations personnelles
           filiere: user.filiere || 'Non spécifiée',
