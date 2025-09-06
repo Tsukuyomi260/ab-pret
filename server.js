@@ -1,6 +1,10 @@
 const express = require('express');
 const cors = require('cors');
 const app = express();
+
+// Load env from .env.local first, then .env
+require('dotenv').config({ path: '.env.local' });
+require('dotenv').config();
 app.use(express.json({
   verify: (req, res, buf) => {
     req.rawBody = buf.toString('utf8'); // ← important de bien définir l'encodage
@@ -410,57 +414,112 @@ app.post('/api/fedapay/webhook', async (req, res) => {
     // Essayer d'extraire depuis les metadata d'abord
     let loanId = transaction.metadata?.loan_id || transaction.custom_metadata?.loan_id;
     let userId = transaction.metadata?.user_id || transaction.custom_metadata?.user_id;
+    let paymentType = transaction.metadata?.type || transaction.custom_metadata?.type;
     
     // Si pas de metadata, essayer d'extraire depuis la description
     if (!loanId || !userId) {
       console.log('[FEDAPAY_WEBHOOK] 🔍 Tentative d\'extraction depuis la description:', transaction.description);
       
-      // Pattern: "Remboursement prêt #UUID - User:UUID"
-      const descriptionMatch = transaction.description?.match(/Remboursement prêt #([a-f0-9-]+) - User:([a-f0-9-]+)/);
-      if (descriptionMatch) {
-        loanId = descriptionMatch[1]; // UUID string
-        userId = descriptionMatch[2]; // UUID string
-        console.log('[FEDAPAY_WEBHOOK] ✅ Informations extraites depuis la description:', { loanId, userId });
+      // Pattern pour remboursement de prêt: "Remboursement prêt #UUID - User:UUID"
+      const loanDescriptionMatch = transaction.description?.match(/Remboursement prêt #([a-f0-9-]+) - User:([a-f0-9-]+)/);
+      if (loanDescriptionMatch) {
+        loanId = loanDescriptionMatch[1]; // UUID string
+        userId = loanDescriptionMatch[2]; // UUID string
+        paymentType = 'loan_repayment';
+        console.log('[FEDAPAY_WEBHOOK] ✅ Informations prêt extraites depuis la description:', { loanId, userId, paymentType });
       } else {
-        // Pattern alternatif: "Remboursement prêt #UUID" (sans user ID)
-        const simpleMatch = transaction.description?.match(/Remboursement prêt #([a-f0-9-]+)/);
-        if (simpleMatch) {
-          loanId = simpleMatch[1];
-          console.log('[FEDAPAY_WEBHOOK] ⚠️ Seul l\'ID du prêt extrait:', { loanId });
+        // Pattern pour plan d'épargne: "Paiement plan épargne - email - nom"
+        const savingsDescriptionMatch = transaction.description?.match(/Paiement plan épargne - ([^@]+@[^@]+\.[^@]+) - (.+)/);
+        if (savingsDescriptionMatch) {
+          const userEmail = savingsDescriptionMatch[1];
+          paymentType = 'savings_plan_creation';
+          console.log('[FEDAPAY_WEBHOOK] ✅ Paiement plan d\'épargne détecté:', { userEmail, paymentType });
           
-          // Essayer de récupérer l'utilisateur depuis la base de données
-          try {
-            const { supabase } = require('./src/utils/supabaseClient-server');
-            const { data: loanData, error: loanError } = await supabase
-              .from('loans')
-              .select('user_id')
-              .eq('id', loanId)
-              .single();
-            
-            if (!loanError && loanData) {
-              userId = loanData.user_id;
-              console.log('[FEDAPAY_WEBHOOK] ✅ User ID récupéré depuis la base:', { userId });
+          // Si pas d'userId dans les métadonnées, le récupérer depuis l'email
+          if (!userId || userId === undefined) {
+            try {
+              const { supabase } = require('./src/utils/supabaseClient-server');
+              const { data: userData, error: userError } = await supabase
+                .from('users')
+                .select('id')
+                .eq('email', userEmail)
+                .single();
+              
+              if (!userError && userData) {
+                userId = userData.id;
+                console.log('[FEDAPAY_WEBHOOK] ✅ User ID récupéré depuis l\'email:', { userId });
+              } else {
+                console.error('[FEDAPAY_WEBHOOK] ❌ Erreur récupération user ID depuis email:', userError);
+              }
+            } catch (error) {
+              console.error('[FEDAPAY_WEBHOOK] ❌ Erreur récupération user ID depuis email:', error);
             }
-          } catch (error) {
-            console.error('[FEDAPAY_WEBHOOK] ❌ Erreur récupération user ID:', error);
+          } else {
+            console.log('[FEDAPAY_WEBHOOK] ✅ User ID déjà présent dans les métadonnées:', { userId });
+          }
+        } else {
+          // Pattern alternatif pour prêt: "Remboursement prêt #UUID" (sans user ID)
+          const simpleMatch = transaction.description?.match(/Remboursement prêt #([a-f0-9-]+)/);
+          if (simpleMatch) {
+            loanId = simpleMatch[1];
+            paymentType = 'loan_repayment';
+            console.log('[FEDAPAY_WEBHOOK] ⚠️ Seul l\'ID du prêt extrait:', { loanId, paymentType });
+            
+            // Essayer de récupérer l'utilisateur depuis la base de données
+            try {
+              const { supabase } = require('./src/utils/supabaseClient-server');
+              const { data: loanData, error: loanError } = await supabase
+                .from('loans')
+                .select('user_id')
+                .eq('id', loanId)
+                .single();
+              
+              if (!loanError && loanData) {
+                userId = loanData.user_id;
+                console.log('[FEDAPAY_WEBHOOK] ✅ User ID récupéré depuis la base:', { userId });
+              }
+            } catch (error) {
+              console.error('[FEDAPAY_WEBHOOK] ❌ Erreur récupération user ID:', error);
+            }
           }
         }
       }
     }
     
-    console.log('[FEDAPAY_WEBHOOK] 🔍 Metadata finale:', { loanId, userId });
+    console.log('[FEDAPAY_WEBHOOK] 🔍 Metadata finale:', { loanId, userId, paymentType });
     
     // Traiter tous les webhooks FedaPay
     console.log(`[FEDAPAY_WEBHOOK] 📊 Traitement webhook: ${transaction.status}`);
     
     if (transaction.status === 'transferred' || transaction.status === 'approved') {
-      if (loanId && userId) {
+      if (paymentType === 'savings_plan_creation' && userId) {
+        console.log(`[FEDAPAY_WEBHOOK] 🎯 Paiement confirmé pour création plan d'épargne - User: ${userId}`);
+        
+        try {
+          // Traiter la création du plan d'épargne avec Supabase
+          const { processFedaPaySavingsPlanCreation } = require('./src/utils/supabaseAPI-server');
+          const result = await processFedaPaySavingsPlanCreation({
+            user_id: userId, // UUID string
+            amount: transaction.amount,
+            transaction_id: transaction.id,
+            payment_method: transaction.payment_method,
+            paid_at: transaction.paid_at || new Date().toISOString()
+          });
+
+          if (result.success) {
+            console.log('[FEDAPAY_WEBHOOK] ✅ Plan d\'épargne créé avec succès');
+          } else {
+            console.error('[FEDAPAY_WEBHOOK] ❌ Erreur création plan d\'épargne:', result.error);
+          }
+        } catch (error) {
+          console.error('[FEDAPAY_WEBHOOK] ❌ Erreur lors de la création du plan d\'épargne:', error);
+        }
+      } else if (paymentType === 'loan_repayment' && loanId && userId) {
         console.log(`[FEDAPAY_WEBHOOK] 🎯 Paiement confirmé pour le prêt #${loanId}`);
         
         try {
           // Traiter le remboursement avec Supabase
           const { processFedaPayLoanRepayment } = require('./src/utils/supabaseAPI-server');
-          
           const result = await processFedaPayLoanRepayment({
             loan_id: loanId, // UUID string
             user_id: userId, // UUID string
@@ -479,7 +538,8 @@ app.post('/api/fedapay/webhook', async (req, res) => {
           console.error('[FEDAPAY_WEBHOOK] ❌ Erreur lors du traitement du remboursement:', error);
         }
       } else {
-        console.log('[FEDAPAY_WEBHOOK] ⚠️ Paiement confirmé mais pas de metadata loan_id/user_id - Webhook de test FedaPay');
+        console.log('[FEDAPAY_WEBHOOK] ⚠️ Paiement confirmé mais pas de metadata valide - Webhook de test FedaPay');
+        console.log('[FEDAPAY_WEBHOOK] Détails:', { loanId, userId, paymentType });
       }
     } else if (transaction.status === 'failed') {
       console.log('[FEDAPAY_WEBHOOK] ❌ Transaction échouée');

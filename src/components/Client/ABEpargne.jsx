@@ -127,6 +127,9 @@ const ABEpargne = () => {
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [activeFAQCategory, setActiveFAQCategory] = useState('general');
   const [expandedFAQItems, setExpandedFAQItems] = useState(new Set());
+  
+  // État pour le popup des détails du plan en mobile
+  const [showPlanDetailsModal, setShowPlanDetailsModal] = useState(false);
 
   // États de progression du compte épargne
   const [accountStatus, setAccountStatus] = useState({
@@ -153,11 +156,19 @@ const ABEpargne = () => {
   // Données du compte épargne
   const [savingsData, setSavingsData] = useState({
     balance: 0,
-    monthlyGoal: 50000,
+    monthlyGoal: 50000, // Sera remplacé par l'objectif du plan
     monthlySaved: 0,
-    interestRate: 3.5,
+    interestRate: 5.0, // 5% par mois
     totalInterest: 0,
-    transactions: []
+    transactions: [],
+    // Données du plan
+    planName: 'Plan Campus Finance',
+    fixedAmount: 100,
+    frequencyDays: 10,
+    durationMonths: 3,
+    totalDepositsRequired: 9,
+    completedDeposits: 0,
+    completionPercentage: 0
   });
   const [loading, setLoading] = useState(true);
   
@@ -174,8 +185,7 @@ const ABEpargne = () => {
     estimatedTotalAtEnd: 0
   });
 
-  useEffect(() => {
-    const loadSavingsData = async () => {
+  const loadSavingsData = async () => {
       if (!user?.id) {
         setLoading(false);
         return;
@@ -219,6 +229,7 @@ const ABEpargne = () => {
 
         if (accountResult.success && transactionsResult.success) {
           const account = accountResult.data;
+          console.log('[ABEPARGNE] Données chargées:', { account, transactions: transactionsResult.data });
           const transactions = transactionsResult.data || [];
 
           // Formater les transactions pour l'affichage
@@ -230,14 +241,37 @@ const ABEpargne = () => {
             description: transaction.description || 'Transaction'
           }));
 
-          setSavingsData({
-            balance: account.balance || 0,
-            monthlyGoal: account.monthly_goal || 50000,
-            monthlySaved: account.monthly_saved || 0,
-            interestRate: account.interest_rate || 3.5,
-            totalInterest: account.total_interest || 0,
-            transactions: formattedTransactions
-          });
+          // Gérer le cas où le compte n'existe pas encore
+          if (account) {
+            // Utiliser les données du plan actif si disponible, sinon les données du compte
+            const planData = activePlan || {};
+            setSavingsData({
+              balance: account.balance || 0,
+              monthlyGoal: planData.total_amount_target || account.monthly_goal || 50000, // Objectif du plan
+              monthlySaved: 0, // Calculé dynamiquement
+              interestRate: account.interest_rate || 5.0, // 5% par mois
+              totalInterest: account.total_interest || 0,
+              transactions: formattedTransactions,
+              // Ajouter les données du plan
+              planName: planData.plan_name || 'Plan Campus Finance',
+              fixedAmount: planData.fixed_amount || 100,
+              frequencyDays: planData.frequency_days || 10,
+              durationMonths: planData.duration_months || 3,
+              totalDepositsRequired: planData.total_deposits_required || 9,
+              completedDeposits: planData.completed_deposits || 0,
+              completionPercentage: planData.completion_percentage || 0
+            });
+          } else {
+            // Compte n'existe pas encore, initialiser avec des valeurs par défaut
+            setSavingsData({
+              balance: 0,
+              monthlyGoal: 50000,
+              monthlySaved: 0,
+              interestRate: 5.0, // 5% par mois
+              totalInterest: 0,
+              transactions: []
+            });
+          }
         } else {
           console.error('[ABEPARGNE] Erreur lors du chargement des données:', {
             account: accountResult.error,
@@ -253,6 +287,7 @@ const ABEpargne = () => {
       }
     };
 
+  useEffect(() => {
     loadSavingsData();
   }, [user?.id, showError]);
 
@@ -280,11 +315,9 @@ const ABEpargne = () => {
       if (transactionResult.success) {
         // Mettre à jour le compte épargne
         const newBalance = savingsData.balance + amount;
-        const newMonthlySaved = savingsData.monthlySaved + amount;
         
         const updateResult = await updateSavingsAccount(user.id, {
-          balance: newBalance,
-          monthly_saved: newMonthlySaved
+          balance: newBalance
         });
 
         if (updateResult.success) {
@@ -292,7 +325,6 @@ const ABEpargne = () => {
           setSavingsData(prev => ({
             ...prev,
             balance: newBalance,
-            monthlySaved: newMonthlySaved,
             transactions: [
               {
                 id: transactionResult.data.id,
@@ -468,111 +500,8 @@ const ABEpargne = () => {
       return;
     }
 
-    // Vérifie si le script FedaPay est chargé
-    console.log('[ABEPARGNE] Vérification du script FedaPay...');
-    console.log('[ABEPARGNE] Script element:', document.getElementById('fedapay-checkout'));
-    console.log('[ABEPARGNE] window.FedaPay disponible:', !!window.FedaPay);
-    console.log('[ABEPARGNE] Type de window.FedaPay:', typeof window.FedaPay);
-    
-    if (!document.getElementById('fedapay-checkout')) {
-      console.log('[ABEPARGNE] Chargement du script FedaPay...');
-      const script = document.createElement('script');
-      script.src = 'https://cdn.fedapay.com/checkout.js?v=1.1.6';
-      script.id = 'fedapay-checkout';
-      script.onload = () => {
-        console.log('[ABEPARGNE] Script FedaPay chargé avec succès');
-        console.log('[ABEPARGNE] window.FedaPay après chargement:', window.FedaPay);
-        console.log('[ABEPARGNE] Type de window.FedaPay après chargement:', typeof window.FedaPay);
-        launchFedaPay();
-      };
-      script.onerror = (error) => {
-        console.error('[ABEPARGNE] Erreur lors du chargement du script FedaPay:', error);
-        console.error('[ABEPARGNE] URL du script:', script.src);
-        showError('Erreur lors du chargement du système de paiement');
-      };
-      document.body.appendChild(script);
-      console.log('[ABEPARGNE] Script ajouté au DOM');
-    } else {
-      console.log('[ABEPARGNE] Script FedaPay déjà chargé, lancement...');
-      console.log('[ABEPARGNE] window.FedaPay déjà disponible:', window.FedaPay);
-      launchFedaPay();
-    }
-
-    function launchFedaPay() {
-      console.log('[ABEPARGNE] launchFedaPay appelé');
-      console.log('[ABEPARGNE] window.FedaPay:', window.FedaPay);
-      
-      if (window.FedaPay) {
-        console.log('[ABEPARGNE] Initialisation de FedaPay...');
-        try {
-          console.log('[ABEPARGNE] Configuration FedaPay:', {
-            public_key: 'pk_sandbox_ZXhGKFGNXwn853-mYF9pANmi',
-            amount: 1000, // Frais de création fixes
-            customer: {
-              firstname: user.firstname || 'Client',
-              lastname: user.lastname || '',
-              email: user.email || 'client@example.com',
-              phone: user.phone || '97000000'
-            }
-          });
-
-          // Vérifier que le montant est valide
-          if (!planConfig.fixedAmount || planConfig.fixedAmount < 100) {
-            throw new Error('Montant invalide: ' + planConfig.fixedAmount);
-          }
-
-          // Configuration FedaPay avec gestion d'erreur améliorée
-          const fedapayConfig = {
-            public_key: 'pk_sandbox_ZXhGKFGNXwn853-mYF9pANmi',
-            transaction: {
-              amount: 1000, // Frais de création fixes
-              description: "Paiement du plan d'épargne AB Campus Finance",
-              currency: {
-                iso: 'XOF'
-              }
-            },
-            customer: {
-              firstname: user.firstname || 'Client',
-              lastname: user.lastname || '',
-              email: user.email || 'client@example.com',
-              phone_number: {
-                number: user.phone || '97000000',
-                country: 'BJ'
-              }
-            },
-            onSuccess: (response) => {
-              console.log('[ABEPARGNE] Paiement réussi:', response);
-              console.log('[ABEPARGNE] Type de response:', typeof response);
-              console.log('[ABEPARGNE] Response complète:', JSON.stringify(response, null, 2));
-              
-              // Appeler la fonction de création du plan
-              createSavingsPlanAfterPayment(response);
-            },
-            onError: (error) => {
-              console.error('[ABEPARGNE] Erreur de paiement:', error);
-              showError('Erreur lors du paiement: ' + (error.message || 'Paiement échoué'));
-            },
-            onClose: () => {
-              console.log('[ABEPARGNE] Modal FedaPay fermé');
-            }
-          };
-
-          console.log('[ABEPARGNE] Configuration complète:', fedapayConfig);
-          
-          // Initialiser FedaPay avec la configuration
-          window.FedaPay.init(fedapayConfig);
-          console.log('[ABEPARGNE] FedaPay initialisé avec succès');
-          
-        } catch (error) {
-          console.error('[ABEPARGNE] Erreur détaillée lors de l\'initialisation de FedaPay:', error);
-          console.error('[ABEPARGNE] Stack trace:', error.stack);
-          showError('Erreur lors de l\'initialisation du paiement: ' + error.message);
-        }
-      } else {
-        console.error('[ABEPARGNE] FedaPay n\'est pas disponible');
-        showError('Système de paiement non disponible');
-      }
-    }
+    // Afficher le modal de paiement des frais
+    setShowFeesPaymentModal(true);
   };
 
   // Fonction pour créer le plan d'épargne après paiement réussi
@@ -582,11 +511,28 @@ const ABEpargne = () => {
     console.log('[ABEPARGNE] User ID:', user?.id);
     console.log('[ABEPARGNE] Plan config:', planConfig);
     
+    // Vérifier que nous avons les données nécessaires
+    if (!user?.id) {
+      console.error('[ABEPARGNE] User ID manquant');
+      showError('Erreur: Utilisateur non identifié');
+      return;
+    }
+    
+    if (!planConfig || !planConfig.fixedAmount) {
+      console.error('[ABEPARGNE] Configuration du plan manquante');
+      showError('Erreur: Configuration du plan manquante');
+      return;
+    }
+    
     try {
+      console.log('[ABEPARGNE] Appel de createSavingsPlan...');
       // Créer le plan d'épargne
       const planResult = await createSavingsPlan(user.id, planConfig);
+      console.log('[ABEPARGNE] Résultat createSavingsPlan:', planResult);
       
       if (planResult.success) {
+        console.log('[ABEPARGNE] Plan créé avec succès, données:', planResult.data);
+        
         // Mettre à jour l'état local
         setActivePlan(planResult.data);
         setAccountStatus(prev => ({
@@ -595,16 +541,20 @@ const ABEpargne = () => {
           isFirstVisit: false
         }));
         
-        // Fermer le modal de configuration
+        // Fermer tous les modals
+        console.log('[ABEPARGNE] Fermeture des modals...');
         setShowPlanConfigModal(false);
+        setShowFeesPaymentModal(false);
         
         showSuccess('Plan d\'épargne créé avec succès ! Vous pouvez maintenant commencer votre épargne.');
         
         // Recharger les données pour afficher le plan configuré
         setTimeout(() => {
-          window.location.reload();
+          console.log('[ABEPARGNE] Rechargement des données après création du plan...');
+          loadSavingsData();
         }, 1500);
       } else {
+        console.error('[ABEPARGNE] Échec de création du plan:', planResult.error);
         showError('Erreur lors de la création du plan d\'épargne: ' + (planResult.error || 'Erreur inconnue'));
       }
     } catch (error) {
@@ -1539,26 +1489,6 @@ const ABEpargne = () => {
               </motion.div>
             )}
 
-            {/* Bouton Info/FAQ - ÉTAPE 10 */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.35 }}
-              className="flex justify-center mb-6"
-            >
-              <motion.div
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.98 }}
-              >
-                <Button
-                  onClick={() => setShowInfoModal(true)}
-                  className="px-6 py-3 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white shadow-md hover:shadow-lg rounded-xl flex items-center space-x-2"
-                >
-                  <Info size={20} />
-                  <span className="font-medium">Info/FAQ</span>
-                </Button>
-              </motion.div>
-            </motion.div>
 
             {/* Tableau de bord principal - ÉTAPE 3 */}
             {!accountStatus.isFirstVisit && (
@@ -1589,175 +1519,86 @@ const ABEpargne = () => {
                 </Card>
               </div>
 
-              {/* Intérêts accumulés et Progression du plan sur la même ligne */}
-              <div className="grid grid-cols-2 gap-4 lg:gap-6">
-                {/* Intérêts accumulés */}
-                <Card className="bg-gradient-to-br from-emerald-500 to-teal-600 text-white h-48 lg:h-auto">
-                  <div className="p-4 lg:p-6 text-center h-full flex flex-col items-center justify-center">
-                    <div className="flex items-center justify-center mb-2 lg:mb-4">
-                      <TrendingUp size={20} className="mr-2 lg:mr-3 lg:text-2xl" />
-                      <h2 className="text-sm lg:text-xl font-bold">Intérêts accumulés</h2>
+              {/* Détails du plan d'épargne */}
+              <Card className="bg-gradient-to-r from-blue-50 to-indigo-50 border border-blue-200">
+                <div className="p-6">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-xl font-bold text-blue-800 flex items-center">
+                      <Target className="mr-2" size={24} />
+                      Détails de votre plan d'épargne
+                    </h3>
+                    {/* Bouton pour mobile */}
+                    <Button
+                      onClick={() => setShowPlanDetailsModal(true)}
+                      className="md:hidden bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+                    >
+                      Voir détails
+                    </Button>
+                  </div>
+                  
+                  {/* Détails visibles sur desktop et tablette */}
+                  <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
+                    <div className="bg-white rounded-lg p-4 border border-blue-100">
+                      <p className="text-sm text-gray-600 mb-1">Nom du plan</p>
+                      <p className="font-semibold text-blue-800">{savingsData.planName}</p>
                     </div>
-                    
-                    <div className="text-2xl lg:text-4xl xl:text-5xl font-bold mb-2 lg:mb-3">
-                      {showBalance ? formatCurrency(dashboardData.accumulatedInterest) : '••••••'}
+                    <div className="bg-white rounded-lg p-4 border border-blue-100">
+                      <p className="text-sm text-gray-600 mb-1">Montant fixe</p>
+                      <p className="font-semibold text-blue-800">{formatCurrency(savingsData.fixedAmount)}</p>
                     </div>
-                    
-                    <div className="text-emerald-100 text-xs lg:text-sm">
-                      5% par mois sur votre épargne
+                    <div className="bg-white rounded-lg p-4 border border-blue-100">
+                      <p className="text-sm text-gray-600 mb-1">Fréquence</p>
+                      <p className="font-semibold text-blue-800">Tous les {savingsData.frequencyDays} jours</p>
+                    </div>
+                    <div className="bg-white rounded-lg p-4 border border-blue-100">
+                      <p className="text-sm text-gray-600 mb-1">Durée</p>
+                      <p className="font-semibold text-blue-800">{savingsData.durationMonths} mois</p>
+                    </div>
+                    <div className="bg-white rounded-lg p-4 border border-blue-100">
+                      <p className="text-sm text-gray-600 mb-1">Dépôts effectués</p>
+                      <p className="font-semibold text-green-600">{savingsData.completedDeposits} / {savingsData.totalDepositsRequired}</p>
+                    </div>
+                    <div className="bg-white rounded-lg p-4 border border-blue-100">
+                      <p className="text-sm text-gray-600 mb-1">Progression</p>
+                      <p className="font-semibold text-purple-600">{savingsData.completionPercentage}%</p>
+                    </div>
+                    <div className="bg-white rounded-lg p-4 border border-blue-100">
+                      <p className="text-sm text-gray-600 mb-1">Taux d'intérêt</p>
+                      <p className="font-semibold text-teal-600">{savingsData.interestRate}% par mois</p>
+                    </div>
+                    <div className="bg-white rounded-lg p-4 border border-blue-100">
+                      <p className="text-sm text-gray-600 mb-1">Objectif total</p>
+                      <p className="font-semibold text-green-600">{formatCurrency(savingsData.monthlyGoal)}</p>
                     </div>
                   </div>
-                </Card>
-
-                {/* État d'avancement du plan */}
-                <Card className="bg-gradient-to-br from-purple-500 to-pink-600 text-white h-48 lg:h-auto">
-                  <div className="p-4 lg:p-6 h-full flex flex-col items-center justify-center">
-                    <div className="flex items-center justify-center mb-2 lg:mb-4">
-                      <BarChart3 size={20} className="mr-2 lg:mr-3 lg:text-2xl" />
-                      <h2 className="text-sm lg:text-xl font-bold">Progression du plan</h2>
-                    </div>
-                    
-                    <div className="text-center mb-2 lg:mb-4">
-                      <div className="text-2xl lg:text-3xl font-bold mb-1 lg:mb-2">
-                        {dashboardData.planProgress.percentage}%
+                  
+                  {/* Résumé pour mobile */}
+                  <div className="md:hidden space-y-3">
+                    <div className="bg-white rounded-lg p-4 border border-blue-100">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Progression</span>
+                        <span className="font-semibold text-purple-600">{savingsData.completionPercentage}%</span>
                       </div>
-                      <div className="text-purple-100 text-xs lg:text-sm mb-2 lg:mb-4">
-                        {dashboardData.planProgress.depositsMade} / {dashboardData.planProgress.depositsMade + dashboardData.planProgress.depositsRemaining} dépôts
-                      </div>
-                      
-                      {/* Barre de progression */}
-                      <div className="w-full bg-purple-300/30 rounded-full h-2 lg:h-3 mb-2 lg:mb-3">
+                      <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
                         <div 
-                          className="bg-white h-2 lg:h-3 rounded-full transition-all duration-500"
-                          style={{ width: `${dashboardData.planProgress.percentage}%` }}
+                          className="bg-gradient-to-r from-purple-500 to-purple-600 h-2 rounded-full transition-all duration-500"
+                          style={{ width: `${savingsData.completionPercentage}%` }}
                         />
                       </div>
-                      
-                      <div className="text-purple-100 text-xs lg:text-sm">
-                        {dashboardData.planProgress.depositsRemaining} restants
+                    </div>
+                    <div className="bg-white rounded-lg p-4 border border-blue-100">
+                      <div className="flex justify-between items-center">
+                        <span className="text-sm text-gray-600">Dépôts effectués</span>
+                        <span className="font-semibold text-green-600">{savingsData.completedDeposits} / {savingsData.totalDepositsRequired}</span>
                       </div>
                     </div>
-                  </div>
-                </Card>
-              </div>
-
-              {/* Prochain dépôt prévu */}
-              <div className="grid grid-cols-1 gap-6">
-
-                {/* Prochain dépôt prévu */}
-                <Card className="bg-gradient-to-br from-blue-500 to-indigo-600 text-white">
-                  <div className="p-6 text-center">
-                    <div className="flex items-center justify-center mb-4">
-                      <Calendar size={28} className="mr-3" />
-                      <h2 className="text-xl font-bold">Prochain dépôt</h2>
-                    </div>
-                    
-                    {dashboardData.nextDepositDate ? (
-                      <>
-                        <div className="text-3xl font-bold mb-3">
-                          {dashboardData.nextDepositDate.toLocaleDateString('fr-FR', {
-                            day: 'numeric',
-                            month: 'long'
-                          })}
-                        </div>
-                        <div className="text-blue-100 text-sm mb-3">
-                          Dans {Math.ceil((dashboardData.nextDepositDate - new Date()) / (1000 * 60 * 60 * 24))} jours
-                        </div>
-                        <div className="text-blue-100 text-sm">
-                          Montant : {activePlan ? formatCurrency(parseFloat(activePlan.fixedAmount)) : '0 FCFA'}
-                        </div>
-                      </>
-                    ) : (
-                      <>
-                        <div className="text-3xl font-bold mb-3">
-                          Plan terminé
-                        </div>
-                        <div className="text-blue-100 text-sm">
-                          Tous les dépôts ont été effectués
-                        </div>
-                      </>
-                    )}
-                  </div>
-                </Card>
-              </div>
-
-              {/* Montant total estimé à la fin */}
-              <Card className="bg-gradient-to-br from-orange-500 to-red-600 text-white">
-                <div className="p-6 text-center">
-                  <div className="flex items-center justify-center mb-4">
-                    <Target size={28} className="mr-3" />
-                    <h2 className="text-xl font-bold">Objectif final</h2>
-                  </div>
-                  
-                  <div className="text-4xl lg:text-5xl font-bold mb-3">
-                    {showBalance ? formatCurrency(dashboardData.estimatedTotalAtEnd) : '••••••'}
-                  </div>
-                  
-                  <div className="text-orange-100 text-sm">
-                    Montant total estimé à la fin de votre plan d'épargne
                   </div>
                 </div>
               </Card>
 
-              {/* Section des intérêts automatiques - ÉTAPE 6 */}
-              {activePlan && (
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  {/* Prochain calcul d'intérêts */}
-                  <Card className="bg-gradient-to-br from-indigo-500 to-purple-600 text-white">
-                    <div className="p-6 text-center">
-                      <div className="flex items-center justify-center mb-4">
-                        <TrendingUp size={28} className="mr-3" />
-                        <h2 className="text-xl font-bold">Prochain calcul d'intérêts</h2>
-                      </div>
-                      
-                      {interestData.nextInterestDate ? (
-                        <>
-                          <div className="text-3xl font-bold mb-3">
-                            {interestData.nextInterestDate.toLocaleDateString('fr-FR', {
-                              day: 'numeric',
-                              month: 'long'
-                            })}
-                          </div>
-                          <div className="text-indigo-100 text-sm mb-3">
-                            Dans {Math.ceil((interestData.nextInterestDate - new Date()) / (1000 * 60 * 60 * 24))} jours
-                          </div>
-                          <div className="text-indigo-100 text-sm">
-                            Taux : 5% par mois
-                          </div>
-                        </>
-                      ) : (
-                        <div className="text-indigo-100 text-sm">
-                          Calcul en cours...
-                        </div>
-                      )}
-                    </div>
-                  </Card>
 
-                  {/* Total des intérêts gagnés */}
-                  <Card className="bg-gradient-to-br from-green-500 to-emerald-600 text-white">
-                    <div className="p-6 text-center">
-                      <div className="flex items-center justify-center mb-4">
-                        <DollarSign size={28} className="mr-3" />
-                        <h2 className="text-xl font-bold">Intérêts gagnés</h2>
-                      </div>
-                      
-                      <div className="text-4xl lg:text-5xl font-bold mb-3">
-                        {showBalance ? formatCurrency(interestData.totalInterestEarned) : '••••••'}
-                      </div>
-                      
-                      <div className="text-green-100 text-sm">
-                        Total des intérêts générés automatiquement
-                      </div>
-                      
-                      {interestData.lastInterestCalculation && (
-                        <div className="text-green-100 text-xs mt-2">
-                          Dernier calcul : {interestData.lastInterestCalculation.toLocaleDateString('fr-FR')}
-                        </div>
-                      )}
-                    </div>
-                  </Card>
-                </div>
-              )}
+
+
             </motion.div>
             )}
 
@@ -1871,58 +1712,8 @@ const ABEpargne = () => {
               transition={{ delay: 0.5 }}
               className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8"
             >
-              <Card className="bg-white">
-                <div className="p-6 text-center">
-                  <div className="flex items-center justify-center mb-3">
-                    <Target size={24} className="text-green-600" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Objectif mensuel</h3>
-                  <p className="text-2xl font-bold text-green-600">
-                    {formatCurrency(savingsData.monthlyGoal)}
-                  </p>
-                  <div className="mt-3">
-                    <div className="w-full bg-gray-200 rounded-full h-2">
-                      <div 
-                        className="bg-gradient-to-r from-green-500 to-emerald-600 h-2 rounded-full transition-all duration-500"
-                        style={{ width: `${(savingsData.monthlySaved / savingsData.monthlyGoal) * 100}%` }}
-                      />
-                    </div>
-                    <p className="text-sm text-gray-600 mt-2">
-                      {Math.round((savingsData.monthlySaved / savingsData.monthlyGoal) * 100)}% atteint
-                    </p>
-                  </div>
-                </div>
-              </Card>
 
-              <Card className="bg-white">
-                <div className="p-6 text-center">
-                  <div className="flex items-center justify-center mb-3">
-                    <TrendingUp size={24} className="text-emerald-600" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Épargné ce mois</h3>
-                  <p className="text-2xl font-bold text-emerald-600">
-                    {formatCurrency(savingsData.monthlySaved)}
-                  </p>
-                  <p className="text-sm text-gray-600 mt-2">
-                    Sur {formatCurrency(savingsData.monthlyGoal)}
-                  </p>
-                </div>
-              </Card>
 
-              <Card className="bg-white">
-                <div className="p-6 text-center">
-                  <div className="flex items-center justify-center mb-3">
-                    <DollarSign size={24} className="text-teal-600" />
-                  </div>
-                  <h3 className="text-lg font-semibold text-gray-900 mb-2">Taux d'intérêt</h3>
-                  <p className="text-2xl font-bold text-teal-600">
-                    {savingsData.interestRate}%
-                  </p>
-                  <p className="text-sm text-gray-600 mt-2">
-                    Intérêts annuels
-                  </p>
-                </div>
-              </Card>
             </motion.div>
             )}
 
@@ -2635,36 +2426,20 @@ const ABEpargne = () => {
                     <div className="text-sm text-gray-600">Bénéfices estimés (5% par mois)</div>
                   </div>
 
-                  <div className="border-t pt-4">
-                    <div className="flex justify-between items-center mb-2">
-                      <span className="text-gray-600">Frais de création et gestion :</span>
-                      <span className="font-semibold">{formatCurrency(planConfig.creationFees)}</span>
-                    </div>
-                    <div className="flex justify-between items-center text-lg font-bold">
-                      <span>Total avec frais :</span>
-                      <span className="text-purple-600">{formatCurrency(planConfig.totalWithFees)}</span>
-                    </div>
-                  </div>
                 </div>
               )}
 
               {/* Actions */}
               <div className="flex flex-col space-y-2">
-                <FedaPayButton
-                  amount={1000}
-                  email={user.email}
-                  firstname={user.first_name || user.fullName?.split(' ')[0] || 'Client'}
-                  lastname={user.last_name || user.fullName?.split(' ').slice(1).join(' ') || 'Campus'}
-                  phone={user.phone || '97000000'}
-                  onSuccess={(response) => {
-                    console.log('[ABEPARGNE] Paiement FedaPay réussi:', response);
-                    createSavingsPlanAfterPayment(response);
+                <Button
+                  onClick={() => {
+                    setShowPlanConfigModal(false);
+                    setShowFeesPaymentModal(true);
                   }}
-                  onError={(error) => {
-                    console.error('[ABEPARGNE] Erreur paiement FedaPay:', error);
-                    showError('Erreur lors du paiement. Veuillez réessayer.');
-                  }}
-                />
+                  className="w-full p-4 bg-gradient-to-r from-purple-600 to-blue-600 text-white rounded-xl hover:from-purple-700 hover:to-blue-700 focus:ring-2 focus:ring-purple-500 focus:ring-offset-2 transition-all duration-200"
+                >
+                  💳 Payer 1000 FCFA - Frais de création
+                </Button>
                 <Button
                   onClick={() => setShowPlanConfigModal(false)}
                   variant="outline"
@@ -2698,7 +2473,7 @@ const ABEpargne = () => {
               </div>
               <h3 className="text-3xl font-bold text-gray-900 mb-4">Confirmation de votre plan d'épargne</h3>
               <p className="text-lg text-gray-600">
-                Vérifiez les détails de votre plan et procédez au paiement des frais de création
+                Vérifiez les détails de votre plan et procédez à la création
               </p>
             </div>
 
@@ -2747,63 +2522,6 @@ const ABEpargne = () => {
                 </div>
               </div>
 
-              {/* Mise en évidence des frais obligatoires */}
-              <div className="bg-gradient-to-r from-orange-50 to-red-50 border-2 border-orange-300 rounded-2xl p-6">
-                <h4 className="text-xl font-semibold text-orange-800 mb-4 text-center">⚠️ Frais obligatoires de création et gestion</h4>
-                
-                <div className="text-center mb-4">
-                  <div className="text-4xl font-bold text-orange-600 mb-2">1000 FCFA</div>
-                  <p className="text-orange-700 font-medium">Frais unique pour la création de votre compte AB Épargne</p>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm text-orange-700">
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-green-600">✅</span>
-                      <span>Création du compte épargne</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-green-600">✅</span>
-                      <span>Gestion administrative</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-green-600">✅</span>
-                      <span>Support client dédié</span>
-                    </div>
-                  </div>
-                  <div className="space-y-2">
-                    <div className="flex items-center space-x-2">
-                      <span className="text-green-600">✅</span>
-                      <span>Accès à toutes les fonctionnalités</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-green-600">✅</span>
-                      <span>Calcul automatique des intérêts</span>
-                    </div>
-                    <div className="flex items-center space-x-2">
-                      <span className="text-green-600">✅</span>
-                      <span>Notifications et rappels</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-
-              {/* Moyens de paiement */}
-              <div>
-                <h4 className="text-lg font-semibold text-gray-900 mb-4 text-center">💳 Moyen de paiement disponible</h4>
-                <div className="flex justify-center">
-                  <button className="p-6 border-2 border-orange-200 rounded-xl hover:border-orange-400 hover:bg-orange-50 transition-all group">
-                    <div className="text-center">
-                      <div className="p-4 bg-orange-100 rounded-full w-fit mx-auto mb-4 group-hover:bg-orange-200 transition-colors">
-                        <span className="text-3xl">📱</span>
-                      </div>
-                      <div className="font-semibold text-orange-800 text-lg mb-2">Mobile Money (MoMo)</div>
-                      <div className="text-sm text-orange-600">Paiement mobile</div>
-                      <div className="text-xs text-orange-500 mt-2">Rapide et sécurisé</div>
-                    </div>
-                  </button>
-                </div>
-              </div>
 
               {/* Actions */}
               <div className="flex space-x-4">
@@ -2817,27 +2535,33 @@ const ABEpargne = () => {
                 >
                   ← Retour à la configuration
                 </Button>
-                <Button
-                  onClick={() => {
+                <FedaPayButton
+                  amount={1000}
+                  email={user?.email || 'client@campusfinance.com'}
+                  firstname={user?.first_name || user?.fullName?.split(' ')[0] || 'Client'}
+                  lastname={user?.last_name || user?.fullName?.split(' ').slice(1).join(' ') || 'Campus'}
+                  phone={user?.phone_number || user?.phone || '97000000'}
+                  onSuccess={(response) => {
+                    console.log('[ABEPARGNE] ===== CALLBACK SUCCESS REÇU =====');
+                    console.log('[ABEPARGNE] Paiement FedaPay réussi:', response);
+                    
+                    // Fermer le modal de paiement
                     setShowFeesPaymentModal(false);
-                    // Simuler le paiement réussi
-                    setAccountStatus(prev => ({
-                      ...prev,
-                      hasAccount: true,
-                      hasConfiguredPlan: true,
-                      isFirstVisit: false
-                    }));
-                    // Sauvegarder le plan actif
-                    setActivePlan({
-                      ...planConfig,
-                      createdAt: new Date().toISOString()
-                    });
-                    showSuccess('🎉 Compte AB Épargne créé avec succès ! Votre plan d\'épargne est maintenant actif.');
+                    
+                    // Afficher un message de succès
+                    showSuccess('Paiement effectué ! Votre plan d\'épargne est en cours de création...');
+                    
+                    // Recharger les données après un délai pour laisser le webhook traiter
+                    setTimeout(() => {
+                      console.log('[ABEPARGNE] Rechargement des données après paiement...');
+                      loadSavingsData();
+                    }, 3000);
                   }}
-                  className="flex-1 bg-orange-600 hover:bg-orange-700 text-lg py-4"
-                >
-                  💳 Payer 1000 FCFA et créer mon compte
-                </Button>
+                  onError={(error) => {
+                    console.error('[ABEPARGNE] Erreur paiement FedaPay:', error);
+                    showError('Erreur lors du paiement. Veuillez réessayer.');
+                  }}
+                />
               </div>
             </div>
           </motion.div>
@@ -3474,7 +3198,7 @@ const ABEpargne = () => {
                     <h4 className="text-xl font-bold text-green-800 mb-4">🎯 Comment ça fonctionne ?</h4>
                     <div className="space-y-4 text-green-700">
                       <ol className="space-y-3 ml-4">
-                        <li><strong>1. Création du compte :</strong> Payez les frais de création (1000 FCFA)</li>
+                        <li><strong>1. Création du compte :</strong> Configurez votre plan d'épargne</li>
                         <li><strong>2. Configuration du plan :</strong> Définissez montant, fréquence et durée</li>
                         <li><strong>3. Dépôts réguliers :</strong> Effectuez vos dépôts selon votre plan</li>
                         <li><strong>4. Intérêts automatiques :</strong> Recevez 5% d'intérêts chaque mois</li>
@@ -3492,23 +3216,6 @@ const ABEpargne = () => {
                   animate={{ opacity: 1, y: 0 }}
                   className="space-y-6"
                 >
-                  <div className="bg-gradient-to-r from-yellow-50 to-orange-50 border border-yellow-200 rounded-2xl p-6">
-                    <h4 className="text-xl font-bold text-yellow-800 mb-4">💰 Frais de création et gestion</h4>
-                    <div className="space-y-4 text-yellow-700">
-                      <div className="bg-white rounded-xl p-4 border border-yellow-200">
-                        <div className="text-center">
-                          <div className="text-3xl font-bold text-yellow-600 mb-2">1000 FCFA</div>
-                          <p className="font-medium">Frais uniques de création</p>
-                        </div>
-                      </div>
-                      <ul className="space-y-2 ml-4">
-                        <li>• <strong>Frais uniques :</strong> Payés une seule fois à la création</li>
-                        <li>• <strong>Pas de frais mensuels :</strong> Aucun frais récurrent</li>
-                        <li>• <strong>Pas de frais de gestion :</strong> Gestion gratuite du compte</li>
-                        <li>• <strong>Frais de retrait :</strong> Aucun frais sur les retraits normaux</li>
-                      </ul>
-                    </div>
-                  </div>
 
                   <div className="bg-gradient-to-r from-red-50 to-pink-50 border border-red-200 rounded-2xl p-6">
                     <h4 className="text-xl font-bold text-red-800 mb-4">⚠️ Pénalités de retrait anticipé</h4>
@@ -3538,23 +3245,6 @@ const ABEpargne = () => {
                   animate={{ opacity: 1, y: 0 }}
                   className="space-y-6"
                 >
-                  <div className="bg-gradient-to-r from-green-50 to-emerald-50 border border-green-200 rounded-2xl p-6">
-                    <h4 className="text-xl font-bold text-green-800 mb-4">📈 Taux d'intérêts attractifs</h4>
-                    <div className="space-y-4 text-green-700">
-                      <div className="bg-white rounded-xl p-4 border border-green-200">
-                        <div className="text-center">
-                          <div className="text-3xl font-bold text-green-600 mb-2">5% par mois</div>
-                          <p className="font-medium">Taux d'intérêt mensuel</p>
-                        </div>
-                      </div>
-                      <ul className="space-y-2 ml-4">
-                        <li>• <strong>Calcul mensuel :</strong> Intérêts calculés chaque mois</li>
-                        <li>• <strong>Capitalisation :</strong> Intérêts ajoutés au solde</li>
-                        <li>• <strong>Croissance :</strong> Votre épargne augmente automatiquement</li>
-                        <li>• <strong>Transparence :</strong> Calculs visibles dans votre tableau de bord</li>
-                      </ul>
-                    </div>
-                  </div>
 
                   <div className="bg-gradient-to-r from-purple-50 to-indigo-50 border border-purple-200 rounded-2xl p-6">
                     <h4 className="text-xl font-bold text-purple-800 mb-4">🎁 Avantages supplémentaires</h4>
@@ -3703,6 +3393,148 @@ const ABEpargne = () => {
               <Button
                 onClick={() => setShowInfoModal(false)}
                 className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3"
+              >
+                Fermer
+              </Button>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+
+      {/* Bouton Info/FAQ en bas de page */}
+      <div className="mt-12 pt-8 border-t border-gray-200">
+        <div className="flex justify-center">
+          <motion.div
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
+          >
+            <Button
+              onClick={() => setShowInfoModal(true)}
+              className="px-6 py-3 bg-gradient-to-r from-gray-500 to-gray-600 hover:from-gray-600 hover:to-gray-700 text-white shadow-md hover:shadow-lg rounded-xl flex items-center space-x-2"
+            >
+              <Info size={20} />
+              <span className="font-medium">Info/FAQ</span>
+            </Button>
+          </motion.div>
+        </div>
+      </div>
+
+      {/* Popup des détails du plan d'épargne - Style Apple */}
+      {showPlanDetailsModal && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          className="fixed inset-0 bg-black bg-opacity-50 flex items-end justify-center z-50 md:items-center"
+          onClick={() => setShowPlanDetailsModal(false)}
+        >
+          <motion.div
+            initial={{ y: "100%", opacity: 0 }}
+            animate={{ y: 0, opacity: 1 }}
+            exit={{ y: "100%", opacity: 0 }}
+            transition={{ type: "spring", damping: 25, stiffness: 200 }}
+            className="bg-white rounded-t-3xl md:rounded-2xl w-full max-w-md md:max-w-2xl max-h-[90vh] overflow-hidden shadow-2xl"
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Header avec bouton fermer */}
+            <div className="flex items-center justify-between p-6 border-b border-gray-100 bg-gray-50">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-blue-100 rounded-full flex items-center justify-center">
+                  <Target className="w-5 h-5 text-blue-600" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900">Détails du plan</h2>
+                  <p className="text-sm text-gray-500">{savingsData.planName}</p>
+                </div>
+              </div>
+              <button
+                onClick={() => setShowPlanDetailsModal(false)}
+                className="w-8 h-8 rounded-full bg-gray-100 hover:bg-gray-200 flex items-center justify-center transition-colors duration-200"
+              >
+                <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+
+            {/* Contenu du popup */}
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              <div className="space-y-4">
+                {/* Informations principales */}
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Montant fixe</p>
+                    <p className="text-lg font-semibold text-gray-900">{formatCurrency(savingsData.fixedAmount)}</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Fréquence</p>
+                    <p className="text-lg font-semibold text-gray-900">Tous les {savingsData.frequencyDays} jours</p>
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Durée</p>
+                    <p className="text-lg font-semibold text-gray-900">{savingsData.durationMonths} mois</p>
+                  </div>
+                  <div className="bg-gray-50 rounded-xl p-4">
+                    <p className="text-xs font-medium text-gray-500 uppercase tracking-wide mb-1">Taux d'intérêt</p>
+                    <p className="text-lg font-semibold text-gray-900">{savingsData.interestRate}% par mois</p>
+                  </div>
+                </div>
+
+                {/* Progression */}
+                <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-100">
+                  <div className="flex items-center justify-between mb-4">
+                    <h3 className="text-lg font-semibold text-gray-900">Progression</h3>
+                    <span className="text-2xl font-bold text-blue-600">{savingsData.completionPercentage}%</span>
+                  </div>
+                  <div className="w-full bg-gray-200 rounded-full h-3 mb-3">
+                    <div 
+                      className="bg-gradient-to-r from-blue-500 to-indigo-600 h-3 rounded-full transition-all duration-500"
+                      style={{ width: `${savingsData.completionPercentage}%` }}
+                    />
+                  </div>
+                  <div className="flex justify-between text-sm text-gray-600">
+                    <span>{savingsData.completedDeposits} dépôts effectués</span>
+                    <span>{savingsData.totalDepositsRequired - savingsData.completedDeposits} restants</span>
+                  </div>
+                </div>
+
+                {/* Objectif total */}
+                <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-xl p-6 border border-green-100">
+                  <div className="text-center">
+                    <p className="text-sm font-medium text-gray-600 mb-2">Objectif total</p>
+                    <p className="text-3xl font-bold text-green-600">{formatCurrency(savingsData.monthlyGoal)}</p>
+                    <p className="text-sm text-gray-500 mt-1">Montant à atteindre</p>
+                  </div>
+                </div>
+
+                {/* Informations supplémentaires */}
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between py-3 border-b border-gray-100">
+                    <span className="text-sm font-medium text-gray-600">Dépôts effectués</span>
+                    <span className="text-sm font-semibold text-gray-900">{savingsData.completedDeposits} / {savingsData.totalDepositsRequired}</span>
+                  </div>
+                  <div className="flex items-center justify-between py-3 border-b border-gray-100">
+                    <span className="text-sm font-medium text-gray-600">Prochaine échéance</span>
+                    <span className="text-sm font-semibold text-gray-900">Dans {savingsData.frequencyDays} jours</span>
+                  </div>
+                  <div className="flex items-center justify-between py-3">
+                    <span className="text-sm font-medium text-gray-600">Statut du plan</span>
+                    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                      Actif
+                    </span>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Footer avec bouton fermer */}
+            <div className="p-6 bg-gray-50 border-t border-gray-100">
+              <Button
+                onClick={() => setShowPlanDetailsModal(false)}
+                className="w-full bg-gray-900 hover:bg-gray-800 text-white py-3 rounded-xl font-medium transition-colors duration-200"
               >
                 Fermer
               </Button>

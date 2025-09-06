@@ -1018,52 +1018,135 @@ export const getSavingsAccount = async (userId) => {
       return { success: false, error: 'Configuration Supabase manquante' };
     }
 
-    // Récupérer ou créer le compte épargne de l'utilisateur
-    let { data: savingsAccount, error } = await supabase
+    // Récupérer le compte épargne de l'utilisateur
+    const { data: savingsAccount, error } = await supabase
       .from('savings_accounts')
       .select('*')
       .eq('user_id', userId)
       .single();
 
     if (error && error.code === 'PGRST116') {
-      // Le compte n'existe pas, le créer
-      const { data: newAccount, error: createError } = await supabase
-        .from('savings_accounts')
-        .insert([{
-          user_id: userId,
-          balance: 0,
-          monthly_goal: 50000,
-          monthly_saved: 0,
-          interest_rate: 3.5,
-          total_interest: 0
-        }])
-        .select()
-        .single();
-
-      if (createError) throw createError;
-      savingsAccount = newAccount;
+      // Le compte n'existe pas
+      return { 
+        success: true, 
+        data: null,
+        needsAccountCreation: true 
+      };
     } else if (error) {
       throw error;
     }
 
-    return { success: true, data: savingsAccount };
+    return { success: true, data: savingsAccount, needsAccountCreation: false };
   } catch (error) {
     console.error('[SUPABASE] Erreur lors de la récupération du compte épargne:', error.message);
     return { success: false, error: error.message };
   }
 };
 
-export const getSavingsTransactions = async (userId) => {
+// Fonction pour créer un compte épargne avec paiement des frais de création
+export const createSavingsAccount = async (userId, paymentData) => {
   try {
     if (!supabase) {
       return { success: false, error: 'Configuration Supabase manquante' };
     }
 
-    const { data, error } = await supabase
+    console.log('[SUPABASE] Création du compte épargne pour l\'utilisateur:', userId);
+
+    // Vérifier si l'utilisateur a déjà un compte
+    const existingAccount = await getSavingsAccount(userId);
+    if (existingAccount.success && existingAccount.data) {
+      return { success: false, error: 'L\'utilisateur a déjà un compte épargne' };
+    }
+
+    // Créer le compte épargne
+    const { data: newAccount, error: createError } = await supabase
+      .from('savings_accounts')
+      .insert([{
+        user_id: userId,
+        balance: 0,
+        account_creation_fee_paid: false,
+        account_creation_fee_amount: 1000.00,
+        interest_rate: 5.00, // 5% par mois
+        total_interest_earned: 0,
+        is_active: true
+      }])
+      .select()
+      .single();
+
+    if (createError) throw createError;
+
+    // Créer la transaction pour les frais de création
+    const { data: feeTransaction, error: feeError } = await supabase
       .from('savings_transactions')
-      .select('*')
+      .insert([{
+        user_id: userId,
+        savings_account_id: newAccount.id,
+        type: 'account_creation_fee',
+        amount: 1000.00,
+        description: 'Frais de création de compte épargne',
+        payment_method: paymentData.payment_method || 'mobile_money',
+        payment_reference: paymentData.payment_reference,
+        payment_status: 'completed'
+      }])
+      .select()
+      .single();
+
+    if (feeError) throw feeError;
+
+    // Marquer les frais comme payés
+    const { data: updatedAccount, error: updateError } = await supabase
+      .from('savings_accounts')
+      .update({
+        account_creation_fee_paid: true,
+        balance: 0 // Le solde reste à 0 car les frais sont déduits
+      })
+      .eq('id', newAccount.id)
+      .select()
+      .single();
+
+    if (updateError) throw updateError;
+
+    console.log('[SUPABASE] Compte épargne créé avec succès:', updatedAccount.id);
+
+    return { 
+      success: true, 
+      data: {
+        account: updatedAccount,
+        feeTransaction: feeTransaction
+      }
+    };
+  } catch (error) {
+    console.error('[SUPABASE] Erreur lors de la création du compte épargne:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+export const getSavingsTransactions = async (userId, accountId = null) => {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Configuration Supabase manquante' };
+    }
+
+    let query = supabase
+      .from('savings_transactions')
+      .select(`
+        *,
+        savings_plans!savings_plan_id (
+          id,
+          plan_name,
+          fixed_amount,
+          frequency_days,
+          duration_months
+        )
+      `)
       .eq('user_id', userId)
       .order('created_at', { ascending: false });
+
+    if (accountId) {
+      query = query.eq('savings_account_id', accountId);
+    }
+
+    const { data, error } = await query;
 
     if (error) throw error;
 
@@ -1080,10 +1163,34 @@ export const createSavingsTransaction = async (transactionData) => {
       return { success: false, error: 'Configuration Supabase manquante' };
     }
 
+    // Valider les données requises
+    if (!transactionData.user_id || !transactionData.savings_account_id || !transactionData.amount) {
+      return { success: false, error: 'Données de transaction manquantes' };
+    }
+
     const { data, error } = await supabase
       .from('savings_transactions')
-      .insert([transactionData])
-      .select()
+      .insert([{
+        user_id: transactionData.user_id,
+        savings_account_id: transactionData.savings_account_id,
+        savings_plan_id: transactionData.savings_plan_id || null,
+        type: transactionData.type || 'deposit',
+        amount: transactionData.amount,
+        description: transactionData.description || 'Transaction épargne',
+        payment_method: transactionData.payment_method || 'mobile_money',
+        payment_reference: transactionData.payment_reference,
+        payment_status: transactionData.payment_status || 'completed'
+      }])
+      .select(`
+        *,
+        savings_plans!savings_plan_id (
+          id,
+          plan_name,
+          fixed_amount,
+          frequency_days,
+          duration_months
+        )
+      `)
       .single();
 
     if (error) throw error;
@@ -1156,7 +1263,10 @@ export const getSavingsPlanStatus = async (userId) => {
     if (transactionsError) throw transactionsError;
 
     const hasTransactions = transactions && transactions.length > 0;
-    const hasConfiguredPlan = hasTransactions || (savingsAccount.balance > 0);
+    // Vérifier si le plan est configuré : balance > 0 OU frais de création payés OU transactions existantes
+    const hasConfiguredPlan = hasTransactions || 
+                              (savingsAccount.balance > 0) || 
+                              (savingsAccount.account_creation_fee_paid === true);
 
     return { 
       success: true, 
@@ -1175,48 +1285,82 @@ export const getSavingsPlanStatus = async (userId) => {
 };
 
 // Fonction pour créer un plan d'épargne
-export const createSavingsPlan = async (userId, planData) => {
+export const createSavingsPlan = async (userId, planData, paymentData) => {
   try {
+    console.log('[SUPABASE] ===== DÉBUT CRÉATION PLAN D\'ÉPARGNE =====');
+    console.log('[SUPABASE] User ID reçu:', userId);
+    console.log('[SUPABASE] Plan data reçu:', planData);
+    
     if (!supabase) {
+      console.error('[SUPABASE] Configuration Supabase manquante');
       return { success: false, error: 'Configuration Supabase manquante' };
     }
 
-    console.log('[SUPABASE] Création du plan d\'épargne pour user:', userId);
-    console.log('[SUPABASE] Données du plan:', planData);
+    if (!userId) {
+      console.error('[SUPABASE] User ID manquant');
+      return { success: false, error: 'User ID manquant' };
+    }
+
+    if (!planData || !planData.fixedAmount || !planData.frequency || !planData.duration) {
+      console.error('[SUPABASE] Données du plan manquantes ou invalides');
+      return { success: false, error: 'Données du plan manquantes ou invalides' };
+    }
+
+    // Vérifier que l'utilisateur a un compte épargne
+    const accountResult = await getSavingsAccount(userId);
+    if (!accountResult.success || !accountResult.data) {
+      return { success: false, error: 'Compte épargne requis pour créer un plan' };
+    }
+
+    const fixedAmount = parseFloat(planData.fixedAmount);
+    const frequencyDays = parseInt(planData.frequency);
+    const durationMonths = parseInt(planData.duration);
+
+    // Calculer les valeurs du plan
+    const totalDepositsRequired = (durationMonths * 30) / frequencyDays;
+    const totalAmountTarget = fixedAmount * totalDepositsRequired;
+    const endDate = new Date();
+    endDate.setMonth(endDate.getMonth() + durationMonths);
 
     const planConfig = {
       user_id: userId,
-      fixed_amount: parseFloat(planData.fixedAmount),
-      frequency: parseInt(planData.frequency),
-      duration: parseInt(planData.duration),
-      total_deposits: planData.totalDeposits || 0,
-      total_amount: planData.totalAmount || 0,
-      estimated_benefits: planData.estimatedBenefits || 0,
-      status: 'active',
-      created_at: new Date().toISOString(),
-      start_date: new Date().toISOString(),
+      savings_account_id: accountResult.data.id,
+      plan_name: planData.planName || 'Plan d\'épargne',
+      fixed_amount: fixedAmount,
+      frequency_days: frequencyDays,
+      duration_months: durationMonths,
+      total_deposits_required: totalDepositsRequired,
+      total_amount_target: totalAmountTarget,
       completed_deposits: 0,
       current_balance: 0,
-      total_interest_earned: 0
+      total_deposited: 0,
+      start_date: new Date().toISOString(),
+      end_date: endDate.toISOString(),
+      next_deposit_date: new Date().toISOString(),
+      status: 'active',
+      completion_percentage: 0
     };
 
     console.log('[SUPABASE] Configuration du plan à insérer:', planConfig);
-
-    const { data, error } = await supabase
+    console.log('[SUPABASE] Tentative d\'insertion dans savings_plans...');
+    
+    const { data: newPlan, error: planError } = await supabase
       .from('savings_plans')
       .insert([planConfig])
       .select()
       .single();
 
-    if (error) {
-      console.error('[SUPABASE] Erreur lors de l\'insertion:', error);
-      throw error;
+    if (planError) {
+      console.error('[SUPABASE] Erreur lors de l\'insertion du plan:', planError);
+      return { success: false, error: planError.message };
     }
 
-    console.log('[SUPABASE] Plan créé avec succès:', data);
-    return { success: true, data };
+    console.log('[SUPABASE] Plan créé avec succès:', newPlan);
+    console.log('[SUPABASE] ===== FIN CRÉATION PLAN D\'ÉPARGNE =====');
+    return { success: true, data: newPlan };
   } catch (error) {
     console.error('[SUPABASE] Erreur lors de la création du plan d\'épargne:', error.message);
+    console.error('[SUPABASE] Stack trace:', error.stack);
     return { success: false, error: error.message };
   }
 };
@@ -1247,6 +1391,116 @@ export const getActiveSavingsPlan = async (userId) => {
     return { success: true, data };
   } catch (error) {
     console.error('[SUPABASE] Erreur lors de la récupération du plan d\'épargne:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+// Fonction pour effectuer un dépôt sur un plan d'épargne
+export const makeSavingsDeposit = async (userId, planId, amount, paymentData) => {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Configuration Supabase manquante' };
+    }
+
+    // Récupérer le plan et le compte
+    const planResult = await getActiveSavingsPlan(userId);
+    if (!planResult.success || !planResult.data) {
+      return { success: false, error: 'Aucun plan d\'épargne actif trouvé' };
+    }
+
+    const plan = planResult.data;
+    if (plan.id !== planId) {
+      return { success: false, error: 'Plan d\'épargne non trouvé' };
+    }
+
+    // Vérifier que le montant correspond au montant fixe du plan
+    if (parseFloat(amount) !== plan.fixed_amount) {
+      return { success: false, error: `Le montant doit être exactement ${plan.fixed_amount} FCFA` };
+    }
+
+    // Créer la transaction de dépôt
+    const transactionData = {
+      user_id: userId,
+      savings_account_id: plan.savings_account_id,
+      savings_plan_id: planId,
+      type: 'deposit',
+      amount: parseFloat(amount),
+      description: `Dépôt plan d'épargne - ${plan.plan_name}`,
+      payment_method: paymentData.payment_method || 'mobile_money',
+      payment_reference: paymentData.payment_reference,
+      payment_status: 'completed'
+    };
+
+    const transactionResult = await createSavingsTransaction(transactionData);
+    if (!transactionResult.success) {
+      return transactionResult;
+    }
+
+    // Récupérer le plan mis à jour
+    const updatedPlanResult = await getActiveSavingsPlan(userId);
+    
+    return { 
+      success: true, 
+      data: {
+        transaction: transactionResult.data,
+        plan: updatedPlanResult.data
+      }
+    };
+  } catch (error) {
+    console.error('[SUPABASE] Erreur lors du dépôt:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+// Fonction pour effectuer un retrait (seulement si le plan est terminé)
+export const makeSavingsWithdrawal = async (userId, amount, paymentData) => {
+  try {
+    if (!supabase) {
+      return { success: false, error: 'Configuration Supabase manquante' };
+    }
+
+    // Récupérer le compte épargne
+    const accountResult = await getSavingsAccount(userId);
+    if (!accountResult.success || !accountResult.data) {
+      return { success: false, error: 'Compte épargne non trouvé' };
+    }
+
+    const account = accountResult.data;
+    
+    // Vérifier que le montant ne dépasse pas le solde
+    if (parseFloat(amount) > account.balance) {
+      return { success: false, error: 'Montant insuffisant sur le compte' };
+    }
+
+    // Créer la transaction de retrait
+    const transactionData = {
+      user_id: userId,
+      savings_account_id: account.id,
+      type: 'withdrawal',
+      amount: parseFloat(amount),
+      description: 'Retrait du compte épargne',
+      payment_method: paymentData.payment_method || 'mobile_money',
+      payment_reference: paymentData.payment_reference,
+      payment_status: 'completed'
+    };
+
+    const transactionResult = await createSavingsTransaction(transactionData);
+    if (!transactionResult.success) {
+      return transactionResult;
+    }
+
+    // Récupérer le compte mis à jour
+    const updatedAccountResult = await getSavingsAccount(userId);
+    
+    return { 
+      success: true, 
+      data: {
+        transaction: transactionResult.data,
+        account: updatedAccountResult.data
+      }
+    };
+  } catch (error) {
+    console.error('[SUPABASE] Erreur lors du retrait:', error.message);
     return { success: false, error: error.message };
   }
 };

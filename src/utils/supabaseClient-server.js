@@ -3,6 +3,7 @@ const { createClient } = require('@supabase/supabase-js');
 // Configuration sécurisée via variables d'environnement
 const supabaseUrl = process.env.REACT_APP_SUPABASE_URL;
 const supabaseAnonKey = process.env.REACT_APP_SUPABASE_ANON_KEY;
+const supabaseServiceKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 
 // Vérification de sécurité
 if (!supabaseUrl || !supabaseAnonKey) {
@@ -14,9 +15,17 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 // Créer le client Supabase
-const supabase = supabaseUrl && supabaseAnonKey 
-  ? createClient(supabaseUrl, supabaseAnonKey)
-  : null;
+// Utiliser la clé de service pour les opérations côté serveur (webhook)
+const supabase = supabaseUrl && supabaseServiceKey 
+  ? createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+  : supabaseUrl && supabaseAnonKey 
+    ? createClient(supabaseUrl, supabaseAnonKey)
+    : null;
 
 // Fonction de test de connexion Supabase
 const testSupabaseConnection = async () => {
