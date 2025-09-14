@@ -27,6 +27,7 @@ import RepaymentCancel from './components/Client/RepaymentCancel';
 import Profile from './components/Client/Profile';
 import Menu from './components/Client/Menu';
 import ABEpargne from './components/Client/ABEpargne';
+import RetourEpargne from './components/Client/RetourEpargne';
 import ABLogement from './components/Client/ABLogement';
 import CoachingFinance from './components/Client/CoachingFinance';
 
@@ -291,6 +292,14 @@ const AppContent = () => {
             <ProtectedRoute>
               <Layout>
                 <ABEpargne />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/epargne/retour" element={
+            <ProtectedRoute>
+              <Layout>
+                <RetourEpargne />
               </Layout>
             </ProtectedRoute>
           } />

@@ -1059,21 +1059,21 @@ export const createSavingsAccount = async (userId, paymentData) => {
     }
 
     // Créer le compte épargne
-    const { data: newAccount, error: createError } = await supabase
-      .from('savings_accounts')
-      .insert([{
-        user_id: userId,
-        balance: 0,
+      const { data: newAccount, error: createError } = await supabase
+        .from('savings_accounts')
+        .insert([{
+          user_id: userId,
+          balance: 0,
         account_creation_fee_paid: false,
         account_creation_fee_amount: 1000.00,
         interest_rate: 5.00, // 5% par mois
         total_interest_earned: 0,
         is_active: true
-      }])
-      .select()
-      .single();
+        }])
+        .select()
+        .single();
 
-    if (createError) throw createError;
+      if (createError) throw createError;
 
     // Créer la transaction pour les frais de création
     const { data: feeTransaction, error: feeError } = await supabase

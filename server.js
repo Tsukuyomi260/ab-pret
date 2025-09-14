@@ -23,6 +23,23 @@ app.use(cors());
 // Route de test pour vérifier que l'API fonctionne
 app.get("/api/health", (req, res) => res.json({ ok: true }));
 
+// GET /api/savings/plan-status?reference=trx_s0s_1757340348512
+app.get('/api/savings/plan-status', async (req, res) => {
+  const { reference } = req.query;
+  if (!reference) return res.status(400).json({ created: false, error: 'Missing reference' });
+
+  const { data, error } = await supabase
+    .from('savings_plans')
+    .select('id')
+    .eq('transaction_reference', String(reference))
+    .maybeSingle();
+
+  if (error) return res.status(500).json({ created: false, error: error.message });
+  if (!data) return res.json({ created: false });
+
+  return res.json({ created: true, plan_id: data.id });
+});
+
 // Mode SMS: 'live' (production) ou 'echo' (développement)
 let SMS_MODE = process.env.SMS_MODE || 'echo'; // Utiliser la variable d'environnement ou echo par défaut
 
@@ -501,7 +518,7 @@ app.post('/api/fedapay/webhook', async (req, res) => {
           const result = await processFedaPaySavingsPlanCreation({
             user_id: userId, // UUID string
             amount: transaction.amount,
-            transaction_id: transaction.id,
+            transaction_id: transaction.reference,  // 👈 Utiliser la référence lisible
             payment_method: transaction.payment_method,
             paid_at: transaction.paid_at || new Date().toISOString()
           });

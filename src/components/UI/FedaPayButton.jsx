@@ -1,7 +1,15 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 
-const FedaPayButton = ({ amount = 1000, email = 'client@example.com', firstname = 'Client', lastname = '', phone = '97000000', onSuccess, onError }) => {
+const FedaPayButton = ({
+  amount = 1000,
+  email = 'client@example.com',
+  firstname = 'Client',
+  lastname = '',
+  phone = '97000000',
+  onSuccess = null,
+  onError = null
+}) => {
   const { user } = useAuth();
   const buttonRef = useRef(null);
   const [scriptLoaded, setScriptLoaded] = useState(false);
@@ -19,6 +27,7 @@ const FedaPayButton = ({ amount = 1000, email = 'client@example.com', firstname 
     setIsInitialized(false);
   };
 
+  // Charger le script checkout.js une seule fois
   useEffect(() => {
     const ensureScript = () => {
       const existing = document.getElementById('fedapay-checkout');
@@ -47,7 +56,6 @@ const FedaPayButton = ({ amount = 1000, email = 'client@example.com', firstname 
   };
 
   useEffect(() => {
-    console.log('[FedaPay] useEffect déclenché:', { scriptLoaded, buttonRef: !!buttonRef.current, FedaPay: !!window.FedaPay, isInitialized });
     if (!scriptLoaded || !buttonRef.current || !window.FedaPay || isInitialized) return;
 
     // Nettoyer toute instance précédente
@@ -61,22 +69,28 @@ const FedaPayButton = ({ amount = 1000, email = 'client@example.com', firstname 
       const effectiveEmail = email || user?.email || 'client@example.com';
       const derivedFirst = firstname || user?.first_name || 'Client';
       const derivedLast = lastname || user?.last_name || 'Campus';
-      const effectivePhone = validateAndFormatPhone(phone || user?.phone_number || user?.phone);
+      const effectivePhone = validateAndFormatPhone(
+        phone || user?.phone_number || user?.phone
+      );
 
-      console.log('[FedaPay] Initialisation avec les données:', {
+      console.log('[FedaPay] Initialisation avec:', {
         effectiveEmail,
         derivedFirst,
         derivedLast,
         effectivePhone,
         userId: user?.id
       });
-      
+
       window.FedaPay.init(buttonRef.current, {
         public_key: 'pk_sandbox_ZXhGKFGNXwn853-mYF9pANmi',
         transaction: {
           amount: parseInt(amount, 10) || 1000,
           description: `Paiement plan épargne - ${effectiveEmail} - ${derivedFirst} ${derivedLast}`,
-          currency: { iso: 'XOF' }
+          currency: { iso: 'XOF' },
+          custom_metadata: {
+            user_id: user?.id || null,
+            payment_type: 'savings_plan_creation'
+          }
         },
         customer: {
           email: effectiveEmail,
@@ -87,52 +101,53 @@ const FedaPayButton = ({ amount = 1000, email = 'client@example.com', firstname 
             country: 'BJ'
           }
         },
-        metadata: {
-          type: 'savings_plan_creation',
-          user_id: user?.id || null,
-          payment_type: 'savings_plan_creation'
-        },
-
         modal: true,
-        onSuccess: function(response) {
-          console.log('[FedaPay] Paiement réussi ✅', response);
-          
-          // Nettoyer complètement FedaPay
-          cleanupFedaPay();
-          
-          // Appeler directement le callback de succès
-          if (typeof onSuccess === 'function') {
-            console.log('[FedaPay] Appel du callback onSuccess...');
-            onSuccess(response);
+
+        // ✅ Le callback fiable
+        onComplete: ({ reason, transaction }) => {
+          console.log('[FedaPay] >>> onComplete déclenché', reason, transaction);
+
+          if (reason === window.FedaPay.CHECKOUT_COMPLETED) {
+            const txId = transaction?.reference || transaction?.id;  // 👈 Priorité à la référence
+            cleanupFedaPay();
+
+            if (txId) {
+              console.log('[FedaPay] Redirection vers /epargne/retour avec reference=', txId);
+              // Utiliser React Router au lieu de window.location.href
+              if (typeof onSuccess === 'function') {
+                onSuccess({ transaction: { reference: txId } });
+              }
+            } else {
+              console.warn('[FedaPay] Pas de transaction ID reçu.');
+            }
           } else {
-            console.log('[FedaPay] Aucun callback onSuccess défini');
+            console.warn('[FedaPay] Paiement non complété, reason=', reason);
           }
         },
-        onError: function(error) {
+
+        onError: function (error) {
           console.error('[FedaPay] Erreur de paiement ❌', error);
-          
-          // Nettoyer complètement FedaPay même en cas d'erreur
           cleanupFedaPay();
-          
-          if (typeof onError === 'function') onError(error);
+          if (typeof onError === 'function') {
+            onError(error);
+          }
         },
-        onClose: function() {
+
+        onClose: function () {
           console.log('[FedaPay] Modal fermée 🔒');
-          
-          // Nettoyage et réinitialisation même en fermeture
           cleanupFedaPay();
         }
       });
-      
+
       setIsInitialized(true);
     } catch (e) {
       console.error('[FedaPay] Init error:', e);
     }
-  }, [scriptLoaded, amount, email, firstname, lastname, phone, onSuccess, onError, isInitialized, user?.email, user?.first_name, user?.last_name, user?.phone_number, user?.phone, user?.id]);
+  }, [scriptLoaded, amount, email, firstname, lastname, phone, isInitialized, user, onSuccess, onError]);
 
   return (
     <button
-      ref={buttonRef}
+      ref={buttonRef}             
       disabled={!scriptLoaded}
       className="w-full p-4 border rounded bg-orange-600 text-white hover:bg-orange-700 disabled:opacity-60 transition text-lg font-semibold"
     >

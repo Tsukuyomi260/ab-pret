@@ -127,7 +127,7 @@ const ABEpargne = () => {
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [activeFAQCategory, setActiveFAQCategory] = useState('general');
   const [expandedFAQItems, setExpandedFAQItems] = useState(new Set());
-  
+
   // État pour le popup des détails du plan en mobile
   const [showPlanDetailsModal, setShowPlanDetailsModal] = useState(false);
 
@@ -185,7 +185,7 @@ const ABEpargne = () => {
     estimatedTotalAtEnd: 0
   });
 
-  const loadSavingsData = async () => {
+    const loadSavingsData = async () => {
       if (!user?.id) {
         setLoading(false);
         return;
@@ -245,12 +245,12 @@ const ABEpargne = () => {
           if (account) {
             // Utiliser les données du plan actif si disponible, sinon les données du compte
             const planData = activePlan || {};
-            setSavingsData({
-              balance: account.balance || 0,
+          setSavingsData({
+            balance: account.balance || 0,
               monthlyGoal: planData.total_amount_target || account.monthly_goal || 50000, // Objectif du plan
-              monthlySaved: 0, // Calculé dynamiquement
+            monthlySaved: 0, // Calculé dynamiquement
               interestRate: account.interest_rate || 5.0, // 5% par mois
-              totalInterest: account.total_interest || 0,
+            totalInterest: account.total_interest || 0,
               transactions: formattedTransactions,
               // Ajouter les données du plan
               planName: planData.plan_name || 'Plan Campus Finance',
@@ -1534,8 +1534,8 @@ const ABEpargne = () => {
                     >
                       Voir détails
                     </Button>
-                  </div>
-                  
+                    </div>
+                    
                   {/* Détails visibles sur desktop et tablette */}
                   <div className="hidden md:grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
                     <div className="bg-white rounded-lg p-4 border border-blue-100">
@@ -1549,7 +1549,7 @@ const ABEpargne = () => {
                     <div className="bg-white rounded-lg p-4 border border-blue-100">
                       <p className="text-sm text-gray-600 mb-1">Fréquence</p>
                       <p className="font-semibold text-blue-800">Tous les {savingsData.frequencyDays} jours</p>
-                    </div>
+                  </div>
                     <div className="bg-white rounded-lg p-4 border border-blue-100">
                       <p className="text-sm text-gray-600 mb-1">Durée</p>
                       <p className="font-semibold text-blue-800">{savingsData.durationMonths} mois</p>
@@ -1557,44 +1557,44 @@ const ABEpargne = () => {
                     <div className="bg-white rounded-lg p-4 border border-blue-100">
                       <p className="text-sm text-gray-600 mb-1">Dépôts effectués</p>
                       <p className="font-semibold text-green-600">{savingsData.completedDeposits} / {savingsData.totalDepositsRequired}</p>
-                    </div>
+                      </div>
                     <div className="bg-white rounded-lg p-4 border border-blue-100">
                       <p className="text-sm text-gray-600 mb-1">Progression</p>
                       <p className="font-semibold text-purple-600">{savingsData.completionPercentage}%</p>
-                    </div>
+                      </div>
                     <div className="bg-white rounded-lg p-4 border border-blue-100">
                       <p className="text-sm text-gray-600 mb-1">Taux d'intérêt</p>
                       <p className="font-semibold text-teal-600">{savingsData.interestRate}% par mois</p>
-                    </div>
+                      </div>
                     <div className="bg-white rounded-lg p-4 border border-blue-100">
                       <p className="text-sm text-gray-600 mb-1">Objectif total</p>
                       <p className="font-semibold text-green-600">{formatCurrency(savingsData.monthlyGoal)}</p>
-                    </div>
-                  </div>
-                  
+                      </div>
+              </div>
+
                   {/* Résumé pour mobile */}
                   <div className="md:hidden space-y-3">
                     <div className="bg-white rounded-lg p-4 border border-blue-100">
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-gray-600">Progression</span>
                         <span className="font-semibold text-purple-600">{savingsData.completionPercentage}%</span>
-                      </div>
+                    </div>
                       <div className="w-full bg-gray-200 rounded-full h-2 mt-2">
                         <div 
                           className="bg-gradient-to-r from-purple-500 to-purple-600 h-2 rounded-full transition-all duration-500"
                           style={{ width: `${savingsData.completionPercentage}%` }}
                         />
-                      </div>
-                    </div>
+                        </div>
+                        </div>
                     <div className="bg-white rounded-lg p-4 border border-blue-100">
                       <div className="flex justify-between items-center">
                         <span className="text-sm text-gray-600">Dépôts effectués</span>
                         <span className="font-semibold text-green-600">{savingsData.completedDeposits} / {savingsData.totalDepositsRequired}</span>
-                      </div>
-                    </div>
+                        </div>
+                        </div>
+                        </div>
                   </div>
-                </div>
-              </Card>
+                </Card>
 
 
 
@@ -2548,14 +2548,15 @@ const ABEpargne = () => {
                     // Fermer le modal de paiement
                     setShowFeesPaymentModal(false);
                     
-                    // Afficher un message de succès
-                    showSuccess('Paiement effectué ! Votre plan d\'épargne est en cours de création...');
-                    
-                    // Recharger les données après un délai pour laisser le webhook traiter
-                    setTimeout(() => {
-                      console.log('[ABEPARGNE] Rechargement des données après paiement...');
-                      loadSavingsData();
-                    }, 3000);
+                    // Rediriger vers la page de retour avec la référence de transaction
+                    const reference = response?.transaction?.reference;
+                    if (reference) {
+                      console.log('[ABEPARGNE] Redirection vers page de retour avec reference:', reference);
+                      navigate(`/epargne/retour?status=approved&reference=${reference}`);
+                    } else {
+                      console.warn('[ABEPARGNE] Pas de référence de transaction reçue');
+                      showSuccess('Paiement effectué ! Votre plan d\'épargne est en cours de création...');
+                    }
                   }}
                   onError={(error) => {
                     console.error('[ABEPARGNE] Erreur paiement FedaPay:', error);
