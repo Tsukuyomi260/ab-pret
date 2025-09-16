@@ -26,9 +26,11 @@ import RepaymentFailure from './components/Client/RepaymentFailure';
 import RepaymentCancel from './components/Client/RepaymentCancel';
 import Profile from './components/Client/Profile';
 import Menu from './components/Client/Menu';
+import ABLogement from './components/Client/ABLogement';
 import ABEpargne from './components/Client/ABEpargne';
 import RetourEpargne from './components/Client/RetourEpargne';
-import ABLogement from './components/Client/ABLogement';
+import PlanEpargne from './components/Client/PlanEpargne';
+import TestPlanEpargne from './components/Client/TestPlanEpargne';
 import CoachingFinance from './components/Client/CoachingFinance';
 
 import LoyaltyScore from './components/Client/LoyaltyScore';
@@ -288,6 +290,15 @@ const AppContent = () => {
             </ProtectedRoute>
           } />
           
+          
+          <Route path="/ab-logement" element={
+            <ProtectedRoute>
+              <Layout>
+                <ABLogement />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          
           <Route path="/ab-epargne" element={
             <ProtectedRoute>
               <Layout>
@@ -296,7 +307,7 @@ const AppContent = () => {
             </ProtectedRoute>
           } />
           
-          <Route path="/epargne/retour" element={
+          <Route path="/ab-epargne/retour" element={
             <ProtectedRoute>
               <Layout>
                 <RetourEpargne />
@@ -304,10 +315,10 @@ const AppContent = () => {
             </ProtectedRoute>
           } />
           
-          <Route path="/ab-logement" element={
+          <Route path="/ab-epargne/plan/:id" element={
             <ProtectedRoute>
               <Layout>
-                <ABLogement />
+                <PlanEpargne />
               </Layout>
             </ProtectedRoute>
           } />
@@ -331,6 +342,7 @@ const AppContent = () => {
           <Route path="/test-otp" element={<TestOTP />} />
           <Route path="/test-health" element={<TestHealth />} />
           <Route path="/test-fedapay" element={<TestFedaPay />} />
+          <Route path="/test-plan-epargne/:id" element={<TestPlanEpargne />} />
           
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
         </Routes>

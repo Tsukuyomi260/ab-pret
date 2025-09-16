@@ -85,11 +85,12 @@ const FedaPayButton = ({
         public_key: 'pk_sandbox_ZXhGKFGNXwn853-mYF9pANmi',
         transaction: {
           amount: parseInt(amount, 10) || 1000,
-          description: `Paiement plan épargne - ${effectiveEmail} - ${derivedFirst} ${derivedLast}`,
+          description: `Remboursement prêt - ${effectiveEmail} - ${derivedFirst} ${derivedLast}`,
           currency: { iso: 'XOF' },
+
           custom_metadata: {
-            user_id: user?.id || null,
-            payment_type: 'savings_plan_creation'
+            paymentType: 'loan_repayment',
+            user_id: String(user?.id || '')
           }
         },
         customer: {
@@ -112,7 +113,7 @@ const FedaPayButton = ({
             cleanupFedaPay();
 
             if (txId) {
-              console.log('[FedaPay] Redirection vers /epargne/retour avec reference=', txId);
+              console.log('[FedaPay] Redirection vers /repayment/success avec reference=', txId);
               // Utiliser React Router au lieu de window.location.href
               if (typeof onSuccess === 'function') {
                 onSuccess({ transaction: { reference: txId } });

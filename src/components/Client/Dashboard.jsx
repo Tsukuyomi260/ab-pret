@@ -6,7 +6,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import Card from '../UI/Card';
 import Button from '../UI/Button';
 import NotificationBell from '../UI/NotificationBell';
-import SavingsPlanGuard from '../Common/SavingsPlanGuard';
 import { getLoans, getPayments } from '../../utils/supabaseAPI';
 import { 
   CreditCard, 
@@ -367,7 +366,6 @@ const ClientDashboard = () => {
   }
 
   return (
-    <SavingsPlanGuard>
       <div className="bg-gradient-to-br from-primary-50 via-accent-50 to-secondary-50">
         <style>{gradientAnimation}</style>
       
@@ -668,7 +666,6 @@ const ClientDashboard = () => {
           </motion.div>
       </div>
       </div>
-    </SavingsPlanGuard>
   );
 };
 
