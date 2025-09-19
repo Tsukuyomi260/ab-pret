@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { ChevronLeft, Plus, Minus, Wallet, Calendar, Target, TrendingUp } from 'lucide-react';
+import FedaPayDepotButton from '../UI/FedaPayDepotButton';
 
 const PlanEpargne = () => {
   const { id } = useParams();
@@ -160,10 +161,7 @@ const PlanEpargne = () => {
 
       {/* Action Buttons */}
       <div className="space-y-4">
-        <button className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-4 rounded-xl font-semibold shadow-lg flex items-center justify-center">
-          <Plus className="w-5 h-5 mr-2" />
-          Effectuer un Dépôt
-        </button>
+        <FedaPayDepotButton plan={plan} />
         
         <button className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-4 rounded-xl font-semibold shadow-lg flex items-center justify-center">
           <Minus className="w-5 h-5 mr-2" />

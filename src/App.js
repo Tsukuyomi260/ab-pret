@@ -30,6 +30,8 @@ import ABLogement from './components/Client/ABLogement';
 import ABEpargne from './components/Client/ABEpargne';
 import RetourEpargne from './components/Client/RetourEpargne';
 import PlanEpargne from './components/Client/PlanEpargne';
+import DepotRetour from './components/Client/DepotRetour';
+import RemboursementRetour from './components/Client/RemboursementRetour';
 import TestPlanEpargne from './components/Client/TestPlanEpargne';
 import CoachingFinance from './components/Client/CoachingFinance';
 
@@ -315,13 +317,27 @@ const AppContent = () => {
             </ProtectedRoute>
           } />
           
-          <Route path="/ab-epargne/plan/:id" element={
-            <ProtectedRoute>
-              <Layout>
-                <PlanEpargne />
-              </Layout>
-            </ProtectedRoute>
-          } />
+            <Route path="/ab-epargne/plan/:id" element={
+              <ProtectedRoute>
+                <Layout>
+                  <PlanEpargne />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/ab-epargne/depot-retour" element={
+              <ProtectedRoute>
+                <Layout>
+                  <DepotRetour />
+                </Layout>
+              </ProtectedRoute>
+            } />
+            <Route path="/remboursement-retour" element={
+              <ProtectedRoute>
+                <Layout>
+                  <RemboursementRetour />
+                </Layout>
+              </ProtectedRoute>
+            } />
           
           <Route path="/coaching-finance" element={
             <ProtectedRoute>

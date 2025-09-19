@@ -430,10 +430,10 @@ app.post('/api/fedapay/webhook', async (req, res) => {
         console.log('[FEDAPAY_WEBHOOK] ✅ Informations prêt extraites depuis la description:', { loanId, userId, paymentType });
       } else {
         // Pattern pour prêt: "Remboursement prêt #UUID" (sans user ID)
-        const simpleMatch = transaction.description?.match(/Remboursement prêt #([a-f0-9-]+)/);
-        if (simpleMatch) {
-          loanId = simpleMatch[1];
-          paymentType = 'loan_repayment';
+          const simpleMatch = transaction.description?.match(/Remboursement prêt #([a-f0-9-]+)/);
+          if (simpleMatch) {
+            loanId = simpleMatch[1];
+            paymentType = 'loan_repayment';
             console.log('[FEDAPAY_WEBHOOK] ⚠️ Seul l\'ID du prêt extrait:', { loanId, paymentType });
             
             // Essayer de récupérer l'utilisateur depuis la base de données
@@ -451,10 +451,10 @@ app.post('/api/fedapay/webhook', async (req, res) => {
               }
             } catch (error) {
               console.error('[FEDAPAY_WEBHOOK] ❌ Erreur récupération user ID:', error);
-            }
           }
         }
       }
+    }
     
     console.log('[FEDAPAY_WEBHOOK] 🔍 Metadata finale:', { loanId, userId, paymentType });
     
@@ -466,22 +466,106 @@ app.post('/api/fedapay/webhook', async (req, res) => {
         console.log(`[FEDAPAY_WEBHOOK] 🎯 Paiement confirmé pour le prêt #${loanId}`);
         
         try {
-          // Traiter le remboursement avec Supabase
-          const { processFedaPayLoanRepayment } = require('./src/utils/supabaseAPI-server');
-          const result = await processFedaPayLoanRepayment({
-            loan_id: loanId, // UUID string
-            user_id: userId, // UUID string
+          // Traiter le remboursement avec Supabase directement
+          const { supabase } = require('./src/utils/supabaseClient-server');
+          
+          if (!supabase) {
+            throw new Error('Configuration Supabase manquante');
+          }
+
+          console.log('[FEDAPAY_WEBHOOK] 🔄 Traitement remboursement:', {
+            loan_id: loanId,
+            user_id: userId,
             amount: transaction.amount,
-            transaction_id: transaction.id,
-            payment_method: transaction.payment_method,
-            paid_at: transaction.paid_at || new Date().toISOString()
+            transaction_id: transaction.id
           });
 
-          if (result.success) {
-            console.log('[FEDAPAY_WEBHOOK] ✅ Remboursement traité avec succès - Prêt mis à jour');
-          } else {
-            console.error('[FEDAPAY_WEBHOOK] ❌ Erreur traitement remboursement:', result.error);
+          // Vérifier le rôle Supabase
+          const { data: { user: supabaseUser } } = await supabase.auth.getUser();
+          console.log('[FEDAPAY_WEBHOOK] 🔑 Rôle Supabase:', supabaseUser?.role || 'anon');
+          
+          // Vérifier la configuration du client
+          console.log('[FEDAPAY_WEBHOOK] 🔧 Configuration client:', {
+            hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
+            serviceKeyLength: process.env.SUPABASE_SERVICE_ROLE_KEY?.length || 0,
+            supabaseUrl: process.env.REACT_APP_SUPABASE_URL ? 'Configurée' : 'Manquante'
+          });
+
+          // 1. Créer l'enregistrement de paiement
+          const { data: paymentData, error: paymentError } = await supabase
+            .from('payments')
+            .insert([{
+              loan_id: loanId,
+              user_id: userId,
+              amount: transaction.amount,
+              method: 'mobile_money', // Valeur par défaut simple
+              status: 'completed',
+              transaction_id: transaction.id,
+              payment_date: new Date().toISOString(),
+              description: `Remboursement complet du prêt #${loanId}`,
+              metadata: {
+                fedapay_data: {
+                  transaction_id: transaction.id,
+                  amount: transaction.amount,
+                  payment_date: new Date().toISOString(),
+                  payment_method: transaction.payment_method
+                },
+                payment_type: 'loan_repayment',
+                app_source: 'ab_pret_web'
+              }
+            }])
+            .select()
+            .single();
+
+          if (paymentError) {
+            console.error('[FEDAPAY_WEBHOOK] ❌ Erreur création paiement:', paymentError);
+            throw paymentError;
           }
+
+          console.log('[FEDAPAY_WEBHOOK] ✅ Paiement créé:', paymentData);
+
+          // 2. Mettre à jour le statut du prêt
+          console.log('[FEDAPAY_WEBHOOK] 🔄 Mise à jour prêt:', { loanId, newStatus: 'completed' });
+          
+          const { data: updatedLoan, error: loanError } = await supabase
+            .from('loans')
+            .update({
+              status: 'completed',
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', loanId)
+            .select()
+            .single();
+
+          if (loanError) {
+            console.error('[FEDAPAY_WEBHOOK] ❌ Erreur mise à jour prêt:', loanError);
+            throw loanError;
+          }
+
+          console.log('[FEDAPAY_WEBHOOK] ✅ Prêt mis à jour:', updatedLoan);
+
+          console.log('[FEDAPAY_WEBHOOK] ✅ Prêt mis à jour - Statut: remboursé');
+
+          // 3. Envoyer une notification SMS de confirmation (optionnel)
+          try {
+            const { data: userData } = await supabase
+              .from('users')
+              .select('phone_number, first_name')
+              .eq('id', userId)
+              .single();
+
+            if (userData?.phone_number) {
+              const message = `CAMPUS FINANCE\n\nBonjour ${userData.first_name || 'Client'},\n\nVotre remboursement de ${new Intl.NumberFormat('fr-CI', { style: 'currency', currency: 'XOF' }).format(transaction.amount / 100)} a été traité avec succès.\n\nMerci pour votre confiance !\n\nCampus Finance`;
+              
+              // Note: SMS service would be called here if needed
+              console.log('[FEDAPAY_WEBHOOK] 📱 SMS de confirmation préparé pour:', userData.phone_number);
+            }
+          } catch (smsError) {
+            console.warn('[FEDAPAY_WEBHOOK] ⚠️ Erreur préparation SMS:', smsError.message);
+          }
+
+          console.log('[FEDAPAY_WEBHOOK] ✅ Remboursement traité avec succès - Prêt mis à jour');
+          
         } catch (error) {
           console.error('[FEDAPAY_WEBHOOK] ❌ Erreur lors du traitement du remboursement:', error);
         }
@@ -600,6 +684,112 @@ app.post('/api/fedapay/webhook', async (req, res) => {
         } catch (error) {
           console.error('[FEDAPAY_WEBHOOK] ❌ Erreur lors de la création du plan d\'épargne:', error);
         }
+      } else if (paymentType === 'savings_deposit' && userId && transaction.custom_metadata?.plan_id) {
+        console.log(`[FEDAPAY_WEBHOOK] 🎯 Dépôt confirmé pour plan d'épargne - User: ${userId}, Plan: ${transaction.custom_metadata.plan_id}`);
+        
+        try {
+          const { supabase } = require('./src/utils/supabaseClient-server');
+          const planId = transaction.custom_metadata.plan_id;
+          const depositAmount = parseInt(transaction.amount, 10);
+          
+          // Récupérer le plan actuel
+          const { data: currentPlan, error: planError } = await supabase
+            .from('savings_plans')
+            .select('*')
+            .eq('id', planId)
+            .eq('user_id', userId)
+            .single();
+            
+          if (planError || !currentPlan) {
+            console.error('[FEDAPAY_WEBHOOK] ❌ Plan non trouvé:', planError);
+            throw new Error('Plan non trouvé');
+          }
+          
+          // Calculer les nouvelles valeurs
+          const newTotalDeposited = (currentPlan.total_deposited || 0) + depositAmount;
+          const newCompletedDeposits = (currentPlan.completed_deposits || 0) + 1;
+          const newCompletionPercentage = Math.round((newCompletedDeposits / currentPlan.total_deposits_required) * 100);
+          const newCurrentBalance = (currentPlan.current_balance || 0) + depositAmount;
+          
+          // Calculer la prochaine date de dépôt
+          // Si c'est le premier dépôt, calculer depuis la date de début
+          // Sinon, calculer depuis la prochaine date prévue originale
+          let nextDepositDate;
+          if (newCompletedDeposits === 1) {
+            // Premier dépôt : calculer depuis la date de début + fréquence
+            nextDepositDate = new Date(currentPlan.start_date);
+            nextDepositDate.setDate(nextDepositDate.getDate() + currentPlan.frequency_days);
+          } else {
+            // Dépôts suivants : calculer depuis la prochaine date prévue + fréquence
+            const lastScheduledDate = new Date(currentPlan.next_deposit_date);
+            nextDepositDate = new Date(lastScheduledDate);
+            nextDepositDate.setDate(nextDepositDate.getDate() + currentPlan.frequency_days);
+          }
+          
+          // Mettre à jour le plan
+          const { data: updatedPlan, error: updateError } = await supabase
+            .from('savings_plans')
+            .update({
+              total_deposited: newTotalDeposited,
+              completed_deposits: newCompletedDeposits,
+              completion_percentage: newCompletionPercentage,
+              current_balance: newCurrentBalance,
+              next_deposit_date: nextDepositDate.toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', planId)
+            .select()
+            .single();
+            
+          if (updateError) {
+            console.error('[FEDAPAY_WEBHOOK] ❌ Erreur mise à jour plan:', updateError);
+            throw updateError;
+          }
+          
+          // Mettre à jour le compte épargne
+          const { error: accountError } = await supabase
+            .from('savings_accounts')
+            .update({
+              balance: newCurrentBalance,
+              updated_at: new Date().toISOString()
+            })
+            .eq('user_id', userId);
+            
+          if (accountError) {
+            console.error('[FEDAPAY_WEBHOOK] ❌ Erreur mise à jour compte:', accountError);
+          }
+          
+          // Créer une entrée dans savings_transactions
+          const { error: transactionError } = await supabase
+            .from('savings_transactions')
+            .insert({
+              user_id: userId,
+              savings_plan_id: planId,
+              transaction_type: 'deposit',
+              amount: depositAmount,
+              transaction_reference: transaction.reference,
+              status: 'completed',
+              created_at: new Date().toISOString()
+            });
+            
+          if (transactionError) {
+            console.error('[FEDAPAY_WEBHOOK] ❌ Erreur création transaction:', transactionError);
+          }
+          
+          console.log('[FEDAPAY_WEBHOOK] 🎉 Dépôt traité avec succès:', {
+            planId,
+            depositAmount,
+            newTotalDeposits,
+            newCompletedDeposits,
+            newCompletionPercentage,
+            newCurrentBalance,
+            nextDepositDate: nextDepositDate.toISOString(),
+            isFirstDeposit: newCompletedDeposits === 1
+          });
+          
+        } catch (error) {
+          console.error('[FEDAPAY_WEBHOOK] ❌ Erreur lors du traitement du dépôt:', error);
+        }
       } else {
         console.log('[FEDAPAY_WEBHOOK] ⚠️ Paiement confirmé mais pas de metadata valide - Webhook de test FedaPay');
         console.log('[FEDAPAY_WEBHOOK] Détails:', { loanId, userId, paymentType });
@@ -615,6 +805,243 @@ app.post('/api/fedapay/webhook', async (req, res) => {
     return res.status(200).json({ success: true });
   } catch (error) {
     console.error('[FEDAPAY_WEBHOOK] Erreur :', error);
+    return res.status(500).json({ success: false, error: 'Erreur serveur' });
+  }
+});
+
+// Endpoint pour créer une transaction de dépôt
+app.post('/api/create-savings-deposit', async (req, res) => {
+  try {
+    const { user_id, plan_id, amount } = req.body;
+    
+    if (!user_id || !plan_id || !amount) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'user_id, plan_id et amount requis' 
+      });
+    }
+
+    console.log('[SAVINGS_DEPOSIT] 🔑 Clé secrète FedaPay:', process.env.FEDAPAY_SECRET_KEY ? 'Configurée' : 'MANQUANTE');
+    console.log('[SAVINGS_DEPOSIT] 🚀 Création transaction dépôt:', { user_id, plan_id, amount });
+
+    // Appel à FedaPay API
+    const response = await fetch("https://sandbox-api.fedapay.com/v1/transactions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.FEDAPAY_SECRET_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        description: `Dépôt plan épargne - ${amount} F`,
+        amount: parseInt(amount),
+        currency: { iso: "XOF" },
+        callback_url: "http://localhost:3000/ab-epargne/depot-retour",
+        custom_metadata: {
+          paymentType: "savings_deposit",
+          user_id: user_id,
+          plan_id: plan_id,
+          amount: amount
+        },
+      }),
+    });
+
+    const data = await response.json();
+    console.log("[SAVINGS_DEPOSIT] Réponse FedaPay:", data);
+
+    if (data && data['v1/transaction'] && data['v1/transaction'].payment_url) {
+      return res.json({ success: true, transactionUrl: data['v1/transaction'].payment_url });
+    }
+    
+    res.status(500).json({ success: false, error: data });
+  } catch (err) {
+    console.error("[SAVINGS_DEPOSIT] ❌ Erreur création transaction:", err);
+    res.status(500).json({ success: false, error: "Erreur serveur" });
+  }
+});
+
+// Endpoint pour créer une transaction de remboursement
+app.post('/api/create-loan-repayment', async (req, res) => {
+  try {
+    console.log('[LOAN_REPAYMENT] 📥 Body reçu:', req.body);
+    const { user_id, loan_id, amount } = req.body;
+    
+    if (!user_id || !loan_id || !amount) {
+      console.error('[LOAN_REPAYMENT] ❌ Paramètres manquants:', { user_id, loan_id, amount });
+      return res.status(400).json({ 
+        success: false, 
+        error: 'user_id, loan_id et amount requis' 
+      });
+    }
+
+    console.log('[LOAN_REPAYMENT] 🔑 Clé secrète FedaPay:', process.env.FEDAPAY_SECRET_KEY ? 'Configurée' : 'MANQUANTE');
+    console.log('[LOAN_REPAYMENT] 🚀 Création transaction remboursement:', { user_id, loan_id, amount });
+    
+    if (!process.env.FEDAPAY_SECRET_KEY) {
+      console.error('[LOAN_REPAYMENT] ❌ FEDAPAY_SECRET_KEY manquante !');
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Configuration FedaPay manquante' 
+      });
+    }
+
+    // Appel à FedaPay API
+    const response = await fetch("https://sandbox-api.fedapay.com/v1/transactions", {
+      method: "POST",
+      headers: {
+        "Authorization": `Bearer ${process.env.FEDAPAY_SECRET_KEY}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        description: `Remboursement prêt - ${amount} F`,
+        amount: parseInt(amount),
+        currency: { iso: "XOF" },
+        callback_url: "http://localhost:3000/remboursement-retour",
+        custom_metadata: {
+          paymentType: "loan_repayment",
+          user_id: user_id,
+          loan_id: loan_id,
+          amount: amount
+        },
+      }),
+    });
+
+    const data = await response.json();
+    console.log("[LOAN_REPAYMENT] Réponse FedaPay:", data);
+
+    if (data && data['v1/transaction'] && data['v1/transaction'].payment_url) {
+      return res.json({ success: true, transactionUrl: data['v1/transaction'].payment_url });
+    }
+    
+    res.status(500).json({ success: false, error: data });
+  } catch (err) {
+    console.error("[LOAN_REPAYMENT] ❌ Erreur création transaction:", err);
+    res.status(500).json({ success: false, error: "Erreur serveur" });
+  }
+});
+
+// Endpoint pour vérifier le statut d'un remboursement
+app.get('/api/loans/repayment-status', async (req, res) => {
+  try {
+    const { reference, id, txId } = req.query;
+    const transactionId = reference || id || txId;
+    
+    if (!transactionId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'ID de transaction manquant' 
+      });
+    }
+
+    console.log('[LOAN_REPAYMENT_STATUS] 🔍 Vérification transaction:', transactionId);
+
+    const { supabase } = require('./src/utils/supabaseClient-server');
+    
+    // Chercher le paiement dans la table payments
+    const { data: payment, error: paymentError } = await supabase
+      .from('payments')
+      .select('loan_id, user_id, amount, status')
+      .eq('transaction_id', transactionId)
+      .maybeSingle();
+
+    if (paymentError) {
+      console.error('[LOAN_REPAYMENT_STATUS] ❌ Erreur récupération paiement:', paymentError);
+      return res.status(500).json({ success: false, error: 'Erreur base de données' });
+    }
+
+    if (!payment) {
+      console.log('[LOAN_REPAYMENT_STATUS] ⏳ Paiement pas encore traité');
+      return res.status(404).json({ success: false, error: 'Paiement non trouvé' });
+    }
+
+    // Récupérer les détails du prêt
+    const { data: loan, error: loanError } = await supabase
+      .from('loans')
+      .select('id, status, amount')
+      .eq('id', payment.loan_id)
+      .single();
+
+    if (loanError) {
+      console.error('[LOAN_REPAYMENT_STATUS] ❌ Erreur récupération prêt:', loanError);
+      return res.status(500).json({ success: false, error: 'Erreur base de données' });
+    }
+
+    console.log('[LOAN_REPAYMENT_STATUS] ✅ Remboursement trouvé:', { payment, loan });
+    
+    return res.json({ 
+      success: true, 
+      loan: {
+        id: loan.id,
+        status: loan.status,
+        amount: loan.amount
+      },
+      payment: {
+        amount: payment.amount,
+        status: payment.status
+      }
+    });
+
+  } catch (error) {
+    console.error('[LOAN_REPAYMENT_STATUS] ❌ Erreur:', error);
+    return res.status(500).json({ success: false, error: 'Erreur serveur' });
+  }
+});
+
+// Endpoint pour vérifier le statut d'un dépôt
+app.get('/api/savings/deposit-status', async (req, res) => {
+  try {
+    const { reference, id, txId } = req.query;
+    const transactionId = reference || id || txId;
+    
+    if (!transactionId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'ID de transaction manquant' 
+      });
+    }
+
+    console.log('[SAVINGS_DEPOSIT_STATUS] 🔍 Vérification dépôt:', transactionId);
+
+    const { supabase } = require('./src/utils/supabaseClient-server');
+    
+    // Chercher directement dans savings_plans avec la transaction_reference
+    const { data: plan, error: planError } = await supabase
+      .from('savings_plans')
+      .select(`
+        id, 
+        status, 
+        plan_name, 
+        fixed_amount, 
+        frequency_days,
+        duration_months,
+        total_amount_target, 
+        completion_percentage, 
+        transaction_reference,
+        start_date,
+        end_date,
+        next_deposit_date,
+        completed_deposits,
+        current_balance,
+        total_deposited,
+        interest_rate,
+        created_at,
+        updated_at
+      `)
+      .eq('transaction_reference', transactionId)
+      .maybeSingle();
+
+    if (planError) {
+      console.error('[SAVINGS_DEPOSIT_STATUS] ❌ Erreur récupération plan:', planError);
+      return res.status(500).json({ success: false, error: 'Erreur base de données' });
+    }
+
+    if (!plan) {
+      return res.status(404).json({ success: false, error: 'Plan non trouvé' });
+    }
+
+    console.log('[SAVINGS_DEPOSIT_STATUS] ✅ Plan trouvé:', plan);
+    return res.json({ success: true, plan });
+  } catch (error) {
+    console.error('[SAVINGS_DEPOSIT_STATUS] ❌ Erreur:', error);
     return res.status(500).json({ success: false, error: 'Erreur serveur' });
   }
 });
@@ -659,7 +1086,7 @@ app.get('/api/savings/plan-status', async (req, res) => {
       // Chercher directement par ID du plan
       query = query.eq('id', planId);
     } else if (userId) {
-      // Chercher le dernier plan créé pour cet utilisateur
+      // Chercher le dernier plan créé pour cet utilisateur (tous les statuts)
       query = query.eq('user_id', userId).order('created_at', { ascending: false }).limit(1);
     } else {
       // Chercher par transaction_reference

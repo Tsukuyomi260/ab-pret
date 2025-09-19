@@ -4,7 +4,7 @@ import { useNotifications } from '../../context/NotificationContext';
 import { useAuth } from '../../context/AuthContext';
 import Card from '../UI/Card';
 import Button from '../UI/Button';
-import RembourserButton from '../UI/RembourserButton';
+import FedaPayRemboursementButton from '../UI/FedaPayRemboursementButton';
 import { 
   getLoans, 
   getPayments 
@@ -40,9 +40,11 @@ const Repayment = () => {
         const payments = paymentsResult.data || [];
 
         // Trouver le prêt actif ou approuvé le plus récent (pas les prêts complétés)
+        console.log('[REPAYMENT] Tous les prêts:', loans.map(loan => ({ id: loan.id, status: loan.status })));
         const activeLoan = loans.find(loan => 
           loan.status === 'active' || loan.status === 'approved'
         );
+        console.log('[REPAYMENT] Prêt actif trouvé:', activeLoan ? { id: activeLoan.id, status: activeLoan.status } : 'Aucun');
         
         if (activeLoan) {
           // Calculer le montant payé pour ce prêt
@@ -216,11 +218,9 @@ const Repayment = () => {
               
               {/* Bouton Effectuer le paiement */}
               <div className="mt-6">
-                <RembourserButton
+                <FedaPayRemboursementButton
                   loan={currentLoan}
-                  user={user}
                   onSuccess={handleRepaymentSuccess}
-                  onError={handleRepaymentError}
                 />
               </div>
             </Card>

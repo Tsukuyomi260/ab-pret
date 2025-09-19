@@ -28,8 +28,8 @@ const ABEpargne = () => {
         // Nettoyer l'URL et rediriger vers RetourEpargne
         window.history.replaceState({}, document.title, window.location.pathname);
         navigate(`/ab-epargne/retour?reference=${reference}&status=approved`);
-        return;
-      }
+      return;
+    }
     };
 
     checkPaymentReturn();
@@ -48,10 +48,10 @@ const ABEpargne = () => {
     const fetchActivePlan = async () => {
       if (!user) {
         console.log('[AB_EPARGNE] ⏳ Pas d\'utilisateur connecté');
-        return;
-      }
-
-      try {
+      return;
+    }
+    
+    try {
         setLoading(true);
         console.log('[AB_EPARGNE] 🔍 Recherche du plan actif pour user:', user.id);
         
@@ -66,13 +66,13 @@ const ABEpargne = () => {
           console.log('[AB_EPARGNE] ✅ Plan actif trouvé, redirection vers la page de détail:', result.plan);
           // Rediriger directement vers la page de détail du plan
           navigate(`/ab-epargne/plan/${result.plan.id}`);
-          return;
-        } else {
+      return;
+      } else {
           console.log('[AB_EPARGNE] ℹ️ Aucun plan actif trouvé');
-        }
-      } catch (error) {
+      }
+    } catch (error) {
         console.error('[AB_EPARGNE] ❌ Erreur:', error);
-      } finally {
+    } finally {
         setLoading(false);
       }
     };
@@ -114,8 +114,8 @@ const ABEpargne = () => {
               <Minus className="w-4 h-4 text-gray-600" />
             </button>
             <div className="flex-1 text-center">
-              <input
-                type="number"
+                <input
+                  type="number"
                 min="500"
                 step="100"
                 value={planConfig.montant}
@@ -134,7 +134,7 @@ const ABEpargne = () => {
                 placeholder="500"
               />
               <span className="text-gray-600 ml-1">F</span>
-                    </div>
+                  </div>
             <button 
               onClick={() => setPlanConfig({...planConfig, montant: planConfig.montant + 100})}
               className="w-10 h-10 bg-white rounded-full shadow flex items-center justify-center"
