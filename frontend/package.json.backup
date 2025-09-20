@@ -1,0 +1,83 @@
+{
+  "name": "ab-pret-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "dependencies": {
+    "@craco/craco": "^7.1.0",
+    "@supabase/supabase-js": "^2.52.0",
+    "@testing-library/jest-dom": "^5.16.4",
+    "@testing-library/react": "^13.3.0",
+    "@testing-library/user-event": "^13.5.0",
+    "@vonage/server-sdk": "^3.22.3",
+    "axios": "^1.4.0",
+    "cors": "^2.8.5",
+    "express": "^5.1.0",
+    "fedapay": "^1.2.5",
+    "fedapay-reactjs": "^1.1.2",
+    "framer-motion": "^12.23.6",
+    "jspdf": "^2.5.1",
+    "jspdf-font": "^1.0.7",
+    "lucide-react": "^0.263.1",
+    "node-fetch": "^2.7.0",
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0",
+    "react-hot-toast": "^2.6.0",
+    "react-router-dom": "^6.3.0",
+    "react-scripts": "5.0.1",
+    "resend": "^6.0.1",
+    "twilio": "^5.8.0",
+    "vm-browserify": "^1.1.2",
+    "web-vitals": "^2.1.4"
+  },
+  "scripts": {
+    "start": "react-app-rewired start",
+    "build": "react-app-rewired build",
+    "test": "react-app-rewired test",
+    "eject": "react-scripts eject",
+    "start:api": "node server.js",
+    "dev:api": "nodemon --watch server.js server.js",
+    "dev": "concurrently \"npm start\" \"npm run dev:api\""
+  },
+  "eslintConfig": {
+    "extends": [
+      "react-app",
+      "react-app/jest"
+    ]
+  },
+  "browserslist": {
+    "production": [
+      ">0.2%",
+      "not dead",
+      "not op_mini all"
+    ],
+    "development": [
+      "last 1 chrome version",
+      "last 1 firefox version",
+      "last 1 safari version"
+    ]
+  },
+  "proxy": "http://localhost:5000",
+  "devDependencies": {
+    "@babel/plugin-transform-modules-commonjs": "^7.27.1",
+    "assert": "^2.1.0",
+    "autoprefixer": "^10.4.14",
+    "browserify-zlib": "^0.2.0",
+    "buffer": "^6.0.3",
+    "concurrently": "^9.0.0",
+    "constants-browserify": "^1.0.0",
+    "crypto-browserify": "^3.12.1",
+    "https-browserify": "^1.0.0",
+    "nodemon": "^3.1.0",
+    "os-browserify": "^0.3.0",
+    "path-browserify": "^1.0.1",
+    "postcss": "^8.4.24",
+    "process": "^0.11.10",
+    "querystring-es3": "^0.2.1",
+    "react-app-rewired": "^2.2.1",
+    "stream-browserify": "^3.0.0",
+    "stream-http": "^3.2.0",
+    "tailwindcss": "^3.3.2",
+    "url": "^0.11.4",
+    "util": "^0.12.5"
+  }
+}

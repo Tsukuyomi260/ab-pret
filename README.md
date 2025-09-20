@@ -1,70 +1,116 @@
-# Getting Started with Create React App
+# 🏦 AB Campus Finance - Monorepo
 
-This project was bootstrapped with [Create React App](https://github.com/facebook/create-react-app).
+Application de financement étudiant avec architecture séparée frontend/backend.
 
-## Available Scripts
+## 📁 Structure du projet
 
-In the project directory, you can run:
+```
+ab-campus-finance/
+├── frontend/          # Application React
+│   ├── src/          # Code source React
+│   ├── public/       # Fichiers publics
+│   ├── package.json  # Dépendances frontend
+│   └── vercel.json   # Configuration Vercel frontend
+├── backend/          # API Express
+│   ├── server.js     # Serveur Express principal
+│   ├── utils/        # Utilitaires backend
+│   ├── *.sql         # Scripts de base de données
+│   ├── test-*.js     # Tests backend
+│   ├── package.json  # Dépendances backend
+│   └── vercel.json   # Configuration Vercel backend
+└── package.json      # Scripts racine
+```
 
-### `npm start`
+## 🚀 Démarrage rapide
 
-Runs the app in the development mode.\
-Open [http://localhost:3000](http://localhost:3000) to view it in your browser.
+### Installation
+```bash
+# Installer toutes les dépendances
+npm run install:all
+```
 
-The page will reload when you make changes.\
-You may also see any lint errors in the console.
+### Développement local
+```bash
+# Lancer frontend et backend ensemble
+npm run dev
 
-### `npm test`
+# Ou séparément
+npm run dev:frontend  # Port 3000
+npm run dev:backend   # Port 5000
+```
 
-Launches the test runner in the interactive watch mode.\
-See the section about [running tests](https://facebook.github.io/create-react-app/docs/running-tests) for more information.
+### Build pour production
+```bash
+npm run build
+```
 
-### `npm run build`
+## 🌐 Déploiement
 
-Builds the app for production to the `build` folder.\
-It correctly bundles React in production mode and optimizes the build for the best performance.
+### Frontend (Vercel)
+1. Connecter le dossier `/frontend` à Vercel
+2. Configurer les variables d'environnement :
+   ```
+   REACT_APP_SUPABASE_URL=your_supabase_url
+   REACT_APP_SUPABASE_ANON_KEY=your_supabase_anon_key
+   REACT_APP_BACKEND_URL=https://your-backend.vercel.app
+   ```
 
-The build is minified and the filenames include the hashes.\
-Your app is ready to be deployed!
+### Backend (Vercel)
+1. Connecter le dossier `/backend` à Vercel
+2. Configurer les variables d'environnement :
+   ```
+   REACT_APP_SUPABASE_URL=your_supabase_url
+   REACT_APP_SUPABASE_ANON_KEY=your_supabase_anon_key
+   SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
+   FEDAPAY_SECRET_KEY=your_fedapay_secret
+   FEDAPAY_PUBLIC_KEY=your_fedapay_public
+   FEDAPAY_ENVIRONMENT=live
+   REACT_APP_VONAGE_API_KEY=your_vonage_key
+   REACT_APP_VONAGE_API_SECRET=your_vonage_secret
+   REACT_APP_VONAGE_BRAND_NAME=AB Campus Finance
+   ```
 
-See the section about [deployment](https://facebook.github.io/create-react-app/docs/deployment) for more information.
+## 🔧 Scripts disponibles
 
-### `npm run eject`
+### Racine
+- `npm run dev` - Lancer frontend + backend
+- `npm run build` - Build complet
+- `npm run install:all` - Installer toutes les dépendances
 
-**Note: this is a one-way operation. Once you `eject`, you can't go back!**
+### Frontend
+- `npm start` - Serveur de développement React
+- `npm run build` - Build de production
+- `npm test` - Tests
 
-If you aren't satisfied with the build tool and configuration choices, you can `eject` at any time. This command will remove the single build dependency from your project.
+### Backend
+- `npm start` - Serveur Express
+- `npm run dev` - Serveur avec nodemon
+- `npm test` - Tests
 
-Instead, it will copy all the configuration files and the transitive dependencies (webpack, Babel, ESLint, etc) right into your project so you have full control over them. All of the commands except `eject` will still work, but they will point to the copied scripts so you can tweak them. At this point you're on your own.
+## 📊 Technologies utilisées
 
-You don't have to ever use `eject`. The curated feature set is suitable for small and middle deployments, and you shouldn't feel obligated to use this feature. However we understand that this tool wouldn't be useful if you couldn't customize it when you are ready for it.
+### Frontend
+- React 18
+- React Router
+- Tailwind CSS
+- Supabase Client
+- FedaPay React
+- Framer Motion
 
-## Learn More
+### Backend
+- Express.js
+- Supabase (Service Role)
+- Vonage (SMS)
+- FedaPay (Paiements)
+- Twilio (SMS de secours)
 
-You can learn more in the [Create React App documentation](https://facebook.github.io/create-react-app/docs/getting-started).
+## 🛡️ Sécurité
 
-To learn React, check out the [React documentation](https://reactjs.org/).
+- Variables d'environnement sensibles isolées côté backend
+- CORS configuré pour la production
+- Rate limiting sur les API
+- Validation des signatures webhook
 
-### Code Splitting
+## 📞 Support
 
-This section has moved here: [https://facebook.github.io/create-react-app/docs/code-splitting](https://facebook.github.io/create-react-app/docs/code-splitting)
-
-### Analyzing the Bundle Size
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size](https://facebook.github.io/create-react-app/docs/analyzing-the-bundle-size)
-
-### Making a Progressive Web App
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app](https://facebook.github.io/create-react-app/docs/making-a-progressive-web-app)
-
-### Advanced Configuration
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/advanced-configuration](https://facebook.github.io/create-react-app/docs/advanced-configuration)
-
-### Deployment
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/deployment](https://facebook.github.io/create-react-app/docs/deployment)
-
-### `npm run build` fails to minify
-
-This section has moved here: [https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify](https://facebook.github.io/create-react-app/docs/troubleshooting#npm-run-build-fails-to-minify)
+Pour toute question ou problème, consultez la documentation dans chaque dossier.
