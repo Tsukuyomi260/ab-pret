@@ -1,7 +1,0 @@
-const webpush = require("web-push");
-const keys = webpush.generateVAPIDKeys();
-console.log("Clés VAPID générées :");
-console.log("Public Key:", keys.publicKey);
-console.log("Private Key:", keys.privateKey);
-console.log("\n=== Pour votre .env ===");
-console.log(`VAPID_PUBLIC_KEY=${keys.publicKey}`)console.log(`VAPID_PRIVATE_KEY=${keys.privateKey}`)
