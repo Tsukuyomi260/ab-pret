@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
+import { BACKEND_URL } from "../../config/backend";
 
 const FedaPayRemboursementButton = ({ loan, onSuccess }) => {
   const buttonRef = useRef(null);
@@ -40,7 +41,7 @@ const FedaPayRemboursementButton = ({ loan, onSuccess }) => {
 
     try {
       // Appel au backend pour créer la transaction
-      const backendUrl = process.env.REACT_APP_BACKEND_URL || "http://localhost:5000";
+      const backendUrl = BACKEND_URL;
       const response = await fetch(`${backendUrl}/api/create-loan-repayment`, {
         method: "POST",
         headers: {

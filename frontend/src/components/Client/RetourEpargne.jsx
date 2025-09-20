@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { BACKEND_URL } from '../../config/backend';
 import { useAuth } from '../../context/AuthContext';
 import { supabase } from '../../utils/supabaseClient';
 
@@ -13,7 +14,7 @@ const RetourEpargne = () => {
   const [pollingCount, setPollingCount] = useState(0);
   const [progress, setProgress] = useState(0);
 
-  const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+  const backendUrl = BACKEND_URL;
 
   useEffect(() => {
     const pollForPlan = async () => {

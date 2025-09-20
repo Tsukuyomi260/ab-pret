@@ -1,5 +1,6 @@
 import { supabase, testSupabaseConnection } from './supabaseClient';
 import { sendOTPSMS, sendWelcomeSMS } from './smsService';
+import { BACKEND_URL } from '../config/backend';
 
 // ===== TESTS ET VÉRIFICATIONS =====
 
@@ -644,7 +645,7 @@ export const createLoan = async (loanData) => {
         
         const clientName = `${data.users.first_name} ${data.users.last_name}`;
         
-        const notificationResponse = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/notify-admin-new-loan`, {
+        const notificationResponse = await fetch(`${BACKEND_URL}/api/notify-admin-new-loan`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -754,7 +755,7 @@ export const updateLoanStatus = async (loanId, status, adminId = null) => {
       try {
         console.log('[LOAN_APPROVAL] Envoi notification d\'approbation...');
         
-        const notificationResponse = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/notify-loan-approval`, {
+        const notificationResponse = await fetch(`${BACKEND_URL}/api/notify-loan-approval`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({

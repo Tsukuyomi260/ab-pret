@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { BACKEND_URL } from '../../config/backend';
 import { useAuth } from '../../context/AuthContext';
 
 const RemboursementRetour = () => {
@@ -9,7 +10,7 @@ const RemboursementRetour = () => {
   const [status, setStatus] = useState('loading');
   const [message, setMessage] = useState('Vérification du remboursement...');
 
-  const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+  const backendUrl = BACKEND_URL;
 
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
