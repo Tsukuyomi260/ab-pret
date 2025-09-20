@@ -787,6 +787,14 @@ app.post('/api/fedapay/webhook', async (req, res) => {
 
           console.log('[FEDAPAY_WEBHOOK] ✅ Prêt mis à jour - Statut: remboursé');
 
+          // Vérifier et notifier l'atteinte du score de fidélité maximum
+          try {
+            await checkAndNotifyLoyaltyAchievement(userId);
+          } catch (loyaltyError) {
+            console.error('[FEDAPAY_WEBHOOK] Erreur vérification fidélité:', loyaltyError);
+            // Ne pas faire échouer le webhook pour cette erreur
+          }
+
           // 3. Envoyer une notification SMS de confirmation (optionnel)
           try {
             const { data: userData } = await supabase
@@ -1577,6 +1585,212 @@ async function sendSavingsDepositReminderNotifications() {
   }
 }
 
+// Fonction pour notifier l'admin qu'un utilisateur a atteint le score de fidélité maximum
+async function notifyAdminLoyaltyAchievement(clientName, userId) {
+  try {
+    console.log('[ADMIN_LOYALTY] Notification admin pour score de fidélité:', { clientName, userId });
+    
+    // Récupérer l'admin
+    const { data: adminData, error: adminError } = await supabase
+      .from('users')
+      .select('id, first_name, last_name')
+      .eq('role', 'admin')
+      .single();
+
+    if (adminError || !adminData) {
+      console.error('[ADMIN_LOYALTY] Aucun admin trouvé:', adminError);
+      return false;
+    }
+
+    const adminName = adminData.first_name || 'Admin';
+    
+    const title = "🏆 AB Campus Finance - Score de fidélité atteint";
+    const body = `L'utilisateur ${clientName} a rempli son score de fidélité (5/5). Il attend sa récompense. Contactez-le pour organiser la remise de sa récompense.`;
+
+    // Récupérer les abonnements de l'admin
+    const { data: subscriptions } = await supabase
+      .from('push_subscriptions')
+      .select('subscription')
+      .eq('user_id', adminData.id);
+
+    if (!subscriptions || subscriptions.length === 0) {
+      console.log(`[ADMIN_LOYALTY] Admin ${adminName} non abonné aux notifications`);
+      return false;
+    }
+
+    let notificationsSent = 0;
+    let errors = 0;
+
+    for (const sub of subscriptions) {
+      try {
+        await webPush.sendNotification(sub.subscription, JSON.stringify({
+          title,
+          body,
+          data: {
+            url: '/admin/users',
+            icon: '/logo192.png',
+            badge: '/logo192.png',
+            type: 'loyalty_achievement_admin',
+            clientName: clientName,
+            userId: userId,
+            score: 5
+          },
+          vibrate: [200, 50, 100]
+        }));
+        notificationsSent++;
+        console.log(`[ADMIN_LOYALTY] ✅ Notification envoyée à l'admin ${adminName}`);
+      } catch (pushError) {
+        errors++;
+        console.error(`[ADMIN_LOYALTY] ❌ Erreur envoi notification à l'admin ${adminName}:`, pushError);
+      }
+    }
+
+    console.log(`[ADMIN_LOYALTY] Notifications admin envoyées: ${notificationsSent} succès, ${errors} erreurs`);
+    return notificationsSent > 0;
+
+  } catch (error) {
+    console.error('[ADMIN_LOYALTY] Erreur lors de la notification admin:', error);
+    return false;
+  }
+}
+
+// Fonction pour vérifier et notifier l'atteinte du score de fidélité maximum
+async function checkAndNotifyLoyaltyAchievement(userId) {
+  try {
+    console.log('[LOYALTY] Vérification du score de fidélité pour l\'utilisateur:', userId);
+    
+    // Récupérer les prêts et paiements de l'utilisateur
+    const [loansResult, paymentsResult] = await Promise.all([
+      supabase.from('loans').select('*').eq('user_id', userId),
+      supabase.from('payments').select('*').eq('user_id', userId)
+    ]);
+
+    if (loansResult.error || paymentsResult.error) {
+      console.error('[LOYALTY] Erreur récupération données:', loansResult.error || paymentsResult.error);
+      return false;
+    }
+
+    const loans = loansResult.data || [];
+    const payments = paymentsResult.data || [];
+
+    // Créer un index des prêts par id
+    const loanById = new Map(loans.map(loan => [loan.id, loan]));
+
+    // Filtrer les paiements complétés
+    const completedPayments = payments.filter(p => (p.status || '').toLowerCase() === 'completed');
+
+    // Ensemble des prêts remboursés à temps (unique par prêt)
+    const onTimeLoanIds = new Set();
+
+    completedPayments.forEach(p => {
+      const loan = loanById.get(p.loan_id);
+      if (!loan) return;
+
+      const loanCreatedAt = new Date(loan.created_at || new Date());
+      const durationDays = parseInt(loan.duration_months || loan.duration || 30, 10);
+      const dueDate = new Date(loanCreatedAt.getTime() + durationDays * 24 * 60 * 60 * 1000);
+
+      const paymentDate = new Date(p.payment_date || p.created_at || new Date());
+      const isOnTime = paymentDate.getTime() <= dueDate.getTime();
+
+      if (isOnTime) {
+        onTimeLoanIds.add(p.loan_id);
+      }
+    });
+
+    // Calculer le score de fidélité
+    const loyaltyScore = Math.max(0, Math.min(5, onTimeLoanIds.size));
+
+    console.log('[LOYALTY] Score calculé:', {
+      userId,
+      onTimeLoansCount: onTimeLoanIds.size,
+      loyaltyScore
+    });
+
+    // Si l'utilisateur vient d'atteindre le score maximum (5)
+    if (loyaltyScore === 5) {
+      // Récupérer les informations de l'utilisateur
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('first_name, last_name')
+        .eq('id', userId)
+        .single();
+
+      if (userError || !userData) {
+        console.error('[LOYALTY] Erreur récupération utilisateur:', userError);
+        return false;
+      }
+
+      const clientName = `${userData.first_name} ${userData.last_name}`;
+      
+      const title = "🏆 AB Campus Finance - Félicitations !";
+      const body = `Bravo ${clientName} ! Vous avez atteint le score de fidélité maximum (5/5) grâce à vos 5 remboursements ponctuels. Votre sérieux et votre fidélité sont remarquables ! Vous serez contacté très bientôt pour recevoir votre récompense.`;
+
+      // Récupérer les abonnements de l'utilisateur
+      const { data: subscriptions } = await supabase
+        .from('push_subscriptions')
+        .select('subscription')
+        .eq('user_id', userId);
+
+      if (subscriptions && subscriptions.length > 0) {
+        let notificationsSent = 0;
+        let errors = 0;
+
+        for (const sub of subscriptions) {
+          try {
+            await webPush.sendNotification(sub.subscription, JSON.stringify({
+              title,
+              body,
+              data: {
+                url: '/loyalty-score',
+                icon: '/logo192.png',
+                badge: '/logo192.png',
+                type: 'loyalty_achievement',
+                score: 5,
+                clientName: clientName
+              },
+              vibrate: [200, 50, 100]
+            }));
+            notificationsSent++;
+            console.log(`[LOYALTY] ✅ Notification de fidélité envoyée à ${clientName}`);
+          } catch (pushError) {
+            errors++;
+            console.error(`[LOYALTY] ❌ Erreur envoi notification à ${clientName}:`, pushError);
+          }
+        }
+
+        console.log(`[LOYALTY] Notifications envoyées: ${notificationsSent} succès, ${errors} erreurs`);
+        
+        // Envoyer une notification à l'admin
+        try {
+          await notifyAdminLoyaltyAchievement(clientName, userId);
+        } catch (adminError) {
+          console.error('[LOYALTY] Erreur notification admin:', adminError);
+          // Ne pas faire échouer la fonction pour cette erreur
+        }
+        
+        return notificationsSent > 0;
+      } else {
+        console.log(`[LOYALTY] Utilisateur ${clientName} non abonné aux notifications`);
+        
+        // Envoyer quand même la notification à l'admin même si l'utilisateur n'est pas abonné
+        try {
+          await notifyAdminLoyaltyAchievement(clientName, userId);
+        } catch (adminError) {
+          console.error('[LOYALTY] Erreur notification admin:', adminError);
+        }
+        
+        return false;
+      }
+    }
+
+    return false;
+  } catch (error) {
+    console.error('[LOYALTY] Erreur lors de la vérification de fidélité:', error);
+    return false;
+  }
+}
+
 // Fonction pour envoyer des notifications de rappel d'échéance de prêt
 async function sendLoanReminderNotifications() {
   try {
@@ -1703,6 +1917,78 @@ app.post('/api/trigger-savings-reminders', async (req, res) => {
     res.status(500).json({ 
       success: false, 
       error: 'Erreur serveur lors du traitement des rappels de dépôt d\'épargne' 
+    });
+  }
+});
+
+// Route pour déclencher manuellement la vérification de fidélité
+app.post('/api/trigger-loyalty-check', async (req, res) => {
+  try {
+    const { userId } = req.body;
+    
+    if (!userId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'userId requis' 
+      });
+    }
+    
+    console.log('[LOYALTY] Déclenchement manuel de la vérification de fidélité pour:', userId);
+    
+    const success = await checkAndNotifyLoyaltyAchievement(userId);
+    
+    if (success) {
+      res.json({ 
+        success: true, 
+        message: 'Vérification de fidélité effectuée avec succès' 
+      });
+    } else {
+      res.json({ 
+        success: true, 
+        message: 'Vérification effectuée - aucun score maximum atteint' 
+      });
+    }
+  } catch (error) {
+    console.error('[LOYALTY] Erreur lors de la vérification manuelle:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Erreur serveur lors de la vérification de fidélité' 
+    });
+  }
+});
+
+// Route pour déclencher manuellement la notification admin de fidélité
+app.post('/api/trigger-admin-loyalty-notification', async (req, res) => {
+  try {
+    const { clientName, userId } = req.body;
+    
+    if (!clientName || !userId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'clientName et userId requis' 
+      });
+    }
+    
+    console.log('[ADMIN_LOYALTY] Déclenchement manuel de la notification admin pour:', { clientName, userId });
+    
+    const success = await notifyAdminLoyaltyAchievement(clientName, userId);
+    
+    if (success) {
+      res.json({ 
+        success: true, 
+        message: 'Notification admin de fidélité envoyée avec succès' 
+      });
+    } else {
+      res.status(500).json({ 
+        success: false, 
+        error: 'Aucune notification admin envoyée' 
+      });
+    }
+  } catch (error) {
+    console.error('[ADMIN_LOYALTY] Erreur lors de la notification manuelle:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Erreur serveur lors de la notification admin' 
     });
   }
 });

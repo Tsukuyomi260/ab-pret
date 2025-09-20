@@ -79,12 +79,33 @@ self.addEventListener("push", (event) => {
   const data = event.data.json();
   self.registration.showNotification(data.title, {
     body: data.body,
-    icon: data.icon || "/icon-192x192.png",
+    icon: data.icon || "/logo192.png",
+    badge: data.badge || "/logo192.png",
+    vibrate: data.vibrate || [200, 50, 100],
+    data: data.data || {}
   });
 });
 
 // Gérer les clics sur les notifications
 self.addEventListener("notificationclick", (event) => {
   event.notification.close();
-  event.waitUntil(clients.openWindow("/"));
+  
+  // Récupérer l'URL depuis les données de la notification
+  const url = event.notification.data?.url || "/";
+  
+  event.waitUntil(
+    clients.matchAll({ type: 'window' }).then(clientList => {
+      // Si l'app est déjà ouverte, naviguer vers l'URL
+      for (const client of clientList) {
+        if (client.url.includes(self.location.origin) && 'focus' in client) {
+          client.navigate(url);
+          return client.focus();
+        }
+      }
+      // Sinon, ouvrir une nouvelle fenêtre
+      if (clients.openWindow) {
+        return clients.openWindow(url);
+      }
+    })
+  );
 });
