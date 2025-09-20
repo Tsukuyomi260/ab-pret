@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { BACKEND_URL } from '../config/backend';
 
 // Utilitaire pour convertir la clé VAPID
 function urlBase64ToUint8Array(base64String) {
@@ -21,7 +22,7 @@ export const usePushNotifications = () => {
   useEffect(() => {
     const fetchVapidKey = async () => {
       try {
-        const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/push/vapid-public-key`);
+        const response = await fetch(`${BACKEND_URL}/api/push/vapid-public-key`);
         const data = await response.json();
         setVapidPublicKey(data.publicKey);
       } catch (error) {
@@ -139,11 +140,11 @@ export const usePushNotifications = () => {
 
       // Envoyer au backend avec l'userId
       console.log('[PUSH HOOK] Envoi au backend...', {
-        url: `${process.env.REACT_APP_BACKEND_URL}/api/save-subscription`,
+        url: `${BACKEND_URL}/api/save-subscription`,
         userId: user?.id
       });
       
-      const response = await fetch(`${process.env.REACT_APP_BACKEND_URL}/api/save-subscription`, {
+      const response = await fetch(`${BACKEND_URL}/api/save-subscription`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ 

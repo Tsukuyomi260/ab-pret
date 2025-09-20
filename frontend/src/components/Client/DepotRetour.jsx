@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { BACKEND_URL } from '../../config/backend';
 import { CheckCircle, Wallet, TrendingUp } from 'lucide-react';
 
 const DepotRetour = () => {
@@ -45,7 +46,7 @@ const DepotRetour = () => {
     try {
       setMessage('Vérification du dépôt...');
       
-      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+      const backendUrl = BACKEND_URL;
       
       // Essayer plusieurs fois car le webhook peut prendre du temps
       let attempts = 0;

@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
+import { BACKEND_URL } from "../../config/backend";
 
 const FedaPayDepotButton = ({ plan, onSuccess }) => {
   const buttonRef = useRef(null);
@@ -41,7 +42,7 @@ const FedaPayDepotButton = ({ plan, onSuccess }) => {
 
     try {
       // Appel au backend pour créer la transaction
-      const backendUrl = process.env.REACT_APP_BACKEND_URL || "http://localhost:5000";
+      const backendUrl = BACKEND_URL;
       const response = await fetch(`${backendUrl}/api/create-savings-deposit`, {
         method: "POST",
         headers: {

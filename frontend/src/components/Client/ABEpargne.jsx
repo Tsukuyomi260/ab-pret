@@ -3,6 +3,7 @@ import { ChevronLeft, Plus, Minus, Calendar, CreditCard, Wallet } from 'lucide-r
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import FedaPayEpargneButton from '../UI/FedaPayEpargneButton';
+import { BACKEND_URL } from '../../config/backend';
 
 const ABEpargne = () => {
   const navigate = useNavigate();
@@ -56,7 +57,7 @@ const ABEpargne = () => {
         console.log('[AB_EPARGNE] 🔍 Recherche du plan actif pour user:', user.id);
         
         // Utiliser l'API backend au lieu de Supabase directement
-        const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+        const backendUrl = BACKEND_URL;
         const response = await fetch(`${backendUrl}/api/savings/plan-status?userId=${user.id}`);
         const result = await response.json();
 

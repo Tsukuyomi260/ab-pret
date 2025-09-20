@@ -13,6 +13,8 @@ REACT_APP_SUPABASE_URL=https://your-project.supabase.co
 REACT_APP_SUPABASE_ANON_KEY=your_supabase_anon_key_here
 
 # Configuration du backend API
+# En local: http://localhost:5000
+# En production: https://ab-pret-back.onrender.com
 REACT_APP_BACKEND_URL=http://localhost:5000
 
 # Configuration de l'application

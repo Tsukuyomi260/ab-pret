@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
+import { BACKEND_URL } from '../../config/backend';
 import { useAuth } from '../../context/AuthContext';
 import { ChevronLeft, Plus, Minus, Wallet, Calendar, Target, TrendingUp } from 'lucide-react';
 import FedaPayDepotButton from '../UI/FedaPayDepotButton';
@@ -18,7 +19,7 @@ const PlanEpargne = () => {
         setLoading(true);
         
         // Utiliser l'API backend au lieu de Supabase directement
-        const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+        const backendUrl = BACKEND_URL;
         const response = await fetch(`${backendUrl}/api/savings/plan-status?planId=${id}`);
         const result = await response.json();
 
