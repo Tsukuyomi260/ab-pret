@@ -996,6 +996,7 @@ app.post('/api/fedapay/webhook', async (req, res) => {
               completion_percentage: newCompletionPercentage,
               current_balance: newCurrentBalance,
               next_deposit_date: nextDepositDate.toISOString(),
+              transaction_reference: transaction.reference,
               updated_at: new Date().toISOString()
             })
             .eq('id', planId)

@@ -1,7 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { BACKEND_URL } from '../../config/backend';
 import { useAuth } from '../../context/AuthContext';
+
+// Configuration du backend selon l'environnement
+const getBackendUrl = () => {
+  // En production, utiliser l'URL Render
+  if (process.env.NODE_ENV === 'production') {
+    return 'https://ab-pret-back.onrender.com';
+  }
+  
+  // En développement, utiliser l'URL locale ou celle définie dans .env
+  return process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+};
+
+const BACKEND_URL = getBackendUrl();
 
 const RemboursementRetour = () => {
   const navigate = useNavigate();
@@ -9,8 +21,6 @@ const RemboursementRetour = () => {
   const { user } = useAuth();
   const [status, setStatus] = useState('loading');
   const [message, setMessage] = useState('Vérification du remboursement...');
-
-  const backendUrl = BACKEND_URL;
 
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
@@ -42,7 +52,7 @@ const RemboursementRetour = () => {
       setStatus('error');
       setMessage('Remboursement non approuvé');
     }
-  }, [location.search, navigate, user, backendUrl]);
+  }, [location.search, navigate, user]);
 
   const checkRepaymentStatus = async (transactionId) => {
     try {
@@ -57,7 +67,7 @@ const RemboursementRetour = () => {
         console.log(`[REMBOURSEMENT_RETOUR] Tentative ${attempts}/${maxAttempts} pour transaction ID: ${transactionId}`);
         
         try {
-          const response = await fetch(`${backendUrl}/api/loans/repayment-status?id=${transactionId}`);
+          const response = await fetch(`${BACKEND_URL}/api/loans/repayment-status?id=${transactionId}`);
           const result = await response.json();
 
           if (result.success && result.loan) {

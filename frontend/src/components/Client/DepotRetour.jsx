@@ -1,7 +1,19 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { BACKEND_URL } from '../../config/backend';
 import { CheckCircle, Wallet, TrendingUp } from 'lucide-react';
+
+// Configuration du backend selon l'environnement
+const getBackendUrl = () => {
+  // En production, utiliser l'URL Render
+  if (process.env.NODE_ENV === 'production') {
+    return 'https://ab-pret-back.onrender.com';
+  }
+  
+  // En développement, utiliser l'URL locale ou celle définie dans .env
+  return process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+};
+
+const BACKEND_URL = getBackendUrl();
 
 const DepotRetour = () => {
   const location = useLocation();
