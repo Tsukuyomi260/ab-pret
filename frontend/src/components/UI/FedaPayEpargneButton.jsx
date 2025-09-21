@@ -62,7 +62,7 @@ const FedaPayEpargneButton = ({ planConfig }) => {
         amount: 1000, // frais de création fixe
         description: `Création plan épargne - ${user?.email}`,
         currency: { iso: "XOF" },
-        callback_url: "http://localhost:3000/ab-epargne/retour",
+        callback_url: `${window.location.origin}/ab-epargne/retour`,
         custom_metadata: {
           paymentType: "savings_plan_creation",
           user_id: user?.id,

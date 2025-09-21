@@ -9,8 +9,12 @@ const getBackendUrl = () => {
   return process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
 };
 
-export const BACKEND_URL = getBackendUrl();
+const BACKEND_URL = getBackendUrl();
 
 // Log pour debug
 console.log('[CONFIG] Backend URL:', BACKEND_URL);
 console.log('[CONFIG] Environment:', process.env.NODE_ENV);
+
+// Export nommé et par défaut
+export { BACKEND_URL };
+export default BACKEND_URL;

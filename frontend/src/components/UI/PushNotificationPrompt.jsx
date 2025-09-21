@@ -11,6 +11,19 @@ const PushNotificationPrompt = () => {
   console.log('[PUSH PROMPT] Composant rendu');
 
   useEffect(() => {
+    // En développement, ne pas afficher le prompt
+    if (process.env.NODE_ENV === 'development') {
+      console.log('[PUSH PROMPT] Mode développement - prompt désactivé');
+      return;
+    }
+
+    // Vérifier si l'utilisateur a déjà vu le prompt
+    const hasSeenPrompt = localStorage.getItem('notification-prompt-seen');
+    if (hasSeenPrompt) {
+      console.log('[PUSH PROMPT] L\'utilisateur a déjà vu le prompt - pas d\'affichage');
+      return;
+    }
+
     // Debug: afficher les états
     console.log('[PUSH PROMPT] États:', {
       isSupported,
@@ -46,22 +59,31 @@ const PushNotificationPrompt = () => {
       const success = await subscribeUser();
       console.log('[PUSH PROMPT] Résultat de l\'abonnement:', success);
       
+      // Marquer que l'utilisateur a vu le prompt, peu importe le résultat
+      localStorage.setItem('notification-prompt-seen', 'true');
+      console.log('[PUSH PROMPT] Prompt marqué comme vu dans localStorage');
+      
       if (success) {
         console.log('[PUSH PROMPT] Abonnement réussi, fermeture du prompt');
         setShowPrompt(false);
       } else {
-        console.log('[PUSH PROMPT] Échec de l\'abonnement');
-        // Le prompt reste ouvert en cas d'échec
+        console.log('[PUSH PROMPT] Échec de l\'abonnement, fermeture du prompt quand même');
+        setShowPrompt(false);
       }
     } catch (error) {
       console.error('[PUSH PROMPT] Erreur lors de l\'abonnement:', error);
-      // Le prompt reste ouvert en cas d'erreur
+      // Marquer comme vu même en cas d'erreur
+      localStorage.setItem('notification-prompt-seen', 'true');
+      setShowPrompt(false);
     } finally {
       setIsProcessing(false);
     }
   };
 
   const handleDecline = () => {
+    // Marquer que l'utilisateur a vu le prompt
+    localStorage.setItem('notification-prompt-seen', 'true');
+    console.log('[PUSH PROMPT] Prompt marqué comme vu (refus)');
     setShowPrompt(false);
   };
 

@@ -113,7 +113,7 @@ const TestHealth = () => {
           <p>via le proxy de développement.</p>
           <p className="mt-2 text-xs">
             Serveur API: localhost:5000<br/>
-            Frontend: localhost:3000
+            Frontend: localhost:3001
           </p>
         </div>
       </div>

@@ -6,6 +6,18 @@ const app = express();
 require('dotenv').config({ path: '.env.local' });
 require('dotenv').config();
 
+// Configuration des URLs selon l'environnement
+const getFrontendUrl = () => {
+  // En production, utiliser l'URL de production
+  if (process.env.NODE_ENV === 'production') {
+    return process.env.FRONTEND_URL || 'https://ab-cf1.vercel.app';
+  }
+  // En développement, utiliser localhost:3001
+  return process.env.FRONTEND_URL || 'http://localhost:3001';
+};
+
+console.log('[CONFIG] Frontend URL:', getFrontendUrl());
+
 // Import web-push configuration AFTER loading env variables
 const webPush = require('./config/push');
 
@@ -497,7 +509,7 @@ app.post('/api/fedapay/create-transaction', async (req, res) => {
     }
 
     // Construire les URLs de callback
-    // Utiliser le port 3000 pour les redirections frontend
+    // Utiliser le port 3001 pour les redirections frontend
     const baseUrl = '';
     
     const successUrl = `${baseUrl}/remboursement/success?transaction_id={transaction_id}&amount=${amount}&loan_id=${loanId}&user_id=${userId}`;
@@ -1120,7 +1132,7 @@ app.post('/api/create-savings-deposit', async (req, res) => {
         description: `Dépôt plan épargne - ${amount} F`,
         amount: parseInt(amount),
         currency: { iso: "XOF" },
-        callback_url: "http://localhost:3000/ab-epargne/depot-retour",
+        callback_url: `${getFrontendUrl()}/ab-epargne/depot-retour`,
         custom_metadata: {
           paymentType: "savings_deposit",
           user_id: user_id,
@@ -1180,7 +1192,7 @@ app.post('/api/create-loan-repayment', async (req, res) => {
         description: `Remboursement prêt - ${amount} F`,
         amount: parseInt(amount),
         currency: { iso: "XOF" },
-        callback_url: "http://localhost:3000/remboursement-retour",
+        callback_url: `${getFrontendUrl()}/remboursement-retour`,
         custom_metadata: {
           paymentType: "loan_repayment",
           user_id: user_id,
@@ -1467,7 +1479,7 @@ app.get('/api/fedapay/test', async (req, res) => {
 // Fonction pour envoyer des notifications de rappel de dépôt d'épargne
 async function sendSavingsDepositReminderNotifications() {
   try {
-    console.log('[SAVINGS_REMINDER] Vérification des dépôts d\'épargne en approche...');
+    console.log('[SAVINGS_REMINDER] Vérification des dépôts d\'épargne (aujourd\'hui et dans les 3 prochains jours)...');
     
     // Calculer les dates pour les 3 prochains jours
     const today = new Date();
@@ -1500,7 +1512,7 @@ async function sendSavingsDepositReminderNotifications() {
     }
     
     if (!savingsPlans || savingsPlans.length === 0) {
-      console.log('[SAVINGS_REMINDER] Aucun dépôt d\'épargne en approche dans les 3 prochains jours');
+      console.log('[SAVINGS_REMINDER] Aucun dépôt d\'épargne aujourd\'hui ou dans les 3 prochains jours');
       return true;
     }
     
@@ -1514,8 +1526,8 @@ async function sendSavingsDepositReminderNotifications() {
         const depositDate = new Date(plan.next_deposit_date);
         const daysRemaining = Math.ceil((depositDate - today) / (1000 * 60 * 60 * 24));
         
-        // Envoyer une notification seulement si c'est exactement 3, 2 ou 1 jour(s) restant(s)
-        if (daysRemaining >= 1 && daysRemaining <= 3) {
+        // Envoyer une notification si c'est exactement 3, 2, 1 jour(s) restant(s) ou aujourd'hui (0 jour)
+        if (daysRemaining >= 0 && daysRemaining <= 3) {
           // Récupérer les informations de l'utilisateur
           const { data: userData, error: userError } = await supabase
             .from('users')
@@ -1530,10 +1542,19 @@ async function sendSavingsDepositReminderNotifications() {
 
           const clientName = `${userData.first_name} ${userData.last_name}`;
           const amountFormatted = `${parseInt(plan.fixed_amount).toLocaleString()} FCFA`;
-          const daysText = daysRemaining === 1 ? '24h' : `${daysRemaining} jours`;
           
-          const title = "AB Campus Finance - Rappel de dépôt d'épargne";
-          const body = `Bonjour ${clientName}, votre prochain dépôt sur votre compte épargne est dans ${daysText}. Effectuer votre dépôt pour ne pas perdre les intérêts cumulés à ce jour.`;
+          let title, body;
+          
+          if (daysRemaining === 0) {
+            // Message spécial pour le jour même
+            title = "AB Campus Finance - Dépôt d'épargne aujourd'hui !";
+            body = `Bonjour ${clientName}, c'est aujourd'hui que vous devez effectuer votre dépôt d'épargne de ${amountFormatted}. Si vous ne le faites pas aujourd'hui, vous pourriez perdre tous les intérêts que vous avez accumulés jusqu'à présent.`;
+          } else {
+            // Messages pour les jours précédents
+            const daysText = daysRemaining === 1 ? '24h' : `${daysRemaining} jours`;
+            title = "AB Campus Finance - Rappel de dépôt d'épargne";
+            body = `Bonjour ${clientName}, votre prochain dépôt sur votre compte épargne est dans ${daysText}. Effectuer votre dépôt pour ne pas perdre les intérêts cumulés à ce jour.`;
+          }
           
           // Récupérer les abonnements de l'utilisateur
           const { data: subscriptions } = await supabase
@@ -1560,7 +1581,8 @@ async function sendSavingsDepositReminderNotifications() {
                   vibrate: [200, 50, 100]
                 }));
                 notificationsSent++;
-                console.log(`[SAVINGS_REMINDER] Notification envoyée à ${clientName} - ${daysText} restant(s)`);
+                const logText = daysRemaining === 0 ? 'aujourd\'hui' : `${daysRemaining === 1 ? '24h' : `${daysRemaining} jours`} restant(s)`;
+                console.log(`[SAVINGS_REMINDER] Notification envoyée à ${clientName} - ${logText}`);
               } catch (pushError) {
                 console.error(`[SAVINGS_REMINDER] Erreur envoi notification à ${clientName}:`, pushError);
                 errors++;

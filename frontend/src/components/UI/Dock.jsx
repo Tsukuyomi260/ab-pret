@@ -10,31 +10,10 @@ const Dock = ({
   className = ''
 }) => {
   const [hoveredIndex, setHoveredIndex] = useState(null);
-  const [isVisible, setIsVisible] = useState(true);
-  const [lastScrollY, setLastScrollY] = useState(0);
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Gestion du scroll pour cacher/montrer le dock
-  useEffect(() => {
-    const handleScroll = () => {
-      const currentScrollY = window.scrollY;
-      
-      // Si on scroll vers le bas, cacher le dock
-      if (currentScrollY > lastScrollY && currentScrollY > 100) {
-        setIsVisible(false);
-      } 
-      // Si on scroll vers le haut, montrer le dock
-      else if (currentScrollY < lastScrollY) {
-        setIsVisible(true);
-      }
-      
-      setLastScrollY(currentScrollY);
-    };
-
-    window.addEventListener('scroll', handleScroll, { passive: true });
-    return () => window.removeEventListener('scroll', handleScroll);
-  }, [lastScrollY]);
+  // Le dock reste toujours visible - plus de gestion du scroll
 
   const handleItemClick = (item) => {
     if (item.path && item.path !== location.pathname) {
@@ -45,10 +24,10 @@ const Dock = ({
   return (
     <motion.div 
       className={`fixed bottom-4 left-4 right-4 z-50 ${className}`}
-      initial={{ y: 100, opacity: 0 }}
+      initial={{ y: 0, opacity: 1 }}
       animate={{ 
-        y: isVisible ? 0 : 100, 
-        opacity: isVisible ? 1 : 0 
+        y: 0, 
+        opacity: 1 
       }}
       transition={{ 
         type: "spring", 

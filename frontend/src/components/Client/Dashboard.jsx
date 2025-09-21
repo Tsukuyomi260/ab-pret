@@ -5,7 +5,6 @@ import { useAuth } from '../../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import Card from '../UI/Card';
 import Button from '../UI/Button';
-import NotificationBell from '../UI/NotificationBell';
 import { getLoans, getPayments } from '../../utils/supabaseAPI';
 import { 
   CreditCard, 
@@ -385,14 +384,6 @@ const ClientDashboard = () => {
             {' '}👋
           </motion.h1>
           
-          <motion.div
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-            className="relative"
-          >
-            <NotificationBell />
-              </motion.div>
             </div>
       </div>
 
