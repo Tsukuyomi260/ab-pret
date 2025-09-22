@@ -98,10 +98,9 @@ export const usePushNotifications = () => {
       return false;
     }
 
-    // En développement, désactiver les notifications push pour éviter les erreurs ServiceWorker
+    // En développement, permettre les notifications push pour les tests
     if (process.env.NODE_ENV === 'development') {
-      console.log('[PUSH HOOK] Mode développement - notifications push désactivées');
-      return false;
+      console.log('[PUSH HOOK] Mode développement - notifications push activées pour les tests');
     }
 
     try {

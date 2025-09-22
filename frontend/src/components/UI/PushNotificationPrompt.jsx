@@ -11,17 +11,24 @@ const PushNotificationPrompt = () => {
   console.log('[PUSH PROMPT] Composant rendu');
 
   useEffect(() => {
-    // En développement, ne pas afficher le prompt
-    if (process.env.NODE_ENV === 'development') {
-      console.log('[PUSH PROMPT] Mode développement - prompt désactivé');
+    // Vérifier si l'utilisateur a déjà vu le prompt ET s'il est déjà abonné
+    const hasSeenPrompt = localStorage.getItem('notification-prompt-seen');
+    if (hasSeenPrompt && isSubscribed) {
+      console.log('[PUSH PROMPT] L\'utilisateur a déjà vu le prompt et est abonné - pas d\'affichage');
       return;
     }
 
-    // Vérifier si l'utilisateur a déjà vu le prompt
-    const hasSeenPrompt = localStorage.getItem('notification-prompt-seen');
-    if (hasSeenPrompt) {
-      console.log('[PUSH PROMPT] L\'utilisateur a déjà vu le prompt - pas d\'affichage');
-      return;
+    // Si l'utilisateur a déjà vu le prompt mais n'est pas abonné, 
+    // on peut le re-afficher après un délai (par exemple 7 jours)
+    if (hasSeenPrompt && !isSubscribed) {
+      const lastSeen = localStorage.getItem('notification-prompt-last-seen');
+      if (lastSeen) {
+        const daysSinceLastSeen = (Date.now() - parseInt(lastSeen)) / (1000 * 60 * 60 * 24);
+        if (daysSinceLastSeen < 7) {
+          console.log('[PUSH PROMPT] L\'utilisateur a vu le prompt récemment - pas d\'affichage');
+          return;
+        }
+      }
     }
 
     // Debug: afficher les états
@@ -38,16 +45,21 @@ const PushNotificationPrompt = () => {
     // - L'utilisateur n'est pas abonné
     // - La permission n'a pas été refusée
     if (isSupported && hasAskedPermission && !isSubscribed && Notification.permission !== 'denied') {
-      console.log('[PUSH PROMPT] Affichage du prompt dans 1 seconde...');
-      // Attendre 1 seconde pour que l'app se charge bien
+      console.log('[PUSH PROMPT] Affichage du prompt dans 2 secondes...');
+      // Attendre 2 secondes pour que l'app se charge bien
       const timer = setTimeout(() => {
         console.log('[PUSH PROMPT] Affichage du prompt maintenant !');
         setShowPrompt(true);
-      }, 1000);
+      }, 2000);
 
       return () => clearTimeout(timer);
     } else {
-      console.log('[PUSH PROMPT] Conditions non remplies pour afficher le prompt');
+      console.log('[PUSH PROMPT] Conditions non remplies pour afficher le prompt:', {
+        isSupported,
+        hasAskedPermission,
+        isSubscribed,
+        permission: Notification.permission
+      });
     }
   }, [isSupported, hasAskedPermission, isSubscribed]);
 
@@ -61,6 +73,7 @@ const PushNotificationPrompt = () => {
       
       // Marquer que l'utilisateur a vu le prompt, peu importe le résultat
       localStorage.setItem('notification-prompt-seen', 'true');
+      localStorage.setItem('notification-prompt-last-seen', Date.now().toString());
       console.log('[PUSH PROMPT] Prompt marqué comme vu dans localStorage');
       
       if (success) {
@@ -74,6 +87,7 @@ const PushNotificationPrompt = () => {
       console.error('[PUSH PROMPT] Erreur lors de l\'abonnement:', error);
       // Marquer comme vu même en cas d'erreur
       localStorage.setItem('notification-prompt-seen', 'true');
+      localStorage.setItem('notification-prompt-last-seen', Date.now().toString());
       setShowPrompt(false);
     } finally {
       setIsProcessing(false);
@@ -83,6 +97,7 @@ const PushNotificationPrompt = () => {
   const handleDecline = () => {
     // Marquer que l'utilisateur a vu le prompt
     localStorage.setItem('notification-prompt-seen', 'true');
+    localStorage.setItem('notification-prompt-last-seen', Date.now().toString());
     console.log('[PUSH PROMPT] Prompt marqué comme vu (refus)');
     setShowPrompt(false);
   };
