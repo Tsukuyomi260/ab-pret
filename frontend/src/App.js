@@ -11,6 +11,8 @@ import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
 import CreateAccount from './components/Auth/CreateAccount';
 import PendingApproval from './components/Auth/PendingApproval';
+import ForgotPassword from './components/Auth/ForgotPassword';
+import ResetPassword from './components/Auth/ResetPassword';
 
 import ClientDashboard from './components/Client/Dashboard';
 import AdminDashboard from './components/Admin/AdminDashboard';
@@ -212,6 +214,8 @@ const AppContent = () => {
           <Route path="/register" element={<Register />} />
           <Route path="/create-account" element={<CreateAccount />} />
           <Route path="/pending-approval" element={<PendingApproval />} />
+          <Route path="/forgot-password" element={<ForgotPassword />} />
+          <Route path="/reset-password" element={<ResetPassword />} />
           
           <Route path="/dashboard" element={
             <ProtectedRoute>

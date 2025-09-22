@@ -17,7 +17,7 @@ const Footer = () => {
 
   const handleFacebookClick = () => {
     // Ouvrir la page Facebook d'AB CAMPUS FINANCE
-    const facebookUrl = 'https://www.facebook.com/profile.php?id=61574820045309';
+    const facebookUrl = 'https://www.facebook.com/abpret.2024';
     window.open(facebookUrl, '_blank');
   };
 

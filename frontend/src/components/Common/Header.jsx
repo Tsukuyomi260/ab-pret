@@ -368,7 +368,7 @@ const Header = () => {
 
                   {/* Facebook */}
                   <a 
-                    href="https://www.facebook.com/profile.php?id=61574820045309" 
+                    href="https://www.facebook.com/abpret.2024" 
                     target="_blank" 
                     rel="noopener noreferrer"
                     className="flex items-center space-x-3 px-4 py-3 rounded-xl hover:bg-blue-50 transition-all duration-200 group"

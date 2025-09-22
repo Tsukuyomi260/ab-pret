@@ -152,13 +152,23 @@ const Login = () => {
               {loading ? 'Connexion...' : 'Se connecter'}
             </Button>
 
-            <div className="text-center">
-              <Link
-                to="/create-account"
-                className="text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors"
-              >
-                Pas encore de compte ? Créer un compte
-              </Link>
+            <div className="text-center space-y-3">
+              <div>
+                <Link
+                  to="/forgot-password"
+                  className="text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors"
+                >
+                  Mot de passe oublié ?
+                </Link>
+              </div>
+              <div>
+                <Link
+                  to="/create-account"
+                  className="text-sm text-primary-600 hover:text-primary-700 font-medium transition-colors"
+                >
+                  Pas encore de compte ? Créer un compte
+                </Link>
+              </div>
             </div>
           </form>
         </div>
