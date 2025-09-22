@@ -46,3 +46,9 @@ yarn-error.log*
 
 # OS
 Thumbs.db
+# Ajoutez ces lignes à .gitignore
+echo "node_modules/" 
+echo "**/node_modules/" 
+echo ".cache/" 
+echo "**/.cache/" 
+echo "*.pack"
