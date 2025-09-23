@@ -54,6 +54,7 @@ const LoanRequest = () => {
     duration: 5,
     purpose: '',
     employmentStatus: 'self-employed',
+    guarantee: '',
     momoNumber: '',
     momoNetwork: '',
     momoName: '',
@@ -248,7 +249,7 @@ const LoanRequest = () => {
       const numDuration = parseInt(formData.duration);
       
       if (numAmount >= LOAN_CONFIG.amounts.min && numAmount <= LOAN_CONFIG.amounts.max) {
-        const interestRate = LOAN_CONFIG.getInterestRate(numDuration);
+        const interestRate = LOAN_CONFIG.getInterestRate(numDuration, numAmount);
         const interestAmount = LOAN_CONFIG.calculateInterest(numAmount, numDuration);
         const totalAmount = LOAN_CONFIG.calculateTotalAmount(numAmount, numDuration);
         const paymentAmount = LOAN_CONFIG.calculatePaymentAmount(totalAmount, numDuration);
@@ -299,6 +300,9 @@ const LoanRequest = () => {
         }
         if (!formData.employmentStatus) {
           newErrors.employmentStatus = 'Veuillez sélectionner votre statut professionnel';
+        }
+        if (!formData.guarantee.trim()) {
+          newErrors.guarantee = 'Veuillez préciser votre garantie';
         }
         if (!formData.momoNumber.trim()) {
           newErrors.momoNumber = 'Veuillez saisir votre numéro Momo';
@@ -359,8 +363,11 @@ const LoanRequest = () => {
       amount: parseFloat(formData.amount),
       // duration_months existe dans la base, pas purpose
       duration_months: formData.duration, // ✅ Champ correct
-      interest_rate: calculation ? calculation.interestRate : LOAN_CONFIG.getInterestRate(parseInt(formData.duration)), // ✅ Calcul correct basé sur la durée
+      interest_rate: calculation ? calculation.interestRate : LOAN_CONFIG.getInterestRate(parseInt(formData.duration), parseFloat(formData.amount)), // ✅ Calcul correct basé sur la durée et le montant
       status: 'pending',
+      // Informations personnelles
+      employment_status: formData.employmentStatus,
+      guarantee: formData.guarantee,
       // Informations Momo
       momo_number: formData.momoNumber,
       momo_network: formData.momoNetwork,
@@ -1283,6 +1290,17 @@ const LoanRequest = () => {
                         </Input>
 
                         <Input
+                          label="Garantie"
+                          type="textarea"
+                          name="guarantee"
+                          value={formData.guarantee}
+                          onChange={handleChange}
+                          placeholder="De quelle garantie disposez-vous ?"
+                          error={errors.guarantee}
+                          required
+                        />
+
+                        <Input
                           label="Numéro Momo"
                           type="tel"
                           name="momoNumber"
@@ -1477,6 +1495,12 @@ const LoanRequest = () => {
                               <span className="text-secondary-600 font-montserrat">Statut professionnel:</span>
                               <span className="font-medium text-secondary-900 font-montserrat">
                                 {formData.employmentStatus === 'self-employed' ? 'Indépendant' : 'Étudiant'}
+                              </span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-secondary-600 font-montserrat">Garantie:</span>
+                              <span className="font-medium text-secondary-900 font-montserrat">
+                                {formData.guarantee}
                               </span>
                             </div>
                           </div>

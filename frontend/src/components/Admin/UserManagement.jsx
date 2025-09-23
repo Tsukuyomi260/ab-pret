@@ -41,6 +41,8 @@ const UserManagement = () => {
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedUser, setSelectedUser] = useState(null);
   const [showDetailsModal, setShowDetailsModal] = useState(false);
+  const [showImageModal, setShowImageModal] = useState(false);
+  const [selectedImage, setSelectedImage] = useState({ url: '', title: '' });
 
   useEffect(() => {
     loadUsers();
@@ -86,7 +88,10 @@ const UserManagement = () => {
           // Documents
           userIdentityCard: user.user_identity_card_name || 'Non spécifié',
           temoinIdentityCard: user.temoin_identity_card_name || 'Non spécifié',
-          studentCard: user.student_card_name || 'Non spécifié'
+          studentCard: user.student_card_name || 'Non spécifié',
+          userIdentityCardUrl: user.user_identity_card_url || null,
+          temoinIdentityCardUrl: user.temoin_identity_card_url || null,
+          studentCardUrl: user.student_card_url || null
         }));
         
         setUsers(formattedUsers);
@@ -150,6 +155,18 @@ const UserManagement = () => {
   const closeDetailsModal = () => {
     setShowDetailsModal(false);
     setSelectedUser(null);
+  };
+
+  const openImageModal = (url, title) => {
+    if (url) {
+      setSelectedImage({ url, title });
+      setShowImageModal(true);
+    }
+  };
+
+  const closeImageModal = () => {
+    setShowImageModal(false);
+    setSelectedImage({ url: '', title: '' });
   };
 
   const getStatusColor = (status) => {
@@ -583,15 +600,48 @@ const UserManagement = () => {
                     <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                       <div>
                         <p className="text-sm text-purple-700 font-medium">Carte d'identité</p>
-                        <p className="text-purple-900 font-semibold">{selectedUser.userIdentityCard}</p>
+                        <button
+                          onClick={() => openImageModal(selectedUser.userIdentityCardUrl, 'Carte d\'identité')}
+                          className={`text-purple-900 font-semibold hover:text-purple-700 transition-colors ${
+                            selectedUser.userIdentityCardUrl ? 'cursor-pointer underline' : 'cursor-default'
+                          }`}
+                          disabled={!selectedUser.userIdentityCardUrl}
+                        >
+                          {selectedUser.userIdentityCard}
+                          {selectedUser.userIdentityCardUrl && (
+                            <span className="ml-2 text-xs text-purple-600">(Cliquer pour voir)</span>
+                          )}
+                        </button>
                       </div>
                       <div>
                         <p className="text-sm text-purple-700 font-medium">Carte d'identité témoin</p>
-                        <p className="text-purple-900 font-semibold">{selectedUser.temoinIdentityCard}</p>
+                        <button
+                          onClick={() => openImageModal(selectedUser.temoinIdentityCardUrl, 'Carte d\'identité témoin')}
+                          className={`text-purple-900 font-semibold hover:text-purple-700 transition-colors ${
+                            selectedUser.temoinIdentityCardUrl ? 'cursor-pointer underline' : 'cursor-default'
+                          }`}
+                          disabled={!selectedUser.temoinIdentityCardUrl}
+                        >
+                          {selectedUser.temoinIdentityCard}
+                          {selectedUser.temoinIdentityCardUrl && (
+                            <span className="ml-2 text-xs text-purple-600">(Cliquer pour voir)</span>
+                          )}
+                        </button>
                       </div>
                       <div>
                         <p className="text-sm text-purple-700 font-medium">Carte d'étudiant</p>
-                        <p className="text-purple-900 font-semibold">{selectedUser.studentCard}</p>
+                        <button
+                          onClick={() => openImageModal(selectedUser.studentCardUrl, 'Carte d\'étudiant')}
+                          className={`text-purple-900 font-semibold hover:text-purple-700 transition-colors ${
+                            selectedUser.studentCardUrl ? 'cursor-pointer underline' : 'cursor-default'
+                          }`}
+                          disabled={!selectedUser.studentCardUrl}
+                        >
+                          {selectedUser.studentCard}
+                          {selectedUser.studentCardUrl && (
+                            <span className="ml-2 text-xs text-purple-600">(Cliquer pour voir)</span>
+                          )}
+                        </button>
                       </div>
                     </div>
                   </div>
@@ -676,6 +726,60 @@ const UserManagement = () => {
                       <span>Suspendre</span>
                     </Button>
                   )}
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Modal d'affichage des images */}
+      <AnimatePresence>
+        {showImageModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+            onClick={closeImageModal}
+          >
+            <motion.div
+              initial={{ scale: 0.8, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.8, opacity: 0 }}
+              className="bg-white rounded-2xl max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <h3 className="text-xl font-semibold text-gray-900">{selectedImage.title}</h3>
+                  <button
+                    onClick={closeImageModal}
+                    className="p-2 hover:bg-gray-100 rounded-full transition-colors"
+                  >
+                    <X size={24} className="text-gray-500" />
+                  </button>
+                </div>
+              </div>
+              <div className="p-6">
+                <div className="flex items-center justify-center">
+                  <img
+                    src={selectedImage.url}
+                    alt={selectedImage.title}
+                    className="max-w-full max-h-[60vh] object-contain rounded-lg shadow-lg"
+                    onError={(e) => {
+                      e.target.style.display = 'none';
+                      e.target.nextSibling.style.display = 'block';
+                    }}
+                  />
+                  <div 
+                    className="hidden text-center text-gray-500 p-8"
+                    style={{ display: 'none' }}
+                  >
+                    <FileImage size={48} className="mx-auto mb-4 text-gray-400" />
+                    <p>Impossible de charger l'image</p>
+                    <p className="text-sm">L'URL de l'image pourrait être invalide ou expirée</p>
+                  </div>
                 </div>
               </div>
             </motion.div>

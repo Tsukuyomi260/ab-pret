@@ -43,10 +43,10 @@ export const usePushNotifications = () => {
     checkSupport();
   }, []);
 
-  // Vérifier l'état d'abonnement au chargement
+  // Vérifier l'état d'abonnement au chargement et renouveler si nécessaire
   useEffect(() => {
-    const checkSubscriptionStatus = async () => {
-      console.log('[PUSH HOOK] Vérification de l\'état d\'abonnement...', {
+    const checkAndRenewSubscription = async () => {
+      console.log('[PUSH HOOK] Vérification et renouvellement de l\'abonnement...', {
         isSupported,
         vapidPublicKey: !!vapidPublicKey,
         user: !!user
@@ -60,16 +60,33 @@ export const usePushNotifications = () => {
 
       try {
         const reg = await navigator.serviceWorker.ready;
-        const existingSubscription = await reg.pushManager.getSubscription();
+        let existingSubscription = await reg.pushManager.getSubscription();
         
         console.log('[PUSH HOOK] Subscription existante:', !!existingSubscription);
         
         if (existingSubscription) {
-          // Déjà abonné
-          console.log('[PUSH HOOK] Utilisateur déjà abonné');
-          setSubscription(existingSubscription);
-          setIsSubscribed(true);
-          setHasAskedPermission(true);
+          // Vérifier si l'abonnement est encore valide
+          const isValid = await validateSubscription(existingSubscription);
+          
+          if (isValid) {
+            console.log('[PUSH HOOK] ✅ Abonnement valide');
+            setSubscription(existingSubscription);
+            setIsSubscribed(true);
+            setHasAskedPermission(true);
+          } else {
+            console.log('[PUSH HOOK] ⚠️ Abonnement expiré, renouvellement...');
+            // Renouveler l'abonnement
+            const renewed = await renewSubscription(reg);
+            if (renewed) {
+              console.log('[PUSH HOOK] ✅ Abonnement renouvelé avec succès');
+              setSubscription(renewed);
+              setIsSubscribed(true);
+              setHasAskedPermission(true);
+            } else {
+              console.log('[PUSH HOOK] ❌ Échec du renouvellement');
+              setHasAskedPermission(true);
+            }
+          }
         } else {
           // Pas d'abonnement - on peut afficher le prompt
           console.log('[PUSH HOOK] Pas d\'abonnement - prompt peut s\'afficher');
@@ -81,8 +98,122 @@ export const usePushNotifications = () => {
       }
     };
 
-    checkSubscriptionStatus();
+    checkAndRenewSubscription();
   }, [isSupported, vapidPublicKey, user]);
+
+  // Vérification périodique des abonnements (toutes les 24h)
+  useEffect(() => {
+    if (!isSubscribed || !subscription) return;
+
+    const checkSubscriptionPeriodically = async () => {
+      console.log('[PUSH HOOK] Vérification périodique de l\'abonnement...');
+      
+      try {
+        const reg = await navigator.serviceWorker.ready;
+        const currentSubscription = await reg.pushManager.getSubscription();
+        
+        if (!currentSubscription) {
+          console.log('[PUSH HOOK] ⚠️ Abonnement perdu, renouvellement...');
+          const renewed = await renewSubscription(reg);
+          if (renewed) {
+            setSubscription(renewed);
+            console.log('[PUSH HOOK] ✅ Abonnement renouvelé automatiquement');
+          } else {
+            setIsSubscribed(false);
+            setSubscription(null);
+            console.log('[PUSH HOOK] ❌ Échec du renouvellement automatique');
+          }
+        } else {
+          // Vérifier si l'abonnement est encore valide
+          const isValid = await validateSubscription(currentSubscription);
+          if (!isValid) {
+            console.log('[PUSH HOOK] ⚠️ Abonnement invalide, renouvellement...');
+            const renewed = await renewSubscription(reg);
+            if (renewed) {
+              setSubscription(renewed);
+              console.log('[PUSH HOOK] ✅ Abonnement renouvelé automatiquement');
+            }
+          }
+        }
+      } catch (error) {
+        console.error('[PUSH HOOK] Erreur vérification périodique:', error);
+      }
+    };
+
+    // Vérifier immédiatement
+    checkSubscriptionPeriodically();
+
+    // Puis vérifier toutes les 24h
+    const interval = setInterval(checkSubscriptionPeriodically, 24 * 60 * 60 * 1000);
+
+    return () => clearInterval(interval);
+  }, [isSubscribed, subscription, user]);
+
+  // Valider un abonnement en testant l'envoi d'une notification
+  const validateSubscription = async (subscription) => {
+    try {
+      console.log('[PUSH HOOK] Validation de l\'abonnement...');
+      
+      // Tester l'abonnement en envoyant une notification de test
+      const response = await fetch(`${BACKEND_URL}/api/test-subscription`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subscription: subscription,
+          userId: user?.id
+        })
+      });
+
+      const result = await response.json();
+      return result.success;
+    } catch (error) {
+      console.error('[PUSH HOOK] Erreur validation abonnement:', error);
+      return false;
+    }
+  };
+
+  // Renouveler un abonnement expiré
+  const renewSubscription = async (reg) => {
+    try {
+      console.log('[PUSH HOOK] Renouvellement de l\'abonnement...');
+      
+      // Désabonner l'ancien abonnement
+      const existingSubscription = await reg.pushManager.getSubscription();
+      if (existingSubscription) {
+        await existingSubscription.unsubscribe();
+        console.log('[PUSH HOOK] Ancien abonnement désabonné');
+      }
+
+      // Créer un nouvel abonnement
+      const newSubscription = await reg.pushManager.subscribe({
+        userVisibleOnly: true,
+        applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
+      });
+
+      console.log('[PUSH HOOK] Nouvel abonnement créé');
+
+      // Sauvegarder le nouvel abonnement
+      const saveResponse = await fetch(`${BACKEND_URL}/api/save-subscription`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          subscription: newSubscription,
+          userId: user?.id
+        })
+      });
+
+      if (saveResponse.ok) {
+        console.log('[PUSH HOOK] ✅ Nouvel abonnement sauvegardé');
+        return newSubscription;
+      } else {
+        console.error('[PUSH HOOK] ❌ Erreur sauvegarde nouvel abonnement');
+        return null;
+      }
+    } catch (error) {
+      console.error('[PUSH HOOK] Erreur renouvellement abonnement:', error);
+      return null;
+    }
+  };
 
   // S'abonner aux notifications push
   const subscribeUser = async () => {

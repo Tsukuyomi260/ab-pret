@@ -52,23 +52,66 @@ app.post("/api/save-subscription", async (req, res) => {
       return res.status(400).json({ success: false, error: "Subscription manquante" });
     }
 
-    // Pour l'instant, on utilise un userId par défaut si pas fourni
-    // En production, vous devriez récupérer l'userId depuis le token JWT
-    const finalUserId = userId || '00000000-0000-0000-0000-000000000000';
+    if (!userId) {
+      return res.status(400).json({ success: false, error: "userId manquant" });
+    }
 
-    const { error } = await supabase.from("push_subscriptions").insert([
-      { 
-        subscription,
-        user_id: finalUserId
-      }
-    ]);
-
-    if (error) throw error;
-
-    console.log('[PUSH] Nouvelle subscription enregistrée:', { endpoint: subscription.endpoint, userId: finalUserId });
-    res.json({ success: true, message: "Abonnement enregistré" });
+    console.log('[SAVE_SUBSCRIPTION] Sauvegarde de l\'abonnement pour l\'utilisateur:', userId);
+    
+    // Vérifier si l'utilisateur existe
+    const { data: user, error: userError } = await supabase
+      .from('users')
+      .select('id, first_name, last_name')
+      .eq('id', userId)
+      .single();
+    
+    if (userError || !user) {
+      console.error('[SAVE_SUBSCRIPTION] Utilisateur non trouvé:', userError);
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Utilisateur non trouvé' 
+      });
+    }
+    
+    // Supprimer tous les anciens abonnements de cet utilisateur
+    const { error: deleteError } = await supabase
+      .from('push_subscriptions')
+      .delete()
+      .eq('user_id', userId);
+    
+    if (deleteError) {
+      console.error('[SAVE_SUBSCRIPTION] Erreur suppression anciens abonnements:', deleteError);
+    } else {
+      console.log('[SAVE_SUBSCRIPTION] Anciens abonnements supprimés pour', user.first_name, user.last_name);
+    }
+    
+    // Créer le nouvel abonnement
+    const { error: insertError } = await supabase
+      .from('push_subscriptions')
+      .insert({
+        user_id: userId,
+        subscription: subscription,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      });
+    
+    if (insertError) {
+      console.error('[SAVE_SUBSCRIPTION] Erreur insertion:', insertError);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Erreur lors de la sauvegarde de l\'abonnement' 
+      });
+    }
+    
+    console.log('[SAVE_SUBSCRIPTION] ✅ Nouvel abonnement créé pour', user.first_name, user.last_name);
+    
+    res.json({ 
+      success: true, 
+      message: 'Abonnement sauvegardé avec succès' 
+    });
+    
   } catch (err) {
-    console.error("[PUSH] Erreur save:", err);
+    console.error("[SAVE_SUBSCRIPTION] Erreur lors de la sauvegarde:", err);
     res.status(500).json({ success: false, error: err.message });
   }
 });
@@ -274,6 +317,57 @@ app.get('/api/push/vapid-public-key', (req, res) => {
   res.json({ 
     publicKey: process.env.VAPID_PUBLIC_KEY || 'your_vapid_public_key_here'
   });
+});
+
+// Route pour tester la validité d'un abonnement
+app.post('/api/test-subscription', async (req, res) => {
+  try {
+    const { subscription, userId } = req.body;
+    
+    if (!subscription || !userId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'subscription et userId sont requis' 
+      });
+    }
+    
+    console.log('[TEST_SUBSCRIPTION] Test de l\'abonnement pour l\'utilisateur:', userId);
+    
+    // Envoyer une notification de test silencieuse
+    try {
+      await webPush.sendNotification(subscription, JSON.stringify({
+        title: 'Test de validité',
+        body: 'Votre abonnement aux notifications est valide',
+        data: {
+          url: '/',
+          icon: '/logo192.png',
+          badge: '/logo192.png',
+          type: 'subscription_test',
+          silent: true // Notification silencieuse pour le test
+        },
+        vibrate: [200, 50, 100]
+      }));
+      
+      console.log('[TEST_SUBSCRIPTION] ✅ Abonnement valide');
+      res.json({ 
+        success: true, 
+        message: 'Abonnement valide' 
+      });
+    } catch (pushError) {
+      console.log('[TEST_SUBSCRIPTION] ❌ Abonnement invalide:', pushError.message);
+      res.json({ 
+        success: false, 
+        message: 'Abonnement invalide ou expiré' 
+      });
+    }
+    
+  } catch (error) {
+    console.error('[TEST_SUBSCRIPTION] Erreur lors du test:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Erreur serveur lors du test' 
+    });
+  }
 });
 
 

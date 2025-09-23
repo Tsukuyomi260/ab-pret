@@ -10,12 +10,13 @@ export const LOAN_CONFIG = {
   ],
 
   // Taux d'intérêt selon la durée (en jours)
+  // Note: Pour 30 jours, le taux dépend du montant (voir getInterestRate)
   interestRates: {
     5: 6,   // 6% pour 5 jours
     10: 10, // 10% pour 10 jours
     15: 15, // 15% pour 15 jours
-    25: 22, // 22% pour 25 jours
-    30: 25  // 25% pour 30 jours
+    25: 25, // 25% pour 25 jours (peu importe le montant)
+    30: 25  // 25% pour 30 jours (si montant >= 20,000), sinon 30%
   },
 
   // Montants min/max
@@ -30,14 +31,25 @@ export const LOAN_CONFIG = {
     max: 2000000  // 2,000,000 FCFA maximum
   },
 
-  // Calcul du taux selon la durée
-  getInterestRate: (durationDays) => {
+  // Calcul du taux selon la durée et le montant
+  getInterestRate: (durationDays, amount = 0) => {
+    // Pour 25 jours : 25% peu importe le montant
+    if (durationDays === 25) {
+      return 25;
+    }
+    
+    // Pour 30 jours : taux dépend du montant
+    if (durationDays === 30) {
+      return amount >= 20000 ? 25 : 30; // 25% si >= 20,000, sinon 30%
+    }
+    
+    // Pour les autres durées : taux fixe
     return LOAN_CONFIG.interestRates[durationDays] || 25; // 25% par défaut
   },
 
   // Calcul des intérêts
   calculateInterest: (amount, durationDays) => {
-    const rate = LOAN_CONFIG.getInterestRate(durationDays);
+    const rate = LOAN_CONFIG.getInterestRate(durationDays, amount);
     return (amount * rate) / 100;
   },
 

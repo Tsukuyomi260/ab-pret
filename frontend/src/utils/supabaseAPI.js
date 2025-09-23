@@ -707,7 +707,10 @@ export const getLoans = async (userId = null) => {
           emergency_address,
           user_identity_card_name,
           temoin_identity_card_name,
-          student_card_name
+          student_card_name,
+          user_identity_card_url,
+          temoin_identity_card_url,
+          student_card_url
         )
       `)
       .order('created_at', { ascending: false });

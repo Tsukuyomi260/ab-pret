@@ -682,6 +682,18 @@ const LoanRequests = () => {
                           <p className="text-sm text-orange-700 font-medium">Objet du prêt</p>
                           <p className="text-orange-900">{selectedRequest.purpose}</p>
                         </div>
+                        <div>
+                          <p className="text-sm text-orange-700 font-medium">Statut professionnel</p>
+                          <p className="text-orange-900">
+                            {selectedRequest.employment_status === 'self-employed' ? 'Indépendant' : 
+                             selectedRequest.employment_status === 'student' ? 'Étudiant' : 
+                             selectedRequest.employment_status || 'Non spécifié'}
+                          </p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-orange-700 font-medium">Garantie</p>
+                          <p className="text-orange-900">{selectedRequest.guarantee || 'Non spécifiée'}</p>
+                        </div>
                       </div>
                       <div className="space-y-3">
                         <div>

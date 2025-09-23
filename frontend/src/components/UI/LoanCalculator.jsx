@@ -34,7 +34,7 @@ const LoanCalculator = ({
       setErrors(validation.errors);
 
       if (validation.isValid) {
-        const interestRate = LOAN_CONFIG.getInterestRate(numDuration);
+        const interestRate = LOAN_CONFIG.getInterestRate(numDuration, numAmount);
         const interestAmount = LOAN_CONFIG.calculateInterest(numAmount, numDuration);
         const totalAmount = LOAN_CONFIG.calculateTotalAmount(numAmount, numDuration);
         const paymentAmount = LOAN_CONFIG.calculatePaymentAmount(totalAmount, numDuration);
