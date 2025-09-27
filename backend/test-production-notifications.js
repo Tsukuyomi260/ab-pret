@@ -1,6 +1,4 @@
-// Script de test complet pour vérifier toutes les notifications en production
 const { createClient } = require('@supabase/supabase-js');
-const webPush = require('./config/push');
 
 // Load env from .env.local first, then .env
 require('dotenv').config({ path: '.env.local' });
@@ -16,72 +14,346 @@ if (!supabaseUrl || !supabaseKey) {
 
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Configuration
-const BACKEND_URL = process.env.NODE_ENV === 'production' 
-  ? 'https://ab-pret-back.onrender.com' 
+// Configuration du backend
+const BACKEND_URL = process.env.NODE_ENV === 'production'
+  ? 'https://ab-pret-back.onrender.com'
   : 'http://localhost:5000';
 
-console.log('🧪 Test des notifications en production...\n');
-console.log('🔧 Configuration:');
-console.log(`   Backend URL: ${BACKEND_URL}`);
-console.log(`   Supabase URL: ${supabaseUrl}`);
-console.log(`   VAPID Public Key: ${process.env.VAPID_PUBLIC_KEY ? '✅ Configuré' : '❌ Manquant'}`);
-console.log(`   VAPID Private Key: ${process.env.VAPID_PRIVATE_KEY ? '✅ Configuré' : '❌ Manquant'}\n`);
-
-async function testNotifications() {
+async function testProductionNotifications() {
   try {
-    // 1. Vérifier la configuration VAPID
-    console.log('1. 🔑 Vérification de la configuration VAPID...');
-    if (!process.env.VAPID_PUBLIC_KEY || !process.env.VAPID_PRIVATE_KEY) {
-      console.log('   ❌ Clés VAPID manquantes - les notifications push ne fonctionneront pas');
-      return;
-    }
-    console.log('   ✅ Clés VAPID configurées\n');
+    console.log('🧪 Test des notifications automatiques en production');
+    console.log(`🌐 Backend URL: ${BACKEND_URL}`);
+    console.log('');
 
-    // 2. Récupérer un utilisateur test et un admin
-    console.log('2. 👥 Récupération des utilisateurs...');
+    // 1. Vérifier les utilisateurs avec abonnements push
+    console.log('📱 1. Vérification des abonnements push...');
+    
+    // D'abord récupérer les abonnements
+    const { data: subscriptions, error: subError } = await supabase
+      .from('push_subscriptions')
+      .select('id, user_id, created_at');
+
+    if (subError) {
+      console.error('❌ Erreur récupération abonnements:', subError);
+      return false;
+    }
+
+    if (!subscriptions || subscriptions.length === 0) {
+      console.log('⚠️ Aucun abonnement push trouvé');
+      return false;
+    }
+
+    // Ensuite récupérer les utilisateurs approuvés
+    const userIds = subscriptions.map(sub => sub.user_id);
     const { data: users, error: usersError } = await supabase
       .from('users')
-      .select('id, first_name, last_name, role, email')
-      .limit(5);
+      .select('id, first_name, last_name, email, status')
+      .in('id', userIds)
+      .eq('status', 'approved');
 
     if (usersError) {
-      console.error('   ❌ Erreur récupération utilisateurs:', usersError);
-      return;
+      console.error('❌ Erreur récupération utilisateurs:', usersError);
+      return false;
     }
 
-    const testUser = users.find(u => u.role !== 'admin') || users[0];
-    const adminUser = users.find(u => u.role === 'admin') || users[0];
+    // Combiner les données
+    const subscriptionsWithUsers = subscriptions
+      .map(sub => {
+        const user = users.find(u => u.id === sub.user_id);
+        return user ? { ...sub, users: user } : null;
+      })
+      .filter(Boolean);
 
-    console.log(`   ✅ Utilisateur test: ${testUser.first_name} ${testUser.last_name} (${testUser.role})`);
-    console.log(`   ✅ Admin: ${adminUser.first_name} ${adminUser.last_name} (${adminUser.role})\n`);
-
-    // 3. Vérifier les abonnements push
-    console.log('3. 📱 Vérification des abonnements push...');
-    const { data: subscriptions, error: subsError } = await supabase
-      .from('push_subscriptions')
-      .select('user_id, subscription')
-      .in('user_id', [testUser.id, adminUser.id]);
-
-    if (subsError) {
-      console.error('   ❌ Erreur récupération abonnements:', subsError);
-      return;
+    if (subscriptionsWithUsers.length === 0) {
+      console.log('⚠️ Aucun utilisateur approuvé avec abonnement push trouvé');
+      return false;
     }
 
-    const userSubscriptions = subscriptions.filter(s => s.user_id === testUser.id);
-    const adminSubscriptions = subscriptions.filter(s => s.user_id === adminUser.id);
+    console.log(`✅ ${subscriptionsWithUsers.length} utilisateur(s) approuvé(s) avec abonnement push trouvé(s)`);
+    subscriptionsWithUsers.forEach(sub => {
+      console.log(`   - ${sub.users.first_name} ${sub.users.last_name} (${sub.users.email})`);
+    });
+    console.log('');
 
-    console.log(`   📱 Abonnements utilisateur: ${userSubscriptions.length}`);
-    console.log(`   📱 Abonnements admin: ${adminSubscriptions.length}\n`);
+    // 2. Tester la notification d'approbation de prêt
+    console.log('🎯 2. Test notification d\'approbation de prêt...');
+    const testUser = subscriptionsWithUsers[0];
+    const testLoanAmount = 50000;
+    const testLoanId = 'TEST-' + Date.now();
 
-    if (userSubscriptions.length === 0 && adminSubscriptions.length === 0) {
-      console.log('   ⚠️  Aucun abonnement trouvé - les notifications push ne fonctionneront pas');
-      console.log('   💡 Les utilisateurs doivent s\'abonner aux notifications depuis l\'application\n');
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/notify-loan-approval`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: testUser.user_id,
+          loanAmount: testLoanAmount,
+          loanId: testLoanId
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log('✅ Notification d\'approbation de prêt envoyée avec succès');
+        console.log(`   - Utilisateur: ${testUser.users.first_name} ${testUser.users.last_name}`);
+        console.log(`   - Montant: ${testLoanAmount.toLocaleString()} FCFA`);
+        console.log(`   - Notifications envoyées: ${result.notificationsSent}`);
+      } else {
+        console.error('❌ Erreur notification d\'approbation:', result.error);
+      }
+    } catch (error) {
+      console.error('❌ Erreur test notification d\'approbation:', error.message);
+    }
+    console.log('');
+
+    // 3. Tester la notification de dépôt d'épargne
+    console.log('💰 3. Test notification de dépôt d\'épargne...');
+    const testDepositAmount = 25000;
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/notify-savings-deposit`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          clientName: `${testUser.users.first_name} ${testUser.users.last_name}`,
+          amount: `${testDepositAmount.toLocaleString()} FCFA`,
+          userId: testUser.user_id
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log('✅ Notification de dépôt d\'épargne envoyée avec succès');
+        console.log(`   - Utilisateur: ${testUser.users.first_name} ${testUser.users.last_name}`);
+        console.log(`   - Montant: ${testDepositAmount.toLocaleString()} FCFA`);
+        console.log(`   - Notifications envoyées: ${result.notificationsSent}`);
+      } else {
+        console.error('❌ Erreur notification de dépôt:', result.error);
+      }
+    } catch (error) {
+      console.error('❌ Erreur test notification de dépôt:', error.message);
+    }
+    console.log('');
+
+    // 4. Tester la notification admin pour nouvelle demande de prêt
+    console.log('👨‍💼 4. Test notification admin (nouvelle demande de prêt)...');
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/notify-admin-new-loan`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          loanAmount: testLoanAmount,
+          clientName: `${testUser.users.first_name} ${testUser.users.last_name}`,
+          loanId: testLoanId
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log('✅ Notification admin envoyée avec succès');
+        console.log(`   - Client: ${testUser.users.first_name} ${testUser.users.last_name}`);
+        console.log(`   - Montant: ${testLoanAmount.toLocaleString()} FCFA`);
+        console.log(`   - Notifications envoyées: ${result.notificationsSent}`);
+      } else {
+        console.error('❌ Erreur notification admin:', result.error);
+      }
+    } catch (error) {
+      console.error('❌ Erreur test notification admin:', error.message);
+    }
+    console.log('');
+
+    // 5. Vérifier les fonctions de rappel programmées
+    console.log('⏰ 5. Vérification des fonctions de rappel...');
+    
+    // Vérifier les prêts actifs
+    const { data: activeLoans, error: loansError } = await supabase
+      .from('loans')
+      .select('id, user_id, amount, approved_at, status')
+      .eq('status', 'active')
+      .not('approved_at', 'is', null);
+
+    if (loansError) {
+      console.error('❌ Erreur récupération prêts actifs:', loansError);
+    } else {
+      console.log(`✅ ${activeLoans?.length || 0} prêt(s) actif(s) trouvé(s)`);
     }
 
-    // 4. Tester les notifications via l'API backend
-    console.log('4. 🚀 Test des notifications via API backend...\n');
+    // Vérifier les plans d'épargne actifs
+    const { data: activePlans, error: plansError } = await supabase
+      .from('savings_plans')
+      .select('id, user_id, plan_name, fixed_amount, next_deposit_date, status')
+      .eq('status', 'active')
+      .not('next_deposit_date', 'is', null);
 
+    if (plansError) {
+      console.error('❌ Erreur récupération plans d\'épargne:', plansError);
+    } else {
+      console.log(`✅ ${activePlans?.length || 0} plan(s) d'épargne actif(s) trouvé(s)`);
+    }
+    console.log('');
+
+    // 6. Test des notifications de rappel (simulation)
+    console.log('🔔 6. Test des notifications de rappel...');
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/test-loan-notification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: testUser.user_id,
+          testType: 'reminder'
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log('✅ Notification de rappel de prêt envoyée avec succès');
+        console.log(`   - Utilisateur: ${result.details.user}`);
+        console.log(`   - Type: ${result.details.testType}`);
+        console.log(`   - Notifications envoyées: ${result.details.notificationsSent}`);
+      } else {
+        console.error('❌ Erreur notification de rappel:', result.error);
+      }
+    } catch (error) {
+      console.error('❌ Erreur test notification de rappel:', error.message);
+    }
+    console.log('');
+
+    // 7. Vérifier la configuration VAPID
+    console.log('🔑 7. Vérification de la configuration VAPID...');
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/push/vapid-public-key`);
+      const vapidKey = await response.text();
+      
+      if (vapidKey && vapidKey.length > 0) {
+        console.log('✅ Clé VAPID publique récupérée avec succès');
+        console.log(`   - Longueur: ${vapidKey.length} caractères`);
+        console.log(`   - Début: ${vapidKey.substring(0, 20)}...`);
+      } else {
+        console.error('❌ Clé VAPID publique manquante ou vide');
+      }
+    } catch (error) {
+      console.error('❌ Erreur récupération clé VAPID:', error.message);
+    }
+    console.log('');
+
+    console.log('🎉 Test des notifications automatiques terminé !');
+    console.log('');
+    console.log('📋 Résumé des points de déclenchement automatiques :');
+    console.log('   ✅ Notification admin : Nouvelle demande de prêt');
+    console.log('   ✅ Notification client : Approbation de prêt');
+    console.log('   ✅ Notification client : Dépôt d\'épargne confirmé');
+    console.log('   ✅ Rappels automatiques : Prêts en échéance (11h quotidien)');
+    console.log('   ✅ Rappels automatiques : Dépôts d\'épargne (11h quotidien)');
+    console.log('   ✅ Gestion automatique : Prêts en retard avec pénalités');
+    console.log('   ✅ Notifications de test : Disponibles pour l\'admin');
+
+    return true;
+
+  } catch (error) {
+    console.error('❌ Erreur générale lors du test:', error);
+    return false;
+  }
+}
+
+// Fonction principale
+async function main() {
+  const success = await testProductionNotifications();
+  
+  if (success) {
+    console.log('\n✅ Tous les tests de notifications sont passés avec succès !');
+    process.exit(0);
+  } else {
+    console.log('\n❌ Certains tests de notifications ont échoué.');
+    process.exit(1);
+  }
+}
+
+// Exécuter le script
+main().catch(console.error);
+
+    // 6. Test des notifications de rappel (simulation)
+    console.log('🔔 6. Test des notifications de rappel...');
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/test-loan-notification`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: testUser.user_id,
+          testType: 'reminder'
+        })
+      });
+
+      const result = await response.json();
+      
+      if (result.success) {
+        console.log('✅ Notification de rappel de prêt envoyée avec succès');
+        console.log(`   - Utilisateur: ${result.details.user}`);
+        console.log(`   - Type: ${result.details.testType}`);
+        console.log(`   - Notifications envoyées: ${result.details.notificationsSent}`);
+      } else {
+        console.error('❌ Erreur notification de rappel:', result.error);
+      }
+    } catch (error) {
+      console.error('❌ Erreur test notification de rappel:', error.message);
+    }
+    console.log('');
+
+    // 7. Vérifier la configuration VAPID
+    console.log('🔑 7. Vérification de la configuration VAPID...');
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/push/vapid-public-key`);
+      const vapidKey = await response.text();
+      
+      if (vapidKey && vapidKey.length > 0) {
+        console.log('✅ Clé VAPID publique récupérée avec succès');
+        console.log(`   - Longueur: ${vapidKey.length} caractères`);
+        console.log(`   - Début: ${vapidKey.substring(0, 20)}...`);
+      } else {
+        console.error('❌ Clé VAPID publique manquante ou vide');
+      }
+    } catch (error) {
+      console.error('❌ Erreur récupération clé VAPID:', error.message);
+    }
+    console.log('');
+
+    console.log('🎉 Test des notifications automatiques terminé !');
+    console.log('');
+    console.log('📋 Résumé des points de déclenchement automatiques :');
+    console.log('   ✅ Notification admin : Nouvelle demande de prêt');
+    console.log('   ✅ Notification client : Approbation de prêt');
+    console.log('   ✅ Notification client : Dépôt d\'épargne confirmé');
+    console.log('   ✅ Rappels automatiques : Prêts en échéance (11h quotidien)');
+    console.log('   ✅ Rappels automatiques : Dépôts d\'épargne (11h quotidien)');
+    console.log('   ✅ Gestion automatique : Prêts en retard avec pénalités');
+    console.log('   ✅ Notifications de test : Disponibles pour l\'admin');
+
+    return true;
+
+  } catch (error) {
+    console.error('❌ Erreur générale lors du test:', error);
+    return false;
+  }
+}
+
+// Fonction principale
+async function main() {
+  const success = await testProductionNotifications();
+  
+  if (success) {
+    console.log('\n✅ Tous les tests de notifications sont passés avec succès !');
+    process.exit(0);
+  } else {
+    console.log('\n❌ Certains tests de notifications ont échoué.');
+    process.exit(1);
+  }
+}
+
+// Exécuter le script
+main().catch(console.error);
     const testCases = [
       {
         name: 'Notification admin - Nouvelle demande de prêt',

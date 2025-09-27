@@ -18,6 +18,7 @@ import {
   XCircle,
   Eye,
   UserCheck,
+  Bell,
   UserX,
   Home,
   Settings,
@@ -27,7 +28,10 @@ import {
   Plus,
   MessageCircle,
   Info,
-  ArrowRight
+  ArrowRight,
+  Menu,
+  PiggyBank,
+  ChevronDown
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 import { motion } from 'framer-motion';
@@ -48,6 +52,21 @@ const AdminDashboard = () => {
   const [recentRequests, setRecentRequests] = useState([]);
   const [pendingRegistrations, setPendingRegistrations] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [showMenu, setShowMenu] = useState(false);
+
+  // Fermer le menu quand on clique ailleurs
+  useEffect(() => {
+    const handleClickOutside = (event) => {
+      if (showMenu && !event.target.closest('.menu-container')) {
+        setShowMenu(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => {
+      document.removeEventListener('mousedown', handleClickOutside);
+    };
+  }, [showMenu]);
 
   useEffect(() => {
     const loadData = async () => {
@@ -459,25 +478,81 @@ const AdminDashboard = () => {
                     transition={{ duration: 0.4, delay: 0.6 }}
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => navigate('/admin/user-management')}
-                    className="group cursor-pointer h-full"
+                    className="group cursor-pointer h-full relative menu-container"
                   >
-                    <div className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 h-full flex flex-col">
+                    <div 
+                      onClick={() => setShowMenu(!showMenu)}
+                      className="bg-gradient-to-br from-green-500 to-green-600 rounded-2xl p-6 text-white shadow-lg hover:shadow-xl transition-all duration-300 h-full flex flex-col"
+                    >
                       <div className="flex items-center justify-between mb-4">
                         <div className="p-3 bg-white/20 rounded-xl">
-                          <Users size={24} />
+                          <Menu size={24} />
                         </div>
-                        <ArrowRight size={20} className="opacity-0 group-hover:opacity-100 transition-opacity duration-200" />
+                        <ChevronDown size={20} className={`transition-transform duration-200 ${showMenu ? 'rotate-180' : ''}`} />
                       </div>
                       <div className="flex-1">
                         <h3 className="text-lg font-bold font-montserrat mb-2">
-                          Gérer les Utilisateurs
+                          Menu
                         </h3>
                         <p className="text-green-100 text-sm font-montserrat">
-                          Voir et gérer tous les clients
+                          Accéder aux fonctionnalités
                         </p>
                       </div>
                     </div>
+                    
+                    {/* Menu déroulant */}
+                    {showMenu && (
+                      <motion.div
+                        initial={{ opacity: 0, y: -10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        exit={{ opacity: 0, y: -10 }}
+                        className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 z-50"
+                      >
+                        <div className="p-2">
+                          <button
+                            onClick={() => {
+                              navigate('/admin/user-management');
+                              setShowMenu(false);
+                            }}
+                            className="w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
+                          >
+                            <Users size={20} className="text-gray-600" />
+                            <div>
+                              <p className="font-medium text-gray-900">Gérer les Utilisateurs</p>
+                              <p className="text-sm text-gray-500">Voir et gérer tous les clients</p>
+                            </div>
+                          </button>
+                          
+                          <button
+                            onClick={() => {
+                              navigate('/admin/ab-epargne');
+                              setShowMenu(false);
+                            }}
+                            className="w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
+                          >
+                            <PiggyBank size={20} className="text-green-600" />
+                            <div>
+                              <p className="font-medium text-gray-900">AB Epargne</p>
+                              <p className="text-sm text-gray-500">Gérer les comptes d'épargne</p>
+                            </div>
+                          </button>
+                          
+                          <button
+                            onClick={() => {
+                              navigate('/admin/test-notifications');
+                              setShowMenu(false);
+                            }}
+                            className="w-full flex items-center space-x-3 px-4 py-3 text-left hover:bg-gray-50 rounded-lg transition-colors"
+                          >
+                            <Bell size={20} className="text-blue-600" />
+                            <div>
+                              <p className="font-medium text-gray-900">Test Notifications</p>
+                              <p className="text-sm text-gray-500">Tester les notifications push</p>
+                            </div>
+                          </button>
+                        </div>
+                      </motion.div>
+                    )}
                   </motion.div>
 
                   <motion.div
@@ -569,14 +644,62 @@ const AdminDashboard = () => {
                           <CreditCard size={16} className="mr-2" />
                           Gérer les prêts
                         </Button>
-                        <Button
-                          onClick={() => navigate('/admin/user-management')}
-                          variant="outline"
-                          className="w-full justify-center"
-                        >
-                          <Users size={16} className="mr-2" />
-                          Gérer les utilisateurs
-                        </Button>
+                        <div className="relative menu-container">
+                          <Button
+                            onClick={() => setShowMenu(!showMenu)}
+                            variant="outline"
+                            className="w-full justify-center"
+                          >
+                            <Menu size={16} className="mr-2" />
+                            Menu
+                            <ChevronDown size={16} className={`ml-2 transition-transform duration-200 ${showMenu ? 'rotate-180' : ''}`} />
+                          </Button>
+                          
+                          {/* Menu déroulant pour les actions rapides */}
+                          {showMenu && (
+                            <motion.div
+                              initial={{ opacity: 0, y: -10 }}
+                              animate={{ opacity: 1, y: 0 }}
+                              exit={{ opacity: 0, y: -10 }}
+                              className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 z-50"
+                            >
+                              <div className="p-1">
+                                <button
+                                  onClick={() => {
+                                    navigate('/admin/user-management');
+                                    setShowMenu(false);
+                                  }}
+                                  className="w-full flex items-center space-x-2 px-3 py-2 text-left hover:bg-gray-50 rounded-md transition-colors text-sm"
+                                >
+                                  <Users size={16} className="text-gray-600" />
+                                  <span>Gérer les Utilisateurs</span>
+                                </button>
+                                
+                                <button
+                                  onClick={() => {
+                                    navigate('/admin/ab-epargne');
+                                    setShowMenu(false);
+                                  }}
+                                  className="w-full flex items-center space-x-2 px-3 py-2 text-left hover:bg-gray-50 rounded-md transition-colors text-sm"
+                                >
+                                  <PiggyBank size={16} className="text-green-600" />
+                                  <span>AB Epargne</span>
+                                </button>
+                                
+                                <button
+                                  onClick={() => {
+                                    navigate('/admin/test-notifications');
+                                    setShowMenu(false);
+                                  }}
+                                  className="w-full flex items-center space-x-2 px-3 py-2 text-left hover:bg-gray-50 rounded-md transition-colors text-sm"
+                                >
+                                  <Bell size={16} className="text-blue-600" />
+                                  <span>Test Notifications</span>
+                                </button>
+                              </div>
+                            </motion.div>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </Card>

@@ -3,10 +3,13 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { testAllConnections } from './utils/supabaseAPI';
+import './utils/testPWA'; // Import des fonctions de test PWA
+import './utils/testNotificationPrompt'; // Import des utilitaires de test notifications
 import { Toaster } from 'react-hot-toast';
 import updateNotifier from './utils/updateNotifier';
 import Layout from './components/Common/Layout';
 import PushNotificationPrompt from './components/UI/PushNotificationPrompt';
+import PWAInstallPrompt from './components/UI/PWAInstallPrompt';
 import Login from './components/Auth/Login';
 import Register from './components/Auth/Register';
 import CreateAccount from './components/Auth/CreateAccount';
@@ -20,6 +23,8 @@ import LoanRequests from './components/Admin/LoanRequests';
 import UserManagement from './components/Admin/UserManagement';
 import Analytics from './components/Admin/Analytics';
 import Settings from './components/Admin/Settings';
+import AdminABEpargne from './components/Admin/ABEpargne';
+import TestNotifications from './components/Admin/TestNotifications';
 
 import LoanRequest from './components/Client/LoanRequest';
 import LoanHistory from './components/Client/LoanHistory';
@@ -273,6 +278,22 @@ const AppContent = () => {
             </ProtectedRoute>
           } />
           
+          <Route path="/admin/ab-epargne" element={
+            <ProtectedRoute adminOnly>
+              <Layout>
+                <AdminABEpargne />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/admin/test-notifications" element={
+            <ProtectedRoute adminOnly>
+              <Layout>
+                <TestNotifications />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          
           <Route path="/loan-request" element={
             <ProtectedRoute>
               <Layout>
@@ -483,6 +504,7 @@ const App = () => {
       <NotificationProvider>
         <AppContent />
         <PushNotificationPrompt />
+        <PWAInstallPrompt />
         <Toaster position="top-right" />
       </NotificationProvider>
     </AuthProvider>

@@ -217,7 +217,7 @@ const CreateAccount = () => {
           onChange={handleBasicInfoChange}
           error={errors.phoneNumber}
           icon={Phone}
-                     placeholder="Ex: 01234567 ou +229 12345678"
+                     placeholder="Ex: 53448573"
         />
 
         <Input

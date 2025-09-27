@@ -73,14 +73,15 @@ app.post("/api/save-subscription", async (req, res) => {
       });
     }
     
-    // Supprimer tous les anciens abonnements de cet utilisateur
+    // Supprimer d'abord tous les abonnements existants pour cet utilisateur pour éviter les doublons
     const { error: deleteError } = await supabase
       .from('push_subscriptions')
       .delete()
       .eq('user_id', userId);
     
     if (deleteError) {
-      console.error('[SAVE_SUBSCRIPTION] Erreur suppression anciens abonnements:', deleteError);
+      console.error('[SAVE_SUBSCRIPTION] Erreur suppression abonnements existants:', deleteError);
+      // Continuer quand même, on va essayer d'insérer
     } else {
       console.log('[SAVE_SUBSCRIPTION] Anciens abonnements supprimés pour', user.first_name, user.last_name);
     }
@@ -96,14 +97,14 @@ app.post("/api/save-subscription", async (req, res) => {
       });
     
     if (insertError) {
-      console.error('[SAVE_SUBSCRIPTION] Erreur insertion:', insertError);
+      console.error('[SAVE_SUBSCRIPTION] Erreur création abonnement:', insertError);
       return res.status(500).json({ 
         success: false, 
-        error: 'Erreur lors de la sauvegarde de l\'abonnement' 
+        error: 'Erreur lors de la création de l\'abonnement' 
       });
     }
     
-    console.log('[SAVE_SUBSCRIPTION] ✅ Nouvel abonnement créé pour', user.first_name, user.last_name);
+    console.log('[SAVE_SUBSCRIPTION] ✅ Abonnement créé/mis à jour pour', user.first_name, user.last_name);
     
     res.json({ 
       success: true, 
@@ -167,6 +168,38 @@ async function sendNotificationToAllUsers(title, body, data = {}) {
     return false;
   }
 }
+
+// Route pour tester la validité d'un abonnement
+app.post('/api/test-subscription', async (req, res) => {
+  try {
+    const { subscription, userId } = req.body;
+
+    if (!subscription) {
+      return res.status(400).json({ success: false, error: "Subscription manquante" });
+    }
+
+    // Envoyer une notification de test silencieuse
+    const payload = JSON.stringify({
+      title: 'Test de validité',
+      body: 'Test de l\'abonnement push',
+      data: { 
+        test: true,
+        silent: true,
+        url: '/',
+        icon: '/logo192.png',
+        badge: '/logo192.png'
+      }
+    });
+
+    await webPush.sendNotification(subscription, payload);
+    console.log('[TEST_SUBSCRIPTION] ✅ Abonnement valide pour l\'utilisateur:', userId);
+    
+    res.json({ success: true, message: 'Abonnement valide' });
+  } catch (error) {
+    console.error('[TEST_SUBSCRIPTION] ❌ Abonnement invalide:', error.message);
+    res.json({ success: false, error: error.message });
+  }
+});
 
 // Route pour envoyer une notification push à un utilisateur spécifique
 app.post('/api/send-notification', async (req, res) => {
@@ -317,6 +350,166 @@ app.get('/api/push/vapid-public-key', (req, res) => {
   res.json({ 
     publicKey: process.env.VAPID_PUBLIC_KEY || 'your_vapid_public_key_here'
   });
+});
+
+// Route pour tester l'envoi de notifications de prêt
+app.post('/api/test-loan-notification', async (req, res) => {
+  try {
+    const { userId, testType = 'approval' } = req.body;
+    
+    if (!userId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'userId est requis' 
+      });
+    }
+    
+    console.log('[TEST_LOAN_NOTIFICATION] Test notification pour utilisateur:', userId, 'Type:', testType);
+    
+    // Récupérer les informations de l'utilisateur
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('first_name, last_name, email')
+      .eq('id', userId)
+      .single();
+
+    if (userError || !userData) {
+      console.error('[TEST_LOAN_NOTIFICATION] Utilisateur non trouvé:', userError);
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Utilisateur non trouvé' 
+      });
+    }
+
+    // Récupérer les abonnements push de l'utilisateur
+    const { data: subscriptions, error: subError } = await supabase
+      .from('push_subscriptions')
+      .select('subscription')
+      .eq('user_id', userId);
+
+    if (subError) {
+      console.error('[TEST_LOAN_NOTIFICATION] Erreur récupération abonnements:', subError);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Erreur lors de la récupération des abonnements' 
+      });
+    }
+
+    if (!subscriptions || subscriptions.length === 0) {
+      console.log('[TEST_LOAN_NOTIFICATION] Aucun abonnement trouvé pour l\'utilisateur');
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Aucun abonnement push trouvé pour cet utilisateur' 
+      });
+    }
+
+    // Données de test
+    const testData = {
+      approval: {
+        title: "🎉 AB Campus Finance - Prêt approuvé !",
+        body: `Félicitations ${userData.first_name} ! Votre prêt de 50,000 FCFA a été approuvé. Vous pouvez maintenant procéder au remboursement.`,
+        amount: 50000,
+        loanId: 'TEST-' + Date.now()
+      },
+      reminder: {
+        title: "⏰ AB Campus Finance - Rappel de remboursement",
+        body: `Bonjour ${userData.first_name}, n'oubliez pas que votre prêt de 25,000 FCFA arrive à échéance dans 3 jours.`,
+        amount: 25000,
+        loanId: 'TEST-REMINDER-' + Date.now()
+      },
+      overdue: {
+        title: "⚠️ AB Campus Finance - Prêt en retard",
+        body: `Attention ${userData.first_name}, votre prêt de 30,000 FCFA est en retard. Des pénalités s'appliquent.`,
+        amount: 30000,
+        loanId: 'TEST-OVERDUE-' + Date.now()
+      }
+    };
+
+    const notificationData = testData[testType] || testData.approval;
+
+    // Envoyer la notification à tous les abonnements de l'utilisateur
+    let successCount = 0;
+    let errorCount = 0;
+
+    for (const sub of subscriptions) {
+      try {
+        await webPush.sendNotification(sub.subscription, JSON.stringify({
+          title: notificationData.title,
+          body: notificationData.body,
+          data: {
+            url: '/dashboard',
+            icon: '/logo192.png',
+            badge: '/logo192.png',
+            type: 'loan_' + testType,
+            loanId: notificationData.loanId,
+            amount: notificationData.amount,
+            timestamp: new Date().toISOString()
+          },
+          vibrate: [200, 100, 200],
+          requireInteraction: true,
+          actions: [
+            {
+              action: 'view',
+              title: 'Voir le prêt',
+              icon: '/logo192.png'
+            },
+            {
+              action: 'dismiss',
+              title: 'Fermer'
+            }
+          ]
+        }));
+        
+        successCount++;
+        console.log('[TEST_LOAN_NOTIFICATION] ✅ Notification envoyée avec succès');
+      } catch (pushError) {
+        errorCount++;
+        console.error('[TEST_LOAN_NOTIFICATION] ❌ Erreur envoi notification:', pushError.message);
+      }
+    }
+
+    // Sauvegarder la notification de test dans la base de données
+    const { error: notifError } = await supabase
+      .from('notifications')
+      .insert({
+        user_id: userId,
+        title: notificationData.title,
+        message: notificationData.body,
+        type: 'loan_' + testType,
+        data: {
+          loanId: notificationData.loanId,
+          amount: notificationData.amount,
+          isTest: true,
+          testType: testType
+        },
+        created_at: new Date().toISOString()
+      });
+
+    if (notifError) {
+      console.error('[TEST_LOAN_NOTIFICATION] Erreur sauvegarde notification:', notifError);
+    }
+
+    res.json({ 
+      success: true, 
+      message: `Notification de test envoyée avec succès`,
+      details: {
+        user: `${userData.first_name} ${userData.last_name}`,
+        email: userData.email,
+        testType: testType,
+        subscriptionsFound: subscriptions.length,
+        notificationsSent: successCount,
+        errors: errorCount,
+        notificationData: notificationData
+      }
+    });
+
+  } catch (error) {
+    console.error('[TEST_LOAN_NOTIFICATION] Erreur générale:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Erreur serveur lors de l\'envoi de la notification de test' 
+    });
+  }
 });
 
 // Route pour tester la validité d'un abonnement
@@ -2339,6 +2532,124 @@ app.post('/api/notify-loan-approval', async (req, res) => {
   }
 });
 
+// Fonction pour gérer les prêts en retard et calculer les pénalités
+async function manageOverdueLoans() {
+  try {
+    console.log('[OVERDUE_MANAGEMENT] Vérification des prêts en retard...');
+    
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    
+    // Récupérer tous les prêts actifs
+    const { data: activeLoans, error: loansError } = await supabase
+      .from('loans')
+      .select(`
+        id,
+        user_id,
+        amount,
+        interest_rate,
+        duration,
+        approved_at,
+        status,
+        daily_penalty_rate,
+        total_penalty_amount,
+        last_penalty_calculation
+      `)
+      .eq('status', 'active')
+      .not('approved_at', 'is', null);
+    
+    if (loansError) {
+      console.error('[OVERDUE_MANAGEMENT] Erreur récupération prêts:', loansError);
+      return false;
+    }
+    
+    if (!activeLoans || activeLoans.length === 0) {
+      console.log('[OVERDUE_MANAGEMENT] Aucun prêt actif trouvé');
+      return true;
+    }
+    
+    let updatedLoans = 0;
+    let newOverdueLoans = 0;
+    
+    for (const loan of activeLoans) {
+      try {
+        // Calculer la date d'échéance
+        const approvedDate = new Date(loan.approved_at);
+        const dueDate = new Date(approvedDate);
+        dueDate.setDate(dueDate.getDate() + loan.duration);
+        
+        const daysOverdue = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
+        
+        if (daysOverdue > 0) {
+          // Prêt en retard - calculer les pénalités
+          const penaltyRate = loan.daily_penalty_rate || 2.0; // 2% par défaut
+          const principalAmount = parseFloat(loan.amount);
+          const interestAmount = principalAmount * (loan.interest_rate / 100);
+          const totalOriginalAmount = principalAmount + interestAmount;
+          
+          // Calculer la pénalité totale
+          const totalPenalty = totalOriginalAmount * (penaltyRate / 100) * daysOverdue;
+          const totalAmountWithPenalty = totalOriginalAmount + totalPenalty;
+          
+          // Vérifier si c'est un nouveau prêt en retard
+          const wasOverdue = loan.status === 'overdue';
+          const newStatus = 'overdue';
+          
+          // Mettre à jour le prêt avec les pénalités
+          const { error: updateError } = await supabase
+            .from('loans')
+            .update({
+              status: newStatus,
+              total_penalty_amount: totalPenalty,
+              last_penalty_calculation: today.toISOString(),
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', loan.id);
+          
+          if (updateError) {
+            console.error(`[OVERDUE_MANAGEMENT] Erreur mise à jour prêt #${loan.id}:`, updateError);
+          } else {
+            updatedLoans++;
+            if (!wasOverdue) {
+              newOverdueLoans++;
+              console.log(`[OVERDUE_MANAGEMENT] 🚨 Nouveau prêt en retard #${loan.id}: ${daysOverdue} jour(s), pénalité: ${totalPenalty.toLocaleString()} FCFA`);
+            } else {
+              console.log(`[OVERDUE_MANAGEMENT] ⚠️ Prêt en retard #${loan.id}: ${daysOverdue} jour(s), pénalité: ${totalPenalty.toLocaleString()} FCFA`);
+            }
+          }
+        } else if (loan.status === 'overdue') {
+          // Le prêt n'est plus en retard, le remettre en actif
+          const { error: updateError } = await supabase
+            .from('loans')
+            .update({
+              status: 'active',
+              total_penalty_amount: 0,
+              last_penalty_calculation: null,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', loan.id);
+          
+          if (updateError) {
+            console.error(`[OVERDUE_MANAGEMENT] Erreur remise en actif prêt #${loan.id}:`, updateError);
+          } else {
+            console.log(`[OVERDUE_MANAGEMENT] ✅ Prêt #${loan.id} remis en actif (plus en retard)`);
+            updatedLoans++;
+          }
+        }
+      } catch (error) {
+        console.error(`[OVERDUE_MANAGEMENT] Erreur traitement prêt #${loan.id}:`, error);
+      }
+    }
+    
+    console.log(`[OVERDUE_MANAGEMENT] Traitement terminé: ${updatedLoans} prêt(s) mis à jour, ${newOverdueLoans} nouveau(x) en retard`);
+    return true;
+    
+  } catch (error) {
+    console.error('[OVERDUE_MANAGEMENT] Erreur générale:', error);
+    return false;
+  }
+}
+
 // Fonction pour programmer les rappels de prêt et d'épargne à 11h chaque jour
 function scheduleReminders() {
   const now = new Date();
@@ -2357,14 +2668,16 @@ function scheduleReminders() {
   setTimeout(() => {
     console.log('[SCHEDULER] Exécution des rappels...');
     
-    // Exécuter les rappels de prêt et d'épargne en parallèle
+    // Exécuter les rappels de prêt, d'épargne et la gestion des retards en parallèle
     Promise.all([
       sendLoanReminderNotifications(),
-      sendSavingsDepositReminderNotifications()
-    ]).then(([loanResults, savingsResults]) => {
-      console.log('[SCHEDULER] Rappels terminés:', {
+      sendSavingsDepositReminderNotifications(),
+      manageOverdueLoans()
+    ]).then(([loanResults, savingsResults, overdueResults]) => {
+      console.log('[SCHEDULER] Rappels et gestion terminés:', {
         loans: loanResults ? 'Envoyés' : 'Aucun',
-        savings: savingsResults ? 'Envoyés' : 'Aucun'
+        savings: savingsResults ? 'Envoyés' : 'Aucun',
+        overdue: overdueResults ? 'Traité' : 'Erreur'
       });
     }).catch(error => {
       console.error('[SCHEDULER] Erreur lors de l\'exécution des rappels:', error);

@@ -79,16 +79,20 @@ const LoanRequest = () => {
         
         if (loansResult.success) {
           const userLoans = loansResult.data || [];
-          // Vérifier s'il y a un prêt actif ou approuvé (pas les prêts complétés)
+          // Vérifier s'il y a un prêt actif, approuvé ou en retard
           const activeLoan = userLoans.find(loan => 
-            loan.status === 'active' || loan.status === 'approved'
+            loan.status === 'active' || loan.status === 'approved' || loan.status === 'overdue'
           );
           
           setHasActiveLoan(!!activeLoan);
           
           if (activeLoan) {
             console.log('[LOAN_REQUEST] Prêt actif trouvé:', activeLoan);
-            showError('Vous avez déjà un prêt en cours. Vous devez le rembourser avant de faire une nouvelle demande.');
+            if (activeLoan.status === 'overdue') {
+              showError('Vous ne pouvez pas demander un nouveau prêt tant que votre prêt en retard n\'est pas remboursé. Des pénalités de 2% par jour s\'appliquent.');
+            } else {
+              showError('Vous avez déjà un prêt en cours. Vous devez le rembourser avant de faire une nouvelle demande.');
+            }
           }
         }
       } catch (error) {

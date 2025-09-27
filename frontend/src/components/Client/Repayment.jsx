@@ -9,7 +9,7 @@ import {
   getLoans, 
   getPayments 
 } from '../../utils/supabaseAPI';
-import { ArrowLeft, Wallet } from 'lucide-react';
+import { ArrowLeft, Wallet, AlertTriangle } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 
 const Repayment = () => {
@@ -52,17 +52,26 @@ const Repayment = () => {
           const paidAmount = loanPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
           
           // Calculer le montant total avec intérêts
-          const totalAmount = activeLoan.amount * (1 + (activeLoan.interest_rate || 0) / 100);
-          const remainingAmount = Math.max(0, totalAmount - paidAmount);
+          const principalAmount = parseFloat(activeLoan.amount);
+          const interestAmount = principalAmount * (activeLoan.interest_rate || 0) / 100;
+          const totalOriginalAmount = principalAmount + interestAmount;
+          
+          // Ajouter les pénalités si le prêt est en retard
+          const penaltyAmount = parseFloat(activeLoan.total_penalty_amount || 0);
+          const totalAmountWithPenalty = totalOriginalAmount + penaltyAmount;
+          const remainingAmount = Math.max(0, totalAmountWithPenalty - paidAmount);
           
           // Debug: Vérifier les calculs
           console.log('[REPAYMENT] Calculs détaillés:', {
-            originalAmount: activeLoan.amount,
-            interestRate: activeLoan.interest_rate || 0,
-            totalAmount: totalAmount,
+            principalAmount: principalAmount,
+            interestAmount: interestAmount,
+            totalOriginalAmount: totalOriginalAmount,
+            penaltyAmount: penaltyAmount,
+            totalAmountWithPenalty: totalAmountWithPenalty,
             paidAmount: paidAmount,
             remainingAmount: remainingAmount,
-            remainingAmountRounded: Math.round(remainingAmount)
+            remainingAmountRounded: Math.round(remainingAmount),
+            loanStatus: activeLoan.status
           });
           
           // Calculer la date d'échéance
@@ -82,24 +91,27 @@ const Repayment = () => {
             loanId: activeLoan.id,
             originalAmount: activeLoan.amount,
             interestRate: activeLoan.interest_rate || 0,
-            totalAmount: totalAmount,
+            totalOriginalAmount: totalOriginalAmount,
             paidAmount: paidAmount,
             remainingAmount: remainingAmount,
-            calculation: `${activeLoan.amount} * (1 + ${activeLoan.interest_rate || 0}/100) = ${totalAmount}`
+            calculation: `${activeLoan.amount} * (1 + ${activeLoan.interest_rate || 0}/100) = ${totalOriginalAmount}`
           });
 
           const formattedLoan = {
             id: activeLoan.id,
             amount: activeLoan.amount,
-            monthlyPayment: activeLoan.monthly_payment || Math.round(totalAmount / durationDays),
-            totalAmount: Math.round(totalAmount),
+            monthlyPayment: activeLoan.monthly_payment || Math.round(totalOriginalAmount / durationDays),
+            totalAmount: Math.round(totalOriginalAmount),
             paidAmount: Math.round(paidAmount),
             remainingAmount: Math.round(remainingAmount),
+            penaltyAmount: Math.round(penaltyAmount),
+            totalAmountWithPenalty: Math.round(totalAmountWithPenalty),
             dueDate: dueDate.toISOString().split('T')[0],
             nextPaymentDate: nextPaymentDate.toISOString().split('T')[0],
             interest_rate: activeLoan.interest_rate || 0,
             duration: activeLoan.duration || 30,
-            purpose: activeLoan.purpose || 'Non spécifié'
+            purpose: activeLoan.purpose || 'Non spécifié',
+            status: activeLoan.status
           };
 
           setCurrentLoan(formattedLoan);
@@ -200,7 +212,7 @@ const Repayment = () => {
                   </span>
                 </div>
                 
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-sm">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
                   <div className="p-4 bg-white/60 rounded-xl border border-white/50">
                     <span className="text-gray-600 text-xs uppercase tracking-wide">Montant du prêt</span>
                     <p className="font-semibold text-xl text-gray-900">{formatCurrency(currentLoan.amount)}</p>
@@ -209,11 +221,30 @@ const Repayment = () => {
                     <span className="text-gray-600 text-xs uppercase tracking-wide">Montant payé</span>
                     <p className="font-semibold text-xl text-gray-900">{formatCurrency(currentLoan.paidAmount)}</p>
                   </div>
+                  {currentLoan.penaltyAmount > 0 && (
+                    <div className="p-4 bg-red-50/80 rounded-xl border border-red-200/50">
+                      <span className="text-red-600 text-xs uppercase tracking-wide">Pénalités de retard</span>
+                      <p className="font-semibold text-xl text-red-700">{formatCurrency(currentLoan.penaltyAmount)}</p>
+                      <p className="text-xs text-red-600 mt-1">2% par jour</p>
+                    </div>
+                  )}
                   <div className="p-4 bg-white/60 rounded-xl border border-white/50">
                     <span className="text-gray-600 text-xs uppercase tracking-wide">Montant à rembourser</span>
                     <p className="font-semibold text-xl text-gray-900">{formatCurrency(currentLoan.remainingAmount)}</p>
                   </div>
                 </div>
+                
+                {currentLoan.penaltyAmount > 0 && (
+                  <div className="mt-4 p-4 bg-red-50/80 rounded-xl border border-red-200/50">
+                    <div className="flex items-center space-x-2">
+                      <AlertTriangle className="w-5 h-5 text-red-600" />
+                      <span className="text-red-800 font-medium">Prêt en retard</span>
+                    </div>
+                    <p className="text-red-700 text-sm mt-2">
+                      Votre prêt est en retard. Des pénalités de 2% par jour sont appliquées jusqu'au remboursement complet.
+                    </p>
+                  </div>
+                )}
               </div>
               
               {/* Bouton Effectuer le paiement */}

@@ -19,13 +19,13 @@ const PushNotificationPrompt = () => {
     }
 
     // Si l'utilisateur a déjà vu le prompt mais n'est pas abonné, 
-    // on peut le re-afficher après un délai (par exemple 7 jours)
+    // on peut le re-afficher après un délai (par exemple 3 jours)
     if (hasSeenPrompt && !isSubscribed) {
       const lastSeen = localStorage.getItem('notification-prompt-last-seen');
       if (lastSeen) {
         const daysSinceLastSeen = (Date.now() - parseInt(lastSeen)) / (1000 * 60 * 60 * 24);
-        if (daysSinceLastSeen < 7) {
-          console.log('[PUSH PROMPT] L\'utilisateur a vu le prompt récemment - pas d\'affichage');
+        if (daysSinceLastSeen < 3) {
+          console.log('[PUSH PROMPT] L\'utilisateur a vu le prompt récemment (il y a', Math.round(daysSinceLastSeen), 'jours) - pas d\'affichage');
           return;
         }
       }
@@ -45,12 +45,12 @@ const PushNotificationPrompt = () => {
     // - L'utilisateur n'est pas abonné
     // - La permission n'a pas été refusée
     if (isSupported && hasAskedPermission && !isSubscribed && Notification.permission !== 'denied') {
-      console.log('[PUSH PROMPT] Affichage du prompt dans 2 secondes...');
-      // Attendre 2 secondes pour que l'app se charge bien
+      console.log('[PUSH PROMPT] ✅ Affichage du prompt dans 3 secondes...');
+      // Attendre 3 secondes pour que l'app se charge bien
       const timer = setTimeout(() => {
-        console.log('[PUSH PROMPT] Affichage du prompt maintenant !');
+        console.log('[PUSH PROMPT] 🎯 Affichage du prompt maintenant !');
         setShowPrompt(true);
-      }, 2000);
+      }, 3000);
 
       return () => clearTimeout(timer);
     } else {
