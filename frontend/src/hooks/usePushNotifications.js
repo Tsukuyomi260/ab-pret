@@ -65,26 +65,34 @@ export const usePushNotifications = () => {
         console.log('[PUSH HOOK] Subscription existante:', !!existingSubscription);
         
         if (existingSubscription) {
-          // Vérifier si l'abonnement est encore valide
-          const isValid = await validateSubscription(existingSubscription);
-          
-          if (isValid) {
-            console.log('[PUSH HOOK] ✅ Abonnement valide');
+          // En production, considérer l'abonnement comme valide sans test
+          if (process.env.NODE_ENV === 'production') {
+            console.log('[PUSH HOOK] Mode production - abonnement considéré comme valide');
             setSubscription(existingSubscription);
             setIsSubscribed(true);
             setHasAskedPermission(true);
           } else {
-            console.log('[PUSH HOOK] ⚠️ Abonnement expiré, renouvellement...');
-            // Renouveler l'abonnement
-            const renewed = await renewSubscription(reg);
-            if (renewed) {
-              console.log('[PUSH HOOK] ✅ Abonnement renouvelé avec succès');
-              setSubscription(renewed);
+            // En développement, vérifier si l'abonnement est encore valide
+            const isValid = await validateSubscription(existingSubscription);
+            
+            if (isValid) {
+              console.log('[PUSH HOOK] ✅ Abonnement valide');
+              setSubscription(existingSubscription);
               setIsSubscribed(true);
               setHasAskedPermission(true);
             } else {
-              console.log('[PUSH HOOK] ❌ Échec du renouvellement');
-              setHasAskedPermission(true);
+              console.log('[PUSH HOOK] ⚠️ Abonnement expiré, renouvellement...');
+              // Renouveler l'abonnement
+              const renewed = await renewSubscription(reg);
+              if (renewed) {
+                console.log('[PUSH HOOK] ✅ Abonnement renouvelé avec succès');
+                setSubscription(renewed);
+                setIsSubscribed(true);
+                setHasAskedPermission(true);
+              } else {
+                console.log('[PUSH HOOK] ❌ Échec du renouvellement');
+                setHasAskedPermission(true);
+              }
             }
           }
         } else {
@@ -101,7 +109,7 @@ export const usePushNotifications = () => {
     checkAndRenewSubscription();
   }, [isSupported, vapidPublicKey, user]);
 
-  // Vérification périodique des abonnements (toutes les 24h)
+  // Vérification périodique des abonnements (toutes les 7 jours au lieu de 24h)
   useEffect(() => {
     if (!isSubscribed || !subscription) return;
 
@@ -124,7 +132,13 @@ export const usePushNotifications = () => {
             console.log('[PUSH HOOK] ❌ Échec du renouvellement automatique');
           }
         } else {
-          // Vérifier si l'abonnement est encore valide
+          // En production, ne pas valider l'abonnement avec des notifications de test
+          if (process.env.NODE_ENV === 'production') {
+            console.log('[PUSH HOOK] Mode production - validation silencieuse');
+            return;
+          }
+          
+          // En développement seulement, vérifier si l'abonnement est encore valide
           const isValid = await validateSubscription(currentSubscription);
           if (!isValid) {
             console.log('[PUSH HOOK] ⚠️ Abonnement invalide, renouvellement...');
@@ -140,21 +154,29 @@ export const usePushNotifications = () => {
       }
     };
 
-    // Vérifier immédiatement
-    checkSubscriptionPeriodically();
+    // Vérifier immédiatement seulement en développement
+    if (process.env.NODE_ENV === 'development') {
+      checkSubscriptionPeriodically();
+    }
 
-    // Puis vérifier toutes les 24h
-    const interval = setInterval(checkSubscriptionPeriodically, 24 * 60 * 60 * 1000);
+    // Puis vérifier toutes les 7 jours (au lieu de 24h)
+    const interval = setInterval(checkSubscriptionPeriodically, 7 * 24 * 60 * 60 * 1000);
 
     return () => clearInterval(interval);
-  }, [isSubscribed, subscription, user]);
+  }, [isSubscribed, subscription]); // Retirer 'user' des dépendances pour éviter les re-déclenchements
 
   // Valider un abonnement en testant l'envoi d'une notification
   const validateSubscription = async (subscription) => {
     try {
       console.log('[PUSH HOOK] Validation de l\'abonnement...');
       
-      // Tester l'abonnement en envoyant une notification de test
+      // En production, ne pas envoyer de notifications de test
+      if (process.env.NODE_ENV === 'production') {
+        console.log('[PUSH HOOK] Mode production - validation silencieuse');
+        return true; // Considérer comme valide en production
+      }
+      
+      // En développement seulement, tester l'abonnement en envoyant une notification de test
       const response = await fetch(`${BACKEND_URL}/api/test-subscription`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },

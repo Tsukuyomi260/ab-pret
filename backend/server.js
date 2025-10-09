@@ -512,7 +512,7 @@ app.post('/api/test-loan-notification', async (req, res) => {
   }
 });
 
-// Route pour tester la validité d'un abonnement
+// Route pour tester la validité d'un abonnement (VERSION CORRIGÉE)
 app.post('/api/test-subscription', async (req, res) => {
   try {
     const { subscription, userId } = req.body;
@@ -526,19 +526,29 @@ app.post('/api/test-subscription', async (req, res) => {
     
     console.log('[TEST_SUBSCRIPTION] Test de l\'abonnement pour l\'utilisateur:', userId);
     
-    // Envoyer une notification de test silencieuse
+    // En production, ne pas envoyer de notifications de test visibles
+    if (process.env.NODE_ENV === 'production') {
+      console.log('[TEST_SUBSCRIPTION] Mode production - test silencieux');
+      res.json({ 
+        success: true, 
+        message: 'Abonnement valide (test silencieux en production)' 
+      });
+      return;
+    }
+    
+    // En développement seulement, envoyer une notification de test silencieuse
     try {
       await webPush.sendNotification(subscription, JSON.stringify({
         title: 'Test de validité',
-        body: 'Votre abonnement aux notifications est valide',
+        body: 'Test de l\'abonnement push',
         data: {
           url: '/',
           icon: '/logo192.png',
           badge: '/logo192.png',
           type: 'subscription_test',
-          silent: true // Notification silencieuse pour le test
-        },
-        vibrate: [200, 50, 100]
+          silent: true, // Notification silencieuse pour le test
+          test: true
+        }
       }));
       
       console.log('[TEST_SUBSCRIPTION] ✅ Abonnement valide');
