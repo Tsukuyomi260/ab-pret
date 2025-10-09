@@ -2698,6 +2698,9 @@ function scheduleReminders() {
   }, timeUntil11AM);
 }
 
+// Configuration des routes
+app.use('/api', require('./routes/pdfGenerator'));
+
 // Démarrer le scheduler des rappels
 scheduleReminders();
 
