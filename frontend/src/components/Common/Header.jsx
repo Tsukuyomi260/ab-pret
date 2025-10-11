@@ -239,92 +239,26 @@ const Header = () => {
               transition={{ duration: 0.3, ease: "easeInOut" }}
               className="lg:hidden border-t border-accent-200 py-4 w-full overflow-hidden"
             >
-              <motion.nav 
+              {/* Section Nous contacter - Contenu principal du menu */}
+              <motion.div 
                 initial={{ opacity: 0, y: -20 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -20 }}
                 transition={{ delay: 0.1, duration: 0.2 }}
-                className="flex flex-col space-y-2"
+                className="px-4 mb-4"
               >
-                <a 
-                  href="/dashboard" 
-                  className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-all duration-200 px-4 py-3 rounded-xl hover:bg-accent-50 flex items-start space-x-3 hover:shadow-sm"
-                  onClick={() => setMobileMenuOpen(false)}
-                >
-                  <span className="w-5 h-5 flex-shrink-0 mt-0.5">🏠</span>
-                  <span>Accueil</span>
-                </a>
-                {user?.role === 'admin' ? (
-                  <>
-                    <a 
-                      href="/admin/loan-requests" 
-                      className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-all duration-200 px-4 py-3 rounded-xl hover:bg-accent-50 flex items-start space-x-3 hover:shadow-sm"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      <span className="w-5 h-5 flex-shrink-0 mt-0.5">📋</span>
-                      <span>Demandes de prêt</span>
-                    </a>
-                    <a 
-                      href="/admin/user-management" 
-                      className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-all duration-200 px-4 py-3 rounded-xl hover:bg-accent-50 flex items-start space-x-3 hover:shadow-sm"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      <span className="w-5 h-5 flex-shrink-0 mt-0.5">👥</span>
-                      <span>Gestion utilisateur</span>
-                    </a>
-                    <a 
-                      href="/admin/analytics" 
-                      className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-all duration-200 px-4 py-3 rounded-xl hover:bg-accent-50 flex items-start space-x-3 hover:shadow-sm"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      <span className="w-5 h-5 flex-shrink-0 mt-0.5">📊</span>
-                      <span>Analytiques</span>
-                    </a>
-                  </>
-                ) : (
-                  <>
-                    <a 
-                      href="/loan-request" 
-                      className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-all duration-200 px-4 py-3 rounded-xl hover:bg-accent-50 flex items-start space-x-3 hover:shadow-sm"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      <span className="w-5 h-5 flex-shrink-0 mt-0.5">💳</span>
-                      <span className="text-left leading-tight">
-                        Demander un<br />prêt
-                      </span>
-                    </a>
-                    <a 
-                      href="/loan-history" 
-                      className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-all duration-200 px-4 py-3 rounded-xl hover:bg-accent-50 flex items-start space-x-3 hover:shadow-sm"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      <span className="w-5 h-5 flex-shrink-0 mt-0.5">📊</span>
-                      <span>Historique</span>
-                    </a>
-                    <a 
-                      href="/repayment" 
-                      className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-all duration-200 px-4 py-3 rounded-xl hover:bg-accent-50 flex items-start space-x-3 hover:shadow-sm"
-                      onClick={() => setMobileMenuOpen(false)}
-                    >
-                      <span className="w-5 h-5 flex-shrink-0 mt-0.5">💰</span>
-                      <span>Remboursement</span>
-                    </a>
-                  </>
-                )}
-              </motion.nav>
+                <h3 className="text-lg font-semibold text-secondary-900 font-montserrat mb-4">
+                  Nous contacter
+                </h3>
+              </motion.div>
 
               {/* Section Nous contacter */}
               <motion.div 
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ delay: 0.15, duration: 0.2 }}
-                className="mt-6 pt-6 border-t border-accent-200"
+                className="px-4"
               >
-                <div className="px-4 mb-4">
-                  <h3 className="text-sm font-semibold text-secondary-900 font-montserrat mb-3">
-                    Nous contacter
-                  </h3>
-                </div>
                 
                 <div className="space-y-2">
                   {/* WhatsApp */}
