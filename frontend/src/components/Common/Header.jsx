@@ -12,9 +12,16 @@ const Header = () => {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
-  const { showInfo, notifications, markAsRead } = useNotifications();
+  const { showInfo, notifications, markAsRead, refreshNotifications } = useNotifications();
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
+
+  // Charger les notifications pour l'utilisateur connecté
+  useEffect(() => {
+    if (user?.id) {
+      refreshNotifications(user.id);
+    }
+  }, [user?.id, refreshNotifications]);
 
   // Vérifier les nouvelles notifications pour l'admin
   useEffect(() => {

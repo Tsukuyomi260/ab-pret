@@ -53,7 +53,7 @@ const LoanRequest = () => {
     amount: '',
     duration: 5,
     purpose: '',
-    employmentStatus: 'self-employed',
+    employmentStatus: 'student',
     guarantee: '',
     momoNumber: '',
     momoNetwork: '',
@@ -1071,7 +1071,7 @@ const LoanRequest = () => {
                           name="purpose"
                           value={formData.purpose}
                           onChange={handleChange}
-                          placeholder="Décrivez en détail l'objet de votre prêt..."
+                          placeholder="Décrivez l'objet de votre prêt."
                           error={errors.purpose}
                           required
                         />
@@ -1084,8 +1084,8 @@ const LoanRequest = () => {
                           onChange={handleChange}
                           required
                         >
-                          <option value="self-employed">Indépendant</option>
                           <option value="student">Étudiant</option>
+                          <option value="self-employed">Indépendant</option>
                         </Input>
 
                         <div className="space-y-2">
@@ -1313,7 +1313,7 @@ const LoanRequest = () => {
                             <div className="flex justify-between">
                               <span className="text-secondary-600 font-montserrat">Statut professionnel:</span>
                               <span className="font-medium text-secondary-900 font-montserrat">
-                                {formData.employmentStatus === 'self-employed' ? 'Indépendant' : 'Étudiant'}
+                                {formData.employmentStatus === 'self-employed' ? 'Étudiant' : 'Indépendant'}
                               </span>
                             </div>
                             <div className="flex justify-between">

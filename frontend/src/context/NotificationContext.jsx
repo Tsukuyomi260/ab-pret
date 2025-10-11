@@ -24,7 +24,7 @@ export const NotificationProvider = ({ children }) => {
   }, [notifications]);
 
   // Charger les notifications réelles depuis la base de données
-  const loadRealNotifications = useCallback(async () => {
+  const loadRealNotifications = useCallback(async (userId = null) => {
     try {
       // Si Supabase n'est pas configuré, ne pas essayer de charger
       if (!supabase) {
@@ -32,12 +32,19 @@ export const NotificationProvider = ({ children }) => {
         return;
       }
 
-      // Charger les notifications depuis Supabase
-      const { data: notificationsData, error } = await supabase
+      // Construire la requête avec filtrage par utilisateur si spécifié
+      let query = supabase
         .from('notifications')
         .select('*')
         .order('created_at', { ascending: false })
         .limit(50);
+
+      // Filtrer par utilisateur si un userId est fourni
+      if (userId) {
+        query = query.eq('user_id', userId);
+      }
+
+      const { data: notificationsData, error } = await query;
 
       if (error) {
         console.error('[NOTIFICATIONS] Erreur lors du chargement:', error);
@@ -80,6 +87,7 @@ export const NotificationProvider = ({ children }) => {
           read: false,
           data: notification.data || {},
           action: notification.action || null,
+          user_id: notification.userId || null,
           created_at: new Date().toISOString(),
           timestamp: new Date().toISOString()
         };
@@ -109,6 +117,7 @@ export const NotificationProvider = ({ children }) => {
         read: false,
         data: notification.data || {},
         action: notification.action || null,
+        user_id: notification.userId || null,
         created_at: new Date().toISOString()
       };
 
@@ -271,8 +280,8 @@ export const NotificationProvider = ({ children }) => {
   };
 
   // Rafraîchir les notifications depuis la base de données
-  const refreshNotifications = useCallback(async () => {
-    await loadRealNotifications();
+  const refreshNotifications = useCallback(async (userId = null) => {
+    await loadRealNotifications(userId);
   }, [loadRealNotifications]);
 
   // Fonctions pour les toasts
@@ -306,10 +315,11 @@ export const NotificationProvider = ({ children }) => {
     setToasts(prev => prev.filter(toast => toast.id !== id));
   }, []);
 
-  // Initialiser avec des notifications réelles
-  useEffect(() => {
-    loadRealNotifications();
-  }, [loadRealNotifications]);
+  // Initialiser avec des notifications réelles (sans userId pour éviter de charger toutes les notifications)
+  // Les notifications seront chargées par les composants qui utilisent le contexte avec le bon userId
+  // useEffect(() => {
+  //   loadRealNotifications();
+  // }, [loadRealNotifications]);
 
   const value = {
     notifications,
