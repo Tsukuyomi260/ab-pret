@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../context/NotificationContext';
 import { getAllUsers, updateUserStatus } from '../../utils/supabaseAPI';
-import { motion, AnimatePresence } from 'framer-motion';
+// Animations supprimées pour améliorer les performances
 import { 
   ArrowLeft, 
   Search, 
@@ -295,10 +295,8 @@ const UserManagement = () => {
         {/* Liste des utilisateurs */}
         <div className="space-y-4">
           {filteredUsers.map((user) => (
-            <motion.div
+            <div
               key={user.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
               className="bg-white/90 backdrop-blur-sm rounded-xl border border-white/50 shadow-soft hover:shadow-lg transition-all duration-300"
             >
               <div className="p-6">
@@ -383,7 +381,7 @@ const UserManagement = () => {
                       </Button>
                 </div>
               </div>
-            </motion.div>
+            </div>
           ))}
 
           {filteredUsers.length === 0 && !loading && (
@@ -406,19 +404,13 @@ const UserManagement = () => {
       </div>
 
       {/* Modal de détails */}
-      <AnimatePresence>
+      
         {showDetailsModal && selectedUser && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+          <div
             className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
             onClick={closeDetailsModal}
           >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+            <div
               className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
@@ -728,25 +720,19 @@ const UserManagement = () => {
                   )}
                 </div>
               </div>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
+      
 
       {/* Modal d'affichage des images */}
-      <AnimatePresence>
+      
         {showImageModal && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+          <div
             className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4"
             onClick={closeImageModal}
           >
-            <motion.div
-              initial={{ scale: 0.8, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.8, opacity: 0 }}
+            <div
               className="bg-white rounded-2xl max-w-4xl max-h-[90vh] overflow-hidden shadow-2xl"
               onClick={(e) => e.stopPropagation()}
             >
@@ -782,10 +768,10 @@ const UserManagement = () => {
                   </div>
                 </div>
               </div>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
+      
     </div>
   );
 };

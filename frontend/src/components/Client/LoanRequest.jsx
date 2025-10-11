@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+// Animations supprimées pour améliorer les performances
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
 import Card from '../UI/Card';
@@ -599,133 +599,11 @@ const LoanRequest = () => {
         {/* Couche de profondeur supplémentaire */}
         <div className="absolute inset-0 bg-gradient-to-t from-white/20 via-transparent to-transparent"></div>
         
-        {/* Pattern décoratif amélioré */}
+        {/* Pattern décoratif simplifié */}
         <div className="absolute inset-0 opacity-8">
-          <motion.div 
-            animate={{ 
-              scale: [1, 1.2, 1],
-              rotate: [0, 180, 360],
-              opacity: [0.3, 0.6, 0.3]
-            }}
-            transition={{ 
-              duration: 8, 
-              repeat: Infinity, 
-              ease: "easeInOut" 
-            }}
-            className="absolute top-0 left-0 w-72 h-72 bg-blue-400 rounded-full mix-blend-multiply filter blur-xl"
-          />
-          <motion.div 
-            animate={{ 
-              scale: [1.2, 1, 1.2],
-              rotate: [360, 180, 0],
-              opacity: [0.6, 0.3, 0.6]
-            }}
-            transition={{ 
-              duration: 10, 
-              repeat: Infinity, 
-              ease: "easeInOut",
-              delay: 2
-            }}
-            className="absolute top-0 right-0 w-72 h-72 bg-purple-400 rounded-full mix-blend-multiply filter blur-xl"
-          />
-          <motion.div 
-            animate={{ 
-              scale: [1, 1.3, 1],
-              rotate: [180, 360, 180],
-              opacity: [0.4, 0.7, 0.4]
-            }}
-            transition={{ 
-              duration: 12, 
-              repeat: Infinity, 
-              ease: "easeInOut",
-              delay: 4
-            }}
-            className="absolute -bottom-8 left-20 w-72 h-72 bg-indigo-400 rounded-full mix-blend-multiply filter blur-xl"
-          />
-          
-          {/* Particules flottantes */}
-          <motion.div
-            animate={{ 
-              y: [0, -20, 0],
-              opacity: [0.2, 0.6, 0.2]
-            }}
-            transition={{ 
-              duration: 4, 
-              repeat: Infinity, 
-              ease: "easeInOut" 
-            }}
-            className="absolute top-1/4 left-1/4 w-4 h-4 bg-blue-300 rounded-full"
-          />
-          <motion.div
-            animate={{ 
-              y: [0, 15, 0],
-              opacity: [0.3, 0.7, 0.3]
-            }}
-            transition={{ 
-              duration: 5, 
-              repeat: Infinity, 
-              ease: "easeInOut",
-              delay: 1
-            }}
-            className="absolute top-3/4 right-1/3 w-3 h-3 bg-purple-300 rounded-full"
-          />
-          <motion.div
-            animate={{ 
-              x: [0, 10, 0],
-              opacity: [0.4, 0.8, 0.4]
-            }}
-            transition={{ 
-              duration: 6, 
-              repeat: Infinity, 
-              ease: "easeInOut",
-              delay: 2
-            }}
-            className="absolute bottom-1/4 left-1/2 w-2 h-2 bg-indigo-300 rounded-full"
-          />
-          
-          {/* Particules supplémentaires */}
-          <motion.div
-            animate={{ 
-              x: [0, -15, 0],
-              y: [0, -10, 0],
-              opacity: [0.3, 0.8, 0.3]
-            }}
-            transition={{ 
-              duration: 7, 
-              repeat: Infinity, 
-              ease: "easeInOut",
-              delay: 0.5
-            }}
-            className="absolute top-1/3 right-1/4 w-2 h-2 bg-green-300 rounded-full"
-          />
-          <motion.div
-            animate={{ 
-              x: [0, 12, 0],
-              y: [0, -8, 0],
-              opacity: [0.2, 0.7, 0.2]
-            }}
-            transition={{ 
-              duration: 8, 
-              repeat: Infinity, 
-              ease: "easeInOut",
-              delay: 1.5
-            }}
-            className="absolute bottom-1/3 right-1/3 w-3 h-3 bg-pink-300 rounded-full"
-          />
-          <motion.div
-            animate={{ 
-              x: [0, -8, 0],
-              y: [0, 12, 0],
-              opacity: [0.4, 0.9, 0.4]
-            }}
-            transition={{ 
-              duration: 9, 
-              repeat: Infinity, 
-              ease: "easeInOut",
-              delay: 2.5
-            }}
-            className="absolute top-2/3 left-1/3 w-1 h-1 bg-yellow-300 rounded-full"
-          />
+          <div className="absolute top-0 left-0 w-72 h-72 bg-blue-400 rounded-full mix-blend-multiply filter blur-xl" />
+          <div className="absolute top-0 right-0 w-72 h-72 bg-purple-400 rounded-full mix-blend-multiply filter blur-xl" />
+          <div className="absolute -bottom-8 left-20 w-72 h-72 bg-indigo-400 rounded-full mix-blend-multiply filter blur-xl" />
         </div>
 
         {/* Contenu Header */}
@@ -736,52 +614,21 @@ const LoanRequest = () => {
 
 
               {/* Titre principal */}
-              <motion.h1
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.1 }}
-                className="text-4xl lg:text-6xl font-bold text-secondary-900 font-montserrat mb-4"
-              >
+              <h1 className="text-4xl lg:text-6xl font-bold text-secondary-900 font-montserrat mb-4">
                 Demande de{' '}
-                <motion.span 
-                  animate={{ 
-                    backgroundPosition: ['0% 50%', '100% 50%', '0% 50%']
-                  }}
-                  transition={{ 
-                    duration: 4, 
-                    repeat: Infinity, 
-                    ease: "linear" 
-                  }}
-                  className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-[length:200%_100%] bg-clip-text text-transparent"
-                >
+                <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
                   Prêt
-                </motion.span>{' '}
-                <motion.span
-                  animate={{ 
-                    rotate: [0, 10, -10, 0],
-                    scale: [1, 1.1, 1]
-                  }}
-                  transition={{ 
-                    duration: 2, 
-                    repeat: Infinity, 
-                    ease: "easeInOut" 
-                  }}
-                  className="inline-block"
-                >
+                </span>{' '}
+                <span className="inline-block">
                   💰
-                </motion.span>
-              </motion.h1>
+                </span>
+              </h1>
 
 
             </div>
 
             {/* Indicateur de progression */}
-            <motion.div 
-              className="mb-8"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
-            >
+            <div className="mb-8">
               <div className="flex items-center justify-center space-x-2 sm:space-x-4 px-4 max-w-md mx-auto">
                 {[1, 2, 3, 4].map((step) => (
                   <div key={step} className="flex items-center flex-1 max-w-16 sm:max-w-20">
@@ -814,18 +661,13 @@ const LoanRequest = () => {
                   Étape {currentStep} sur 5
                 </p>
               </div>
-            </motion.div>
+            </div>
 
             {/* Contenu des étapes */}
             <div className="max-w-6xl mx-auto">
-              <AnimatePresence mode="wait">
-                {currentStep === 1 && (
-                  <motion.div
+              {currentStep === 1 && (
+                  <div
                     key="step1"
-                    initial={{ opacity: 0, x: 50 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -50 }}
-                    transition={{ duration: 0.3 }}
                     className="grid grid-cols-1 lg:grid-cols-2 gap-8"
                   >
                     {/* Sélection de catégorie */}
@@ -841,17 +683,8 @@ const LoanRequest = () => {
                       
                       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
                         {loanCategories.map((category, index) => (
-                          <motion.div
+                          <div
                             key={category.id}
-                            initial={{ opacity: 0, y: 20 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            transition={{ delay: index * 0.1 }}
-                            whileHover={{ 
-                              scale: 1.02, 
-                              y: -2,
-                              boxShadow: "0 8px 20px -4px rgba(0, 0, 0, 0.1)"
-                            }}
-                            whileTap={{ scale: 0.98 }}
                             className={`group cursor-pointer relative overflow-hidden ${
                               selectedCategory === category.id
                                 ? 'bg-gradient-to-r from-primary-500 to-primary-600 shadow-lg'
@@ -859,19 +692,6 @@ const LoanRequest = () => {
                             } rounded-xl border border-gray-200 hover:border-primary-300 transition-all duration-300`}
                             onClick={() => handleCategorySelect(category.id)}
                           >
-                            {/* Effet de brillance */}
-                            <motion.div
-                              animate={{ 
-                                x: ['-100%', '100%']
-                              }}
-                              transition={{ 
-                                duration: 2, 
-                                repeat: Infinity, 
-                                ease: "linear",
-                                delay: index * 0.3
-                              }}
-                              className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-full group-hover:translate-x-full"
-                            />
                             
                             <div className="p-3 h-24 flex flex-col justify-center relative z-10">
                               <div className="flex items-center justify-between mb-2">
@@ -899,7 +719,7 @@ const LoanRequest = () => {
                                 {category.description}
                               </p>
                             </div>
-                          </motion.div>
+                          </div>
                         ))}
                       </div>
 
@@ -912,16 +732,12 @@ const LoanRequest = () => {
                     </Card>
 
 
-                  </motion.div>
+                  </div>
                 )}
 
                 {currentStep === 2 && (
-                  <motion.div
+                  <div
                     key="step2"
-                    initial={{ opacity: 0, x: 50 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -50 }}
-                    transition={{ duration: 0.3 }}
                     className="grid grid-cols-1 lg:grid-cols-3 gap-8"
                   >
                     {/* Formulaire montant et durée */}
@@ -1041,16 +857,12 @@ const LoanRequest = () => {
                         </Card>
                       )}
                     </div>
-                  </motion.div>
+                  </div>
                 )}
 
                 {currentStep === 3 && (
-                  <motion.div
+                  <div
                     key="step3"
-                    initial={{ opacity: 0, x: 50 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -50 }}
-                    transition={{ duration: 0.3 }}
                     className="grid grid-cols-1 lg:grid-cols-2 gap-8"
                   >
                     {/* Informations personnelles */}
@@ -1180,16 +992,12 @@ const LoanRequest = () => {
 
 
                     </div>
-                  </motion.div>
+                  </div>
                 )}
 
                 {currentStep === 4 && (
-                  <motion.div
+                  <div
                     key="step4"
-                    initial={{ opacity: 0, x: 50 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -50 }}
-                    transition={{ duration: 0.3 }}
                     className="max-w-4xl mx-auto"
                   >
                     <Card className="bg-white">
@@ -1206,12 +1014,7 @@ const LoanRequest = () => {
                       </div>
 
                       {/* Bouton de téléchargement PDF */}
-                      <motion.div
-                        initial={{ opacity: 0, y: 20 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        transition={{ delay: 0.3 }}
-                        className="text-center mb-6"
-                      >
+                      <div className="text-center mb-6">
                         {!pdfDownloaded ? (
                           <>
                             <Button
@@ -1245,7 +1048,7 @@ const LoanRequest = () => {
                             </Button>
                           </div>
                         )}
-                      </motion.div>
+                      </div>
 
                       {/* Informations importantes */}
                       <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
@@ -1263,16 +1066,12 @@ const LoanRequest = () => {
                         </div>
                       </div>
                     </Card>
-                  </motion.div>
+                  </div>
                 )}
 
                 {currentStep === 5 && (
-                  <motion.div
+                  <div
                     key="step5"
-                    initial={{ opacity: 0, x: 50 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    exit={{ opacity: 0, x: -50 }}
-                    transition={{ duration: 0.3 }}
                     className="max-w-4xl mx-auto"
                   >
                     <Card className="bg-white">
@@ -1366,42 +1165,26 @@ const LoanRequest = () => {
 
 
                     </Card>
-                  </motion.div>
+                  </div>
                 )}
-              </AnimatePresence>
+              
 
               {/* Navigation entre les étapes */}
-              <motion.div 
-                className="flex justify-between items-center mt-8"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
-              >
-                <motion.div
-                  whileHover={{ scale: 1.05, x: -5 }}
-                  whileTap={{ scale: 0.95 }}
-                >
+              <div className="flex justify-between items-center mt-8">
+                <div>
                   <Button
                     variant="outline"
                     onClick={prevStep}
                     disabled={currentStep === 1}
                     className="flex items-center space-x-2 relative overflow-hidden"
                   >
-                    <motion.div
-                      whileHover={{ rotate: -10 }}
-                      transition={{ duration: 0.3 }}
-                    >
-                      <ArrowLeft className="w-4 h-4" />
-                    </motion.div>
+                    <ArrowLeft className="w-4 h-4" />
                     <span>Précédent</span>
                   </Button>
-                </motion.div>
+                </div>
 
                 {currentStep < 5 ? (
-                  <motion.div
-                    whileHover={{ scale: 1.05, x: 5 }}
-                    whileTap={{ scale: 0.95 }}
-                  >
+                  <div>
                     {currentStep === 4 ? (
                       // Bouton dynamique à l'étape 4 : Télécharger → Suivant
                       <Button
@@ -1415,12 +1198,7 @@ const LoanRequest = () => {
                         {pdfDownloaded ? (
                           <>
                             <span>Suivant</span>
-                            <motion.div
-                              whileHover={{ rotate: 10 }}
-                              transition={{ duration: 0.3 }}
-                            >
-                              <ArrowRight className="w-4 h-4" />
-                            </motion.div>
+                            <ArrowRight className="w-4 h-4" />
                           </>
                         ) : (
                           <>
@@ -1436,21 +1214,12 @@ const LoanRequest = () => {
                       className="flex items-center space-x-2 bg-primary-500 hover:bg-primary-600 relative overflow-hidden"
                     >
                       <span>Suivant</span>
-                      <motion.div
-                        whileHover={{ rotate: 10 }}
-                        transition={{ duration: 0.3 }}
-                      >
-                        <ArrowRight className="w-4 h-4" />
-                      </motion.div>
+                      <ArrowRight className="w-4 h-4" />
                     </Button>
                     )}
-                  </motion.div>
+                  </div>
                 ) : (
-                  <motion.div
-                    initial={{ scale: 1 }}
-                    animate={submitted ? { scale: [1, 1.1, 1] } : {}}
-                    transition={{ duration: 0.5 }}
-                  >
+                  <div>
                     <Button
                       onClick={handleSubmit}
                       disabled={loading || submitted || !pdfDownloaded}
@@ -1466,42 +1235,17 @@ const LoanRequest = () => {
                     >
                       {submitted ? (
                         <>
-                          <motion.div
-                            initial={{ scale: 0, rotate: -180 }}
-                            animate={{ scale: 1, rotate: 0 }}
-                            transition={{ duration: 0.5, delay: 0.2 }}
-                            className="flex items-center justify-center"
-                          >
-                            <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6" />
-                          </motion.div>
-                          <motion.span
-                            initial={{ opacity: 0, x: 10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ duration: 0.3, delay: 0.4 }}
-                          >
-                            Demande soumise !
-                          </motion.span>
+                          <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6" />
+                          <span>Demande soumise !</span>
                         </>
                       ) : loading ? (
                         <>
-                          <motion.div
-                            animate={{ rotate: 360 }}
-                            transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
-                            className="flex items-center justify-center"
-                          >
-                            <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full" />
-                          </motion.div>
+                          <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full" />
                           <span>Soumission en cours...</span>
                         </>
                       ) : (
                         <>
-                          <motion.div
-                            whileHover={{ scale: 1.1 }}
-                            whileTap={{ scale: 0.9 }}
-                            className="flex items-center justify-center"
-                          >
-                            <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-                          </motion.div>
+                          <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                           <span>Soumettre la demande</span>
                         </>
                       )}
@@ -1509,20 +1253,16 @@ const LoanRequest = () => {
                     
                     {/* Message d'aide pour le PDF */}
                     {!pdfDownloaded && (
-                      <motion.div
-                        initial={{ opacity: 0, y: 10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        className="mt-3 text-center"
-                      >
+                      <div className="mt-3 text-center">
                         <p className="text-sm text-red-600 flex items-center justify-center space-x-2">
                           <AlertCircle className="w-4 h-4" />
                           <span>Vous devez d'abord télécharger le PDF récapitulatif</span>
                         </p>
-                      </motion.div>
+                      </div>
                     )}
-                  </motion.div>
+                  </div>
                 )}
-              </motion.div>
+              </div>
             </div>
           </div>
         </div>

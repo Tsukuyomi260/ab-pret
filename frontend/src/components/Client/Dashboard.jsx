@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../context/NotificationContext';
 import { useAuth } from '../../context/AuthContext';
-import { motion, AnimatePresence } from 'framer-motion';
+// Animations supprimées pour améliorer les performances
 import Card from '../UI/Card';
 import Button from '../UI/Button';
 import { getLoans, getPayments } from '../../utils/supabaseAPI';
@@ -355,10 +355,8 @@ const ClientDashboard = () => {
   if (loading) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-primary-50 via-accent-50 to-secondary-50 flex items-center justify-center">
-        <motion.div 
+        <div 
           className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary-600"
-          animate={{ rotate: 360 }}
-          transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
         />
       </div>
     );
@@ -371,18 +369,13 @@ const ClientDashboard = () => {
       {/* Header mobile optimisé */}
       <div className="relative bg-white/80 backdrop-blur-sm border-b border-accent-200 px-4 py-4">
         <div className="flex items-center justify-between">
-          <motion.h1
-            initial={{ opacity: 0, x: -20 }}
-            animate={{ opacity: 1, x: 0 }}
-            transition={{ duration: 0.6 }}
-            className="text-xl font-bold text-secondary-900 font-montserrat"
-          >
+          <h1 className="text-xl font-bold text-secondary-900 font-montserrat">
             Bonjour,{' '}
             <span className="bg-gradient-to-r from-primary-500 to-primary-600 bg-clip-text text-transparent">
               {user?.user_metadata?.first_name || user?.first_name || 'Utilisateur'}
             </span>
             {' '}👋
-          </motion.h1>
+          </h1>
           
             </div>
       </div>
@@ -391,10 +384,7 @@ const ClientDashboard = () => {
       <div className="px-4 py-6 space-y-4">
 
         {/* Bouton d'action principal */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+            <div
           className="flex justify-center"
               >
                 <Button 
@@ -404,19 +394,14 @@ const ClientDashboard = () => {
             <Plus size={20} className="mr-3" />
             Demander un nouveau prêt
                 </Button>
-            </motion.div>
+            </div>
 
         {/* Cartes métriques - Design Moderne */}
-              <motion.div 
+              <div 
           className="grid grid-cols-2 gap-4"
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
         >
           {/* Score de crédit */}
-          <motion.div
-            whileHover={{ scale: 1.02, y: -2 }}
-            whileTap={{ scale: 0.98 }}
+          <div
             className="group cursor-pointer"
             onClick={() => navigate('/loyalty-score')}
           >
@@ -461,12 +446,10 @@ const ClientDashboard = () => {
                   </div>
                     </div>
                   </div>
-              </motion.div>
+              </div>
 
               {/* Prochain paiement */}
-              <motion.div 
-            whileHover={{ scale: 1.02, y: -2 }}
-            whileTap={{ scale: 0.98 }}
+              <div 
             className="group cursor-pointer"
           >
             <div className="relative overflow-hidden bg-gradient-to-r from-orange-500 via-red-500 to-red-600 rounded-3xl p-4 shadow-lg hover:shadow-xl transition-all duration-300 h-40">
@@ -528,15 +511,12 @@ const ClientDashboard = () => {
                 </div>
               </div>
             </div>
-          </motion.div>
-        </motion.div>
+          </div>
+        </div>
 
         {/* Section Nos Services - Design Moderne */}
-        <motion.div
+        <div
           className="space-y-6"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.5 }}
         >
           <div className="text-center">
             <h3 className="text-xl font-bold text-secondary-900 font-montserrat mb-2">
@@ -549,9 +529,7 @@ const ClientDashboard = () => {
 
           <div className="space-y-4">
             {/* AB Épargne */}
-            <motion.div
-              whileHover={{ scale: 1.02, y: -2 }}
-              whileTap={{ scale: 0.98 }}
+            <div
               className="group cursor-pointer"
               onClick={() => navigate('/ab-epargne')}
             >
@@ -580,12 +558,10 @@ const ClientDashboard = () => {
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </div>
 
             {/* AB Logement */}
-            <motion.div
-              whileHover={{ scale: 1.02, y: -2 }}
-              whileTap={{ scale: 0.98 }}
+            <div
               className="group cursor-pointer"
               onClick={() => navigate('/ab-logement')}
             >
@@ -614,12 +590,10 @@ const ClientDashboard = () => {
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </div>
 
             {/* Coaching et Finance Entrepreneuriale */}
-            <motion.div
-              whileHover={{ scale: 1.02, y: -2 }}
-              whileTap={{ scale: 0.98 }}
+            <div
               className="group cursor-pointer"
               onClick={() => navigate('/coaching-finance')}
             >
@@ -648,13 +622,13 @@ const ClientDashboard = () => {
                   </div>
                 </div>
               </div>
-            </motion.div>
+            </div>
 
 
           </div>
 
 
-          </motion.div>
+          </div>
       </div>
       </div>
   );

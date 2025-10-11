@@ -5,8 +5,7 @@ import { useNotifications } from '../../context/NotificationContext';
 import { LogOut, User, Bell, Menu, X, ArrowRight } from 'lucide-react';
 import Logo from '../UI/Logo';
 import NotificationBell from '../UI/NotificationBell';
-import { motion } from 'framer-motion';
-import { AnimatePresence } from 'framer-motion';
+// Animations supprimées pour améliorer les performances
 
 const Header = () => {
   const { user, logout } = useAuth();
@@ -194,71 +193,30 @@ const Header = () => {
           </div>
 
           {/* Bouton menu mobile */}
-          <motion.button
+          <button
             onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
             className="lg:hidden relative p-3 rounded-xl bg-white/80 backdrop-blur-sm border border-gray-200/50 hover:bg-white/90 transition-all duration-200 shadow-sm hover:shadow-md"
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
           >
-            <motion.div
-              animate={mobileMenuOpen ? "open" : "closed"}
-              className="flex flex-col space-y-1.5"
-            >
-              <motion.span
-                variants={{
-                  closed: { rotate: 0, y: 0 },
-                  open: { rotate: 45, y: 6 }
-                }}
-                className="w-6 h-0.5 bg-gray-700 rounded-full"
-              />
-              <motion.span
-                variants={{
-                  closed: { opacity: 1 },
-                  open: { opacity: 0 }
-                }}
-                className="w-6 h-0.5 bg-gray-700 rounded-full"
-              />
-              <motion.span
-                variants={{
-                  closed: { rotate: 0, y: 0 },
-                  open: { rotate: -45, y: -6 }
-                }}
-                className="w-6 h-0.5 bg-gray-700 rounded-full"
-              />
-            </motion.div>
-          </motion.button>
+            <div className="flex flex-col space-y-1.5">
+              <span className="w-6 h-0.5 bg-gray-700 rounded-full" />
+              <span className="w-6 h-0.5 bg-gray-700 rounded-full" />
+              <span className="w-6 h-0.5 bg-gray-700 rounded-full" />
+            </div>
+          </button>
         </div>
 
         {/* Menu mobile */}
-        <AnimatePresence>
-          {mobileMenuOpen && (
-            <motion.div 
-              initial={{ opacity: 0, height: 0 }}
-              animate={{ opacity: 1, height: "auto" }}
-              exit={{ opacity: 0, height: 0 }}
-              transition={{ duration: 0.3, ease: "easeInOut" }}
-              className="lg:hidden border-t border-accent-200 py-4 w-full overflow-hidden"
-            >
-              {/* Section Nous contacter - Contenu principal du menu */}
-              <motion.div 
-                initial={{ opacity: 0, y: -20 }}
-                animate={{ opacity: 1, y: 0 }}
-                exit={{ opacity: 0, y: -20 }}
-                transition={{ delay: 0.1, duration: 0.2 }}
-                className="px-4 mb-4"
-              >
-                <h3 className="text-lg font-semibold text-secondary-900 font-montserrat mb-4">
-                  Nous contacter
-                </h3>
-              </motion.div>
+        {mobileMenuOpen && (
+          <div className="lg:hidden border-t border-accent-200 py-4 w-full overflow-hidden">
+            {/* Section Nous contacter - Contenu principal du menu */}
+            <div className="px-4 mb-4">
+              <h3 className="text-lg font-semibold text-secondary-900 font-montserrat mb-4">
+                Nous contacter
+              </h3>
+            </div>
 
-              {/* Section Nous contacter */}
-              <motion.div 
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.15, duration: 0.2 }}
-                className="px-4"
-              >
+            {/* Section Nous contacter */}
+            <div className="px-4">
                 
                 <div className="space-y-2">
                   {/* WhatsApp */}
@@ -331,15 +289,10 @@ const Header = () => {
                     <ArrowRight size={16} className="text-neutral-400 group-hover:text-blue-600 transition-colors" />
                   </a>
                 </div>
-              </motion.div>
+              </div>
                
                {/* Actions utilisateur mobile */}
-               <motion.div 
-                 initial={{ opacity: 0, y: 20 }}
-                 animate={{ opacity: 1, y: 0 }}
-                 transition={{ delay: 0.2, duration: 0.2 }}
-                 className="mt-6 pt-6 border-t border-accent-200"
-               >
+               <div className="mt-6 pt-6 border-t border-accent-200">
                  <div className="flex items-center justify-between px-4">
                    <div className="flex items-center space-x-3">
                      <div className="w-8 h-8 bg-primary-100 rounded-full flex items-center justify-center">
@@ -361,10 +314,9 @@ const Header = () => {
                      <LogOut size={20} />
                    </button>
                  </div>
-               </motion.div>
-             </motion.div>
+               </div>
+             </div>
            )}
-         </AnimatePresence>
       </div>
     </header>
   );

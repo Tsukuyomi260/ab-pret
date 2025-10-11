@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+// Animations supprimées pour améliorer les performances
 import { Bell, X, CheckCircle, AlertCircle, Info, Clock, DollarSign, CreditCard, FileText, Calendar, Wifi, WifiOff } from 'lucide-react';
 import { useNotifications } from '../../context/NotificationContext';
 import { useLoanCounters } from '../../hooks/useLoanCounters';
@@ -50,35 +50,22 @@ const NotificationBell = ({ notifications = [], onNotificationClick, className =
 
   return (
     <div className={`relative ${fixed ? 'fixed top-24 right-4 z-[9999] sm:top-4' : 'z-[9999]'} ${className}`} ref={dropdownRef}>
-      <motion.button
+      <button
         onClick={() => setIsOpen(!isOpen)}
-        className="relative p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-lg hover:shadow-xl transition-all duration-200 hover:scale-105 border border-gray-200/50"
-        whileHover={{ scale: 1.05 }}
-        whileTap={{ scale: 0.95 }}
+        className="relative p-2 bg-white/80 backdrop-blur-sm rounded-full shadow-lg hover:shadow-xl transition-all duration-200 border border-gray-200/50"
       >
         <Bell size={20} className="text-gray-700 w-5 h-5 sm:w-5 sm:h-5" />
         
         {/* Badge avec le nombre total */}
         {totalCount > 0 && (
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium"
-          >
+          <div className="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center font-medium">
             {totalCount > 99 ? '99+' : totalCount}
-          </motion.div>
+          </div>
         )}
-      </motion.button>
+      </button>
 
-      <AnimatePresence>
-        {isOpen && (
-          <motion.div
-            initial={{ opacity: 0, y: -10, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: -10, scale: 0.95 }}
-            transition={{ duration: 0.2 }}
-            className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] sm:w-80 bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl border border-gray-200/50 overflow-hidden"
-          >
+      {isOpen && (
+        <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] sm:w-80 bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl border border-gray-200/50 overflow-hidden">
             {/* Header */}
             <div className="flex items-center justify-between p-4 border-b border-gray-200/50 bg-gradient-to-r from-gray-50/50 to-white/50">
               <div>
@@ -112,11 +99,8 @@ const NotificationBell = ({ notifications = [], onNotificationClick, className =
               ) : (
                 <div className="p-2">
                   {notifications.map((notification, index) => (
-                    <motion.div
+                    <div
                       key={notification.id}
-                      initial={{ opacity: 0, x: -20 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.1 }}
                       onClick={() => handleNotificationClick(notification)}
                       className={`p-3 rounded-lg cursor-pointer transition-all duration-200 hover:bg-gray-50/80 ${
                         !notification.read ? 'bg-blue-50/50 border-l-4 border-blue-400' : 'bg-white'
@@ -144,7 +128,7 @@ const NotificationBell = ({ notifications = [], onNotificationClick, className =
                           )}
                         </div>
                       </div>
-                    </motion.div>
+                    </div>
                   ))}
                 </div>
               )}
@@ -190,9 +174,8 @@ const NotificationBell = ({ notifications = [], onNotificationClick, className =
                 </div>
               )}
             </div>
-          </motion.div>
+          </div>
         )}
-      </AnimatePresence>
     </div>
   );
 };

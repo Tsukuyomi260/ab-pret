@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../context/NotificationContext';
 import { getAnalyticsData } from '../../utils/supabaseClient';
-import { motion } from 'framer-motion';
+// Animations supprimées pour améliorer les performances
 import Card from '../UI/Card';
 import { 
   ArrowLeft, 
@@ -119,9 +119,7 @@ const Analytics = () => {
       {/* Contenu principal */}
       <div className="max-w-7xl mx-auto px-4 py-8">
         {/* Statistiques principales */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
+            <div
           className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8"
             >
           <Card className="bg-white/90 backdrop-blur-sm">
@@ -191,13 +189,10 @@ const Analytics = () => {
               <p className="text-sm text-gray-600">Prêts actifs</p>
                 </div>
           </Card>
-            </motion.div>
+            </div>
 
         {/* Statuts des utilisateurs */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
+            <div
           className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8"
         >
           <Card className="bg-white/90 backdrop-blur-sm">
@@ -247,13 +242,10 @@ const Analytics = () => {
                         </div>
                       </div>
           </Card>
-              </motion.div>
+              </div>
 
         {/* Top performeurs */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+          <div
           className="mb-8"
           >
           <Card className="bg-white/90 backdrop-blur-sm">
@@ -285,7 +277,7 @@ const Analytics = () => {
               </div>
             </div>
           </Card>
-          </motion.div>
+          </div>
       </div>
     </div>
   );

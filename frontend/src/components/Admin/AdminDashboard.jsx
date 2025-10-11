@@ -34,7 +34,7 @@ import {
   ChevronDown
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
-import { motion } from 'framer-motion';
+// Animations supprimées pour améliorer les performances
 
 const AdminDashboard = () => {
   const { user, logout } = useAuth();
@@ -348,23 +348,15 @@ const AdminDashboard = () => {
                 <div className="text-center mb-8 lg:mb-12">
 
 
-                  <motion.h1
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ duration: 0.6, delay: 0.1 }}
-                    className="text-4xl lg:text-6xl font-bold text-secondary-900 font-montserrat mb-4"
-                  >
+                  <h1 className="text-4xl lg:text-6xl font-bold text-secondary-900 font-montserrat mb-4">
                     {getGreeting()}, <span className="text-primary-600">Abel</span> ! 👋
-                  </motion.h1>
+                  </h1>
 
 
             </div>
             
                 {/* Statistiques rapides */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.3 }}
+                <div
                   className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 lg:gap-6 mb-8"
                 >
                   <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 border border-white/50 shadow-soft hover:shadow-lg transition-all duration-300 cursor-pointer" onClick={() => navigate('/admin/loan-requests?status=approved')}>
@@ -436,21 +428,13 @@ const AdminDashboard = () => {
                       Nouveaux prêts
                     </p>
                   </div>
-                </motion.div>
+                </div>
 
                 {/* Actions rapides */}
-                <motion.div
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  transition={{ duration: 0.6, delay: 0.4 }}
+                <div
                   className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
                 >
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.4, delay: 0.5 }}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                  <div
                     onClick={() => navigate('/admin/loan-requests')}
                     className="group cursor-pointer h-full"
                   >
@@ -470,14 +454,9 @@ const AdminDashboard = () => {
                         </p>
                       </div>
                     </div>
-                  </motion.div>
+                  </div>
 
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.4, delay: 0.6 }}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                  <div
                     className="group cursor-pointer h-full relative menu-container"
                   >
                     <div 
@@ -502,10 +481,7 @@ const AdminDashboard = () => {
                     
                     {/* Menu déroulant */}
                     {showMenu && (
-                      <motion.div
-                        initial={{ opacity: 0, y: -10 }}
-                        animate={{ opacity: 1, y: 0 }}
-                        exit={{ opacity: 0, y: -10 }}
+                      <div
                         className="absolute top-full left-0 right-0 mt-2 bg-white rounded-xl shadow-xl border border-gray-200 z-50"
                       >
                         <div className="p-2">
@@ -551,16 +527,11 @@ const AdminDashboard = () => {
                             </div>
                           </button>
                         </div>
-                      </motion.div>
+                      </div>
                     )}
-                  </motion.div>
+                  </div>
 
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.4, delay: 0.7 }}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                  <div
                     onClick={() => navigate('/admin/analytics')}
                     className="group cursor-pointer h-full"
                   >
@@ -580,14 +551,9 @@ const AdminDashboard = () => {
                         </p>
                       </div>
                     </div>
-                  </motion.div>
+                  </div>
 
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.9 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    transition={{ duration: 0.4, delay: 0.7 }}
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
+                  <div
                     onClick={() => navigate('/admin/settings')}
                     className="group cursor-pointer h-full"
                   >
@@ -607,10 +573,10 @@ const AdminDashboard = () => {
                         </p>
                       </div>
                     </div>
-                  </motion.div>
+                  </div>
 
 
-                </motion.div>
+                </div>
                 </div>
             </div>
           </div>
@@ -657,10 +623,7 @@ const AdminDashboard = () => {
                           
                           {/* Menu déroulant pour les actions rapides */}
                           {showMenu && (
-                            <motion.div
-                              initial={{ opacity: 0, y: -10 }}
-                              animate={{ opacity: 1, y: 0 }}
-                              exit={{ opacity: 0, y: -10 }}
+                            <div
                               className="absolute top-full left-0 right-0 mt-2 bg-white rounded-lg shadow-lg border border-gray-200 z-50"
                             >
                               <div className="p-1">
@@ -697,7 +660,7 @@ const AdminDashboard = () => {
                                   <span>Test Notifications</span>
                                 </button>
                               </div>
-                            </motion.div>
+                            </div>
                           )}
                         </div>
                       </div>

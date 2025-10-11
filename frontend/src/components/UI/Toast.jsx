@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { motion, AnimatePresence } from 'framer-motion';
+// Animations supprimées pour améliorer les performances
 import { CheckCircle, AlertCircle, Info, X } from 'lucide-react';
 
 const Toast = ({ message, type = 'info', duration = 5000, onClose }) => {
@@ -38,12 +38,8 @@ const Toast = ({ message, type = 'info', duration = 5000, onClose }) => {
   };
 
   return (
-    <AnimatePresence>
-      <motion.div
-        initial={{ opacity: 0, y: -50, scale: 0.9 }}
-        animate={{ opacity: 1, y: 0, scale: 1 }}
-        exit={{ opacity: 0, y: -50, scale: 0.9 }}
-        transition={{ duration: 0.3, ease: "easeOut" }}
+    
+      <div
         className={`fixed top-4 right-4 z-50 max-w-sm w-full ${getBackgroundColor()} border rounded-2xl shadow-2xl backdrop-blur-xl`}
       >
         <div className="flex items-start p-4">
@@ -67,19 +63,16 @@ const Toast = ({ message, type = 'info', duration = 5000, onClose }) => {
         
         {/* Barre de progression */}
         <div className="h-1 bg-gray-200 rounded-b-2xl overflow-hidden">
-          <motion.div
+          <div
             className={`h-full ${
               type === 'success' ? 'bg-green-500' :
               type === 'error' ? 'bg-red-500' :
               type === 'warning' ? 'bg-yellow-500' : 'bg-blue-500'
             }`}
-            initial={{ width: '100%' }}
-            animate={{ width: '0%' }}
-            transition={{ duration: duration / 1000, ease: "linear" }}
           />
         </div>
-      </motion.div>
-    </AnimatePresence>
+      </div>
+    
   );
 };
 

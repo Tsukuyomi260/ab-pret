@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+// Animations supprimées pour améliorer les performances
 import { useNotifications } from '../../context/NotificationContext';
 import { useAuth } from '../../context/AuthContext';
 import Card from '../UI/Card';
@@ -284,7 +284,7 @@ const LoanHistory = () => {
         
         {/* Pattern décoratif amélioré */}
         <div className="absolute inset-0 opacity-8">
-          <motion.div 
+          <div 
             animate={{ 
               scale: [1, 1.2, 1],
               rotate: [0, 180, 360],
@@ -297,7 +297,7 @@ const LoanHistory = () => {
             }}
             className="absolute top-0 left-0 w-72 h-72 bg-blue-400 rounded-full mix-blend-multiply filter blur-xl"
           />
-          <motion.div 
+          <div 
             animate={{ 
               scale: [1.2, 1, 1.2],
               rotate: [360, 180, 0],
@@ -311,7 +311,7 @@ const LoanHistory = () => {
             }}
             className="absolute top-0 right-0 w-72 h-72 bg-purple-400 rounded-full mix-blend-multiply filter blur-xl"
           />
-          <motion.div 
+          <div 
             animate={{ 
               scale: [1, 1.3, 1],
               rotate: [180, 360, 180],
@@ -327,7 +327,7 @@ const LoanHistory = () => {
           />
           
           {/* Particules flottantes */}
-          <motion.div
+          <div
             animate={{ 
               y: [0, -20, 0],
               opacity: [0.2, 0.6, 0.2]
@@ -339,7 +339,7 @@ const LoanHistory = () => {
             }}
             className="absolute top-1/4 left-1/4 w-4 h-4 bg-blue-300 rounded-full"
           />
-          <motion.div
+          <div
             animate={{ 
               y: [0, 15, 0],
               opacity: [0.3, 0.7, 0.3]
@@ -352,7 +352,7 @@ const LoanHistory = () => {
             }}
             className="absolute top-3/4 right-1/3 w-3 h-3 bg-purple-300 rounded-full"
           />
-          <motion.div
+          <div
             animate={{ 
               x: [0, 10, 0],
               opacity: [0.4, 0.8, 0.4]
@@ -367,7 +367,7 @@ const LoanHistory = () => {
           />
           
           {/* Particules supplémentaires */}
-          <motion.div
+          <div
             animate={{ 
               x: [0, -15, 0],
               y: [0, -10, 0],
@@ -381,7 +381,7 @@ const LoanHistory = () => {
             }}
             className="absolute top-1/3 right-1/4 w-2 h-2 bg-green-300 rounded-full"
           />
-          <motion.div
+          <div
             animate={{ 
               x: [0, 12, 0],
               y: [0, -8, 0],
@@ -395,7 +395,7 @@ const LoanHistory = () => {
             }}
             className="absolute bottom-1/3 right-1/3 w-3 h-3 bg-pink-300 rounded-full"
           />
-          <motion.div
+          <div
             animate={{ 
               x: [0, -8, 0],
               y: [0, 12, 0],
@@ -419,60 +419,26 @@ const LoanHistory = () => {
 
 
               {/* Titre principal */}
-              <motion.h1
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.1 }}
-                className="text-4xl lg:text-6xl font-bold text-secondary-900 font-montserrat mb-4"
-              >
+              <h1 className="text-4xl lg:text-6xl font-bold text-secondary-900 font-montserrat mb-4">
                 Historique des{' '}
-                <motion.span 
-                  animate={{ 
-                    backgroundPosition: ['0% 50%', '100% 50%', '0% 50%']
-                  }}
-                  transition={{ 
-                    duration: 4, 
-                    repeat: Infinity, 
-                    ease: "linear" 
-                  }}
-                  className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-[length:200%_100%] bg-clip-text text-transparent"
-                >
+                <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
                   Prêt
-                </motion.span>{' '}
-                <motion.span
-                  animate={{ 
-                    rotate: [0, 10, -10, 0],
-                    scale: [1, 1.1, 1]
-                  }}
-                  transition={{ 
-                    duration: 2, 
-                    repeat: Infinity, 
-                    ease: "easeInOut" 
-                  }}
-                  className="inline-block"
-                >
+                </span>{' '}
+                <span className="inline-block">
                   📈
-                </motion.span>
-              </motion.h1>
+                </span>
+              </h1>
 
               {/* Description */}
-              <motion.p
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.2 }}
-                className="text-lg lg:text-xl text-neutral-600 font-montserrat max-w-3xl mx-auto leading-relaxed"
-              >
+              <p className="text-lg lg:text-xl text-neutral-600 font-montserrat max-w-3xl mx-auto leading-relaxed">
                 Consultez l'historique de votre prêt et paiements
-              </motion.p>
+              </p>
 
               {/* Sous-titre avec icônes animées */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.3 }}
+              <div
                 className="flex items-center justify-center space-x-6 mt-6"
               >
-                <motion.div
+                <div
                   animate={{ 
                     y: [0, -5, 0],
                     rotate: [0, 5, 0]
@@ -486,9 +452,9 @@ const LoanHistory = () => {
                 >
                   <FileText size={16} className="text-green-500" />
                   <span>Suivi complet</span>
-                </motion.div>
+                </div>
                 
-                <motion.div
+                <div
                   animate={{ 
                     y: [0, -5, 0],
                     rotate: [0, -5, 0]
@@ -503,9 +469,9 @@ const LoanHistory = () => {
                 >
                   <Shield size={16} className="text-blue-500" />
                   <span>Données sécurisées</span>
-                </motion.div>
+                </div>
                 
-                <motion.div
+                <div
                   animate={{ 
                     y: [0, -5, 0],
                     rotate: [0, 5, 0]
@@ -520,22 +486,16 @@ const LoanHistory = () => {
                 >
                   <Activity size={16} className="text-purple-500" />
                   <span>Analyses détaillées</span>
-                </motion.div>
-              </motion.div>
+                </div>
+              </div>
             </div>
 
             {/* Statistiques améliorées */}
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.4 }}
+            <div
               className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8"
             >
               {/* Carte Total prêts */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.5 }}
+              <div
                 whileHover={{ 
                   scale: 1.05,
                   y: -5,
@@ -544,7 +504,7 @@ const LoanHistory = () => {
                 className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 border border-white/50 shadow-soft relative overflow-hidden"
               >
                 {/* Effet de brillance */}
-                <motion.div
+                <div
                   animate={{ 
                     x: ['-100%', '100%']
                   }}
@@ -557,7 +517,7 @@ const LoanHistory = () => {
                   className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-200/20 to-transparent"
                 />
                 <div className="text-center">
-                  <motion.div 
+                  <div 
                     animate={{ 
                       scale: [1, 1.1, 1],
                       rotate: [0, 5, 0]
@@ -570,24 +530,16 @@ const LoanHistory = () => {
                     className="flex items-center justify-center mb-2"
                   >
                     <BarChart3 size={20} className="text-primary-600" />
-                  </motion.div>
-                  <motion.p 
-                    initial={{ scale: 0.8 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 0.6 }}
-                    className="text-lg sm:text-xl font-bold text-secondary-900"
-                  >
+                  </div>
+                  <p className="text-lg sm:text-xl font-bold text-secondary-900">
                     {stats.totalLoans}
-                  </motion.p>
+                  </p>
                   <p className="text-xs sm:text-sm text-secondary-600">Total prêt</p>
                 </div>
-              </motion.div>
+              </div>
 
               {/* Carte Total emprunté */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.6 }}
+              <div
                 whileHover={{ 
                   scale: 1.05,
                   y: -5,
@@ -596,7 +548,7 @@ const LoanHistory = () => {
                 className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 border border-white/50 shadow-soft relative overflow-hidden"
               >
                 {/* Effet de brillance */}
-                <motion.div
+                <div
                   animate={{ 
                     x: ['-100%', '100%']
                   }}
@@ -609,7 +561,7 @@ const LoanHistory = () => {
                   className="absolute inset-0 bg-gradient-to-r from-transparent via-green-200/20 to-transparent"
                 />
                 <div className="text-center">
-                  <motion.div 
+                  <div 
                     animate={{ 
                       scale: [1, 1.1, 1],
                       rotate: [0, -5, 0]
@@ -623,24 +575,16 @@ const LoanHistory = () => {
                     className="flex items-center justify-center mb-2"
                   >
                     <TrendingUp size={20} className="text-green-600" />
-                  </motion.div>
-                  <motion.p 
-                    initial={{ scale: 0.8 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 0.7 }}
-                    className="text-lg sm:text-xl font-bold text-secondary-900 break-words leading-tight"
-                  >
+                  </div>
+                  <p className="text-lg sm:text-xl font-bold text-secondary-900 break-words leading-tight">
                     {formatCurrency(stats.totalBorrowed)}
-                  </motion.p>
+                  </p>
                   <p className="text-xs sm:text-sm text-secondary-600">Total emprunté</p>
                 </div>
-              </motion.div>
+              </div>
 
               {/* Carte Total remboursé */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.7 }}
+              <div
                 whileHover={{ 
                   scale: 1.05,
                   y: -5,
@@ -649,7 +593,7 @@ const LoanHistory = () => {
                 className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 border border-white/50 shadow-soft relative overflow-hidden"
               >
                 {/* Effet de brillance */}
-                <motion.div
+                <div
                   animate={{ 
                     x: ['-100%', '100%']
                   }}
@@ -662,7 +606,7 @@ const LoanHistory = () => {
                   className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-200/20 to-transparent"
                 />
                 <div className="text-center">
-                  <motion.div 
+                  <div 
                     animate={{ 
                       scale: [1, 1.1, 1],
                       rotate: [0, 5, 0]
@@ -676,24 +620,16 @@ const LoanHistory = () => {
                     className="flex items-center justify-center mb-2"
                   >
                     <CheckCircle size={20} className="text-blue-600" />
-                  </motion.div>
-                  <motion.p 
-                    initial={{ scale: 0.8 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 0.8 }}
-                    className="text-lg sm:text-xl font-bold text-secondary-900 break-words leading-tight"
-                  >
+                  </div>
+                  <p className="text-lg sm:text-xl font-bold text-secondary-900 break-words leading-tight">
                     {formatCurrency(stats.totalRepaid)}
-                  </motion.p>
+                  </p>
                   <p className="text-xs sm:text-sm text-secondary-600">Total remboursé</p>
                 </div>
-              </motion.div>
+              </div>
 
               {/* Carte Prêts actifs */}
-              <motion.div
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: 0.8 }}
+              <div
                 whileHover={{ 
                   scale: 1.05,
                   y: -5,
@@ -702,7 +638,7 @@ const LoanHistory = () => {
                 className="bg-white/80 backdrop-blur-sm rounded-2xl p-4 border border-white/50 shadow-soft relative overflow-hidden"
               >
                 {/* Effet de brillance */}
-                <motion.div
+                <div
                   animate={{ 
                     x: ['-100%', '100%']
                   }}
@@ -715,7 +651,7 @@ const LoanHistory = () => {
                   className="absolute inset-0 bg-gradient-to-r from-transparent via-orange-200/20 to-transparent"
                 />
                 <div className="text-center">
-                  <motion.div 
+                  <div 
                     animate={{ 
                       scale: [1, 1.1, 1],
                       rotate: [0, -5, 0]
@@ -729,19 +665,14 @@ const LoanHistory = () => {
                     className="flex items-center justify-center mb-2"
                   >
                     <Clock size={20} className="text-orange-600" />
-                  </motion.div>
-                  <motion.p 
-                    initial={{ scale: 0.8 }}
-                    animate={{ scale: 1 }}
-                    transition={{ delay: 0.9 }}
-                    className="text-lg sm:text-xl font-bold text-secondary-900"
-                  >
+                  </div>
+                  <p className="text-lg sm:text-xl font-bold text-secondary-900">
                     {stats.activeLoans}
-                  </motion.p>
+                  </p>
                   <p className="text-xs sm:text-sm text-secondary-600">Prêt actif</p>
                 </div>
-              </motion.div>
-            </motion.div>
+              </div>
+            </div>
           </div>
         </div>
       </div>
@@ -750,10 +681,7 @@ const LoanHistory = () => {
       <div className="max-w-6xl mx-auto px-4 pb-8">
 
         {/* Filtres modernes */}
-        <motion.div 
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.3 }}
+        <div 
           className="mb-8"
         >
           <Card className="bg-white/90 backdrop-blur-sm border-white/20">
@@ -785,25 +713,18 @@ const LoanHistory = () => {
               </div>
             </div>
           </Card>
-        </motion.div>
+        </div>
 
         {/* Liste du prêt modernisée */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.4 }}
+        <div
         >
           <Card className="bg-white/90 backdrop-blur-sm border-white/20">
             {filteredLoans.length > 0 ? (
               <div className="space-y-4">
-                <AnimatePresence>
+                
                   {filteredLoans.map((loan, index) => (
-                    <motion.div 
+                    <div 
                       key={loan.id}
-                      initial={{ opacity: 0, y: 20 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -20 }}
-                      transition={{ delay: index * 0.1 }}
                       className="border border-gray-200/50 rounded-2xl p-6 hover:shadow-lg transition-all duration-300 bg-white/60 backdrop-blur-sm"
                     >
                   <div className="flex flex-col md:flex-row md:items-center md:justify-between space-y-4 md:space-y-0">
@@ -930,9 +851,9 @@ const LoanHistory = () => {
                       )}
                     </div>
                   </div>
-                </motion.div>
+                </div>
               ))}
-                </AnimatePresence>
+                
               </div>
                       ) : (
               <div className="text-center py-16">
@@ -957,7 +878,7 @@ const LoanHistory = () => {
               </div>
             )}
           </Card>
-        </motion.div>
+        </div>
 
         {/* Bouton d'export flottant */}
         <div className="fixed bottom-24 right-6 z-10">

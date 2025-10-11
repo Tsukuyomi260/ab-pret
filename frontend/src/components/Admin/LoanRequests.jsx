@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion, AnimatePresence } from 'framer-motion';
+// Animations supprimées pour améliorer les performances
 import { getLoans, updateLoanStatus, getPayments } from '../../utils/supabaseAPI';
 import { useNotifications } from '../../context/NotificationContext';
 import { 
@@ -312,10 +312,8 @@ const LoanRequests = () => {
         {/* Liste des demandes */}
         <div className="space-y-4">
           {filteredRequests.map((request) => (
-                  <motion.div
+                  <div
                     key={request.id}
-                    initial={{ opacity: 0, y: 20 }}
-                    animate={{ opacity: 1, y: 0 }}
               className="bg-white/90 backdrop-blur-sm rounded-xl border border-white/50 shadow-soft hover:shadow-lg transition-all duration-300"
                   >
                     <div className="p-6">
@@ -445,7 +443,7 @@ const LoanRequests = () => {
                     )}
                   </div>
                     </div>
-                  </motion.div>
+                  </div>
           ))}
 
           {filteredRequests.length === 0 && !loading && (
@@ -468,19 +466,13 @@ const LoanRequests = () => {
       </div>
 
       {/* Modal de détails */}
-      <AnimatePresence>
+      
         {showDetailsModal && selectedRequest && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
+          <div
             className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center p-4 z-50"
             onClick={closeDetailsModal}
           >
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0, y: 20 }}
-              animate={{ scale: 1, opacity: 1, y: 0 }}
-              exit={{ scale: 0.9, opacity: 0, y: 20 }}
+            <div
               className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden"
               onClick={(e) => e.stopPropagation()}
             >
@@ -816,10 +808,10 @@ const LoanRequests = () => {
                   )}
                 </div>
               </div>
-            </motion.div>
-          </motion.div>
+            </div>
+          </div>
         )}
-      </AnimatePresence>
+      
     </div>
   );
 };

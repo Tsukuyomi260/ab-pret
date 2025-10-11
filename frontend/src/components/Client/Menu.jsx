@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { motion } from 'framer-motion';
+// Animations supprimées pour améliorer les performances
 
 import { 
   Home,
@@ -79,32 +79,22 @@ const Menu = () => {
             <div className="text-center mb-8 lg:mb-12">
 
               {/* Titre principal */}
-              <motion.h1
-                initial={{ opacity: 0, y: 20 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.6, delay: 0.1 }}
-                className="text-4xl lg:text-6xl font-bold text-secondary-900 font-montserrat mb-4"
-              >
+              <h1 className="text-4xl lg:text-6xl font-bold text-secondary-900 font-montserrat mb-4">
                 Menu{' '}
                 <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
                   Principal
                 </span>
-              </motion.h1>
+              </h1>
 
             </div>
 
             {/* Cartes Bento */}
-            <motion.div 
+            <div 
               className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8"
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.3 }}
             >
               {bentoCards.map((card, index) => (
-                <motion.div
+                <div
                   key={index}
-                  whileHover={{ scale: 1.02, y: -5 }}
-                  whileTap={{ scale: 0.98 }}
                   className="group cursor-pointer"
                   onClick={card.action}
                 >
@@ -142,9 +132,9 @@ const Menu = () => {
                       </div>
                     </div>
                   </div>
-                </motion.div>
+                </div>
               ))}
-            </motion.div>
+            </div>
           </div>
         </div>
       </div>
