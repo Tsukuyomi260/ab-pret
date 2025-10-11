@@ -306,7 +306,7 @@ const LoanRequest = () => {
           newErrors.employmentStatus = 'Veuillez sélectionner votre statut professionnel';
         }
         if (!formData.guarantee.trim()) {
-          newErrors.guarantee = 'Veuillez préciser votre garantie';
+          newErrors.guarantee = 'Veuillez sélectionner une garantie';
         }
         if (!formData.momoNumber.trim()) {
           newErrors.momoNumber = 'Veuillez saisir votre numéro Momo';
@@ -1088,16 +1088,36 @@ const LoanRequest = () => {
                           <option value="student">Étudiant</option>
                         </Input>
 
-                        <Input
-                          label="Garantie"
-                          type="textarea"
-                          name="guarantee"
-                          value={formData.guarantee}
-                          onChange={handleChange}
-                          placeholder="De quelle garantie disposez-vous ?"
-                          error={errors.guarantee}
-                          required
-                        />
+                        <div className="space-y-2">
+                          <label className="block text-sm font-medium text-secondary-700 font-montserrat">
+                            Garantie <span className="text-red-500">*</span>
+                          </label>
+                          <select
+                            name="guarantee"
+                            value={formData.guarantee}
+                            onChange={handleChange}
+                            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent font-montserrat ${
+                              errors.guarantee 
+                                ? 'border-red-500 bg-red-50' 
+                                : 'border-secondary-300 bg-white'
+                            }`}
+                            required
+                          >
+                            <option value="">Sélectionnez votre garantie</option>
+                            <option value="📱 Téléphone portable">📱 Téléphone portable</option>
+                            <option value="💻 Ordinateur portable">💻 Ordinateur portable</option>
+                            <option value="🔥 Bouteille de gaz">🔥 Bouteille de gaz</option>
+                            <option value="🪙 Montre connectée ou classique de valeur">🪙 Montre connectée ou classique de valeur</option>
+                            <option value="📷 Tablette">📷 Tablette</option>
+                            <option value="🎧 Écouteurs ou casque Bluetooth">🎧 Écouteurs ou casque Bluetooth</option>
+                            <option value="🧳 Petit ventilateur ou cuisinière électrique">🧳 Petit ventilateur ou cuisinière électrique</option>
+                            <option value="💾 Disque dur externe ou clé USB haut de gamme">💾 Disque dur externe ou clé USB haut de gamme</option>
+                            <option value="🪑 Petit appareil électroménager (fer à repasser, mixeur, etc.)">🪑 Petit appareil électroménager (fer à repasser, mixeur, etc.)</option>
+                          </select>
+                          {errors.guarantee && (
+                            <p className="text-red-500 text-sm font-montserrat">{errors.guarantee}</p>
+                          )}
+                        </div>
 
                         <Input
                           label="Numéro Momo"

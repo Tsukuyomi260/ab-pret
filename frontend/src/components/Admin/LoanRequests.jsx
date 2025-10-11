@@ -122,7 +122,10 @@ const LoanRequests = () => {
             // Informations Momo (à récupérer depuis la base de données si disponibles)
             momoNumber: loan.momo_number || 'Non spécifié',
             momoNetwork: loan.momo_network || 'Non spécifié',
-            momoName: loan.momo_name || 'Non spécifié'
+            momoName: loan.momo_name || 'Non spécifié',
+            // Informations de garantie et statut professionnel
+            guarantee: loan.guarantee || 'Non spécifiée',
+            employment_status: loan.employment_status || 'Non spécifié'
           };
         });
         
@@ -344,6 +347,18 @@ const LoanRequests = () => {
                       <div>
                         <p className="text-sm text-gray-600">Objet</p>
                         <p className="font-medium text-gray-900 text-sm sm:text-base break-words">{request.purpose}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Garantie</p>
+                        <p className="font-medium text-gray-900 text-sm sm:text-base break-words">{request.guarantee}</p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-gray-600">Statut professionnel</p>
+                        <p className="font-medium text-gray-900 text-sm sm:text-base">
+                          {request.employment_status === 'self-employed' ? 'Indépendant' : 
+                           request.employment_status === 'student' ? 'Étudiant' : 
+                           request.employment_status || 'Non spécifié'}
+                        </p>
                       </div>
                       <div className="sm:col-span-2 lg:col-span-1">
                         <p className="text-sm text-gray-600">Date de demande</p>
