@@ -49,37 +49,42 @@ const ABEpargne = () => {
     const fetchActivePlan = async () => {
       if (!user) {
         console.log('[AB_EPARGNE] ⏳ Pas d\'utilisateur connecté');
-      return;
-    }
+        setLoading(false);
+        return;
+      }
     
-    try {
+      try {
         setLoading(true);
         console.log('[AB_EPARGNE] 🔍 Recherche du plan actif pour user:', user.id);
         
         // Utiliser l'API backend au lieu de Supabase directement
         const backendUrl = BACKEND_URL;
-        const response = await fetch(`${backendUrl}/api/savings/plan-status?userId=${user.id}`);
+        const url = `${backendUrl}/api/savings/plan-status?userId=${user.id}`;
+        console.log('[AB_EPARGNE] 🌐 URL API:', url);
+        
+        const response = await fetch(url);
+        console.log('[AB_EPARGNE] 📡 Status réponse:', response.status);
+        
         const result = await response.json();
-
-        console.log('[AB_EPARGNE] 📡 Réponse API:', result);
+        console.log('[AB_EPARGNE] 📡 Réponse API complète:', result);
 
         if (result.success && result.plan) {
           console.log('[AB_EPARGNE] ✅ Plan actif trouvé, redirection vers la page de détail:', result.plan);
           // Rediriger directement vers la page de détail du plan
           navigate(`/ab-epargne/plan/${result.plan.id}`);
-      return;
-      } else {
-          console.log('[AB_EPARGNE] ℹ️ Aucun plan actif trouvé');
-      }
-    } catch (error) {
+          return;
+        } else {
+          console.log('[AB_EPARGNE] ℹ️ Aucun plan actif trouvé, affichage de la config');
+        }
+      } catch (error) {
         console.error('[AB_EPARGNE] ❌ Erreur:', error);
-    } finally {
+      } finally {
         setLoading(false);
       }
     };
 
     fetchActivePlan();
-  }, [user]);
+  }, [user, navigate]);
 
 
   const ConfigPage = () => (
