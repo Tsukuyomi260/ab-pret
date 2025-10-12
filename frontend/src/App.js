@@ -22,6 +22,7 @@ import AdminDashboard from './components/Admin/AdminDashboard';
 import LoanRequests from './components/Admin/LoanRequests';
 import UserManagement from './components/Admin/UserManagement';
 import Analytics from './components/Admin/Analytics';
+import AdminMenu from './components/Admin/AdminMenu';
 import Settings from './components/Admin/Settings';
 import AdminABEpargne from './components/Admin/ABEpargne';
 import TestNotifications from './components/Admin/TestNotifications';
@@ -258,6 +259,14 @@ const AppContent = () => {
             <ProtectedRoute adminOnly>
               <Layout>
                 <UserManagement />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/admin/menu" element={
+            <ProtectedRoute adminOnly>
+              <Layout>
+                <AdminMenu />
               </Layout>
             </ProtectedRoute>
           } />

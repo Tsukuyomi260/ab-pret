@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState } from 'react';
+import React, { createContext, useContext } from 'react';
 import { useAuth } from './AuthContext';
 import Dock from '../components/UI/Dock';
 import { 
@@ -6,11 +6,11 @@ import {
   FileText,
   Wallet,
   User,
-  Users,
   BarChart3,
   Settings,
   CreditCard,
-  Grid
+  Grid,
+  Menu
 } from 'lucide-react';
 
 const DockContext = createContext();
@@ -41,9 +41,9 @@ export const DockProvider = ({ children }) => {
           path: '/admin/loan-requests'
         },
         { 
-          icon: <Users size={20} />, 
-          label: 'Utilisateurs', 
-          path: '/admin/user-management'
+          icon: <Menu size={20} />, 
+          label: 'Menu', 
+          path: '/admin/menu'
         },
         { 
           icon: <BarChart3 size={20} />, 
