@@ -1,53 +1,36 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-// Animations supprimées pour améliorer les performances
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
-import Card from '../UI/Card';
-import Button from '../UI/Button';
-import Input from '../UI/Input';
-import NotificationBell from '../UI/NotificationBell';
-
 import { 
   ArrowLeft, 
+  ArrowRight,
   AlertCircle, 
   CheckCircle, 
   CreditCard, 
-  Calendar, 
   DollarSign, 
-  TrendingUp, 
   Clock, 
-  Star,
-  Zap,
-  Target,
   BookOpen,
   ShoppingBag,
   Home,
-  Car,
   Heart,
-  Smartphone,
-  GraduationCap,
-  Briefcase,
   User,
   FileText,
-  ArrowRight,
-  Activity,
-  BarChart3,
-  Percent,
-  Award,
-  Gift,
-  Rocket,
-  Download
+  Send,
+  Calendar,
+  Check
 } from 'lucide-react';
 import { LOAN_CONFIG } from '../../utils/loanConfig';
 import { formatCurrency } from '../../utils/helpers';
-import { getLoans } from '../../utils/supabaseAPI';
+import { getLoans, createLoan } from '../../utils/supabaseAPI';
 import { BACKEND_URL } from '../../config/backend';
+import { supabase } from '../../utils/supabaseClient';
 
 const LoanRequest = () => {
   const { user } = useAuth();
-  const { notifications, addNotification, markAsRead, showSuccess, showError } = useNotifications();
+  const { showSuccess, showError } = useNotifications();
   const navigate = useNavigate();
+  
   const [currentStep, setCurrentStep] = useState(1);
   const [formData, setFormData] = useState({
     amount: '',
@@ -58,163 +41,126 @@ const LoanRequest = () => {
     momoNumber: '',
     momoNetwork: '',
     momoName: '',
-    category: '',
-    documents: []
+    category: ''
   });
+  
   const [loading, setLoading] = useState(false);
   const [submitted, setSubmitted] = useState(false);
-  const [pdfDownloaded, setPdfDownloaded] = useState(false); // Nouvel état pour le PDF
+  const [loanId, setLoanId] = useState(null);
+  const [pdfDownloaded, setPdfDownloaded] = useState(false);
+  const [showPdfStep, setShowPdfStep] = useState(false);
   const [errors, setErrors] = useState({});
-  const [selectedCategory, setSelectedCategory] = useState('');
   const [calculation, setCalculation] = useState(null);
   const [hasActiveLoan, setHasActiveLoan] = useState(false);
   const [checkingLoans, setCheckingLoans] = useState(true);
 
-  // Vérifier les prêts existants
+  const totalSteps = 4;
+
   useEffect(() => {
-    const checkExistingLoans = async () => {
-      try {
-        setCheckingLoans(true);
-        const loansResult = await getLoans(user.id);
+    checkExistingLoans();
+  }, [user?.id]);
+
+  const checkExistingLoans = async () => {
+    try {
+      setCheckingLoans(true);
+      const loansResult = await getLoans(user.id);
+      
+      if (loansResult.success) {
+        const userLoans = loansResult.data || [];
+        const activeLoan = userLoans.find(loan => 
+          loan.status === 'active' || loan.status === 'approved' || loan.status === 'overdue'
+        );
         
-        if (loansResult.success) {
-          const userLoans = loansResult.data || [];
-          // Vérifier s'il y a un prêt actif, approuvé ou en retard
-          const activeLoan = userLoans.find(loan => 
-            loan.status === 'active' || loan.status === 'approved' || loan.status === 'overdue'
-          );
-          
-          setHasActiveLoan(!!activeLoan);
-          
-          if (activeLoan) {
-            console.log('[LOAN_REQUEST] Prêt actif trouvé:', activeLoan);
-            if (activeLoan.status === 'overdue') {
-              showError('Vous ne pouvez pas demander un nouveau prêt tant que votre prêt en retard n\'est pas remboursé. Des pénalités de 2% par jour s\'appliquent.');
-            } else {
-              showError('Vous avez déjà un prêt en cours. Vous devez le rembourser avant de faire une nouvelle demande.');
-            }
+        setHasActiveLoan(!!activeLoan);
+        
+        if (activeLoan) {
+          if (activeLoan.status === 'overdue') {
+            showError('Vous ne pouvez pas demander un nouveau prêt tant que votre prêt en retard n\'est pas remboursé.');
+          } else {
+            showError('Vous avez déjà un prêt en cours. Vous devez le rembourser avant de faire une nouvelle demande.');
           }
         }
-      } catch (error) {
-        console.error('[LOAN_REQUEST] Erreur lors de la vérification des prêts:', error);
-      } finally {
-        setCheckingLoans(false);
       }
-    };
+    } catch (error) {
+      console.error('[LOAN_REQUEST] Erreur:', error);
+    } finally {
+      setCheckingLoans(false);
+    }
+  };
 
-    if (user?.id) {
-      checkExistingLoans();
+  useEffect(() => {
+    if (formData.amount && formData.duration) {
+      calculateLoan();
     }
-  }, [user?.id, showError]);
+  }, [formData.amount, formData.duration]);
 
-  // Styles CSS pour les animations
-  const gradientAnimation = `
-    @keyframes gradient {
-      0% { background-position: 0% 50%; }
-      50% { background-position: 100% 50%; }
-      100% { background-position: 0% 50%; }
-    }
-    .animate-gradient {
-      background-size: 200% 200%;
-      animation: gradient 15s ease infinite;
-    }
+  const calculateLoan = () => {
+    const amount = parseFloat(formData.amount);
+    const duration = parseInt(formData.duration);
     
-    /* Animations pour les interactions */
-    @keyframes pulse-glow {
-      0%, 100% { box-shadow: 0 0 5px rgba(59, 130, 246, 0.5); }
-      50% { box-shadow: 0 0 20px rgba(59, 130, 246, 0.8); }
+    if (!amount || amount < LOAN_CONFIG.amounts.min || amount > LOAN_CONFIG.amounts.max) {
+      setCalculation(null);
+      return;
     }
-    
-    .pulse-glow {
-      animation: pulse-glow 2s ease-in-out infinite;
-    }
-    
-    @keyframes slide-in-right {
-      from { transform: translateX(100%); opacity: 0; }
-      to { transform: translateX(0); opacity: 1; }
-    }
-    
-    .slide-in-right {
-      animation: slide-in-right 0.3s ease-out;
-    }
-    
-    @keyframes bounce-in {
-      0% { transform: scale(0.3); opacity: 0; }
-      50% { transform: scale(1.05); }
-      70% { transform: scale(0.9); }
-      100% { transform: scale(1); opacity: 1; }
-    }
-    
-    .bounce-in {
-      animation: bounce-in 0.6s ease-out;
-    }
-    
-    @keyframes float {
-      0%, 100% { transform: translateY(0px); }
-      50% { transform: translateY(-10px); }
-    }
-    
-    .float {
-      animation: float 3s ease-in-out infinite;
-    }
-    
-    @keyframes shine {
-      0% { transform: translateX(-100%); }
-      100% { transform: translateX(100%); }
-    }
-    
-    .shine {
-      animation: shine 2s ease-in-out infinite;
-    }
-  `;
 
-  // Catégories de prêts avec icônes et couleurs
+    const interestRate = LOAN_CONFIG.getInterestRate(duration, amount);
+    const interest = Math.round(LOAN_CONFIG.calculateInterest(amount, duration));
+    const totalAmount = Math.round(LOAN_CONFIG.calculateTotalAmount(amount, duration));
+
+    setCalculation({
+      principal: amount,
+      interest,
+      totalAmount,
+      interestRate,
+      duration
+    });
+  };
+
   const loanCategories = [
     { 
       id: 'education', 
       name: 'Éducation', 
-      icon: <BookOpen className="w-6 h-6" />, 
+      icon: BookOpen, 
       color: 'from-blue-500 to-blue-600',
-      description: 'Frais de scolarité, matériel scolaire, formation'
+      bgColor: 'bg-blue-50',
+      iconColor: 'text-blue-600'
     },
     { 
       id: 'business', 
       name: 'Entreprise', 
-      icon: <ShoppingBag className="w-6 h-6" />, 
+      icon: ShoppingBag, 
       color: 'from-green-500 to-green-600',
-      description: 'Démarrage d\'activité, investissement, stock'
+      bgColor: 'bg-green-50',
+      iconColor: 'text-green-600'
     },
     { 
       id: 'housing', 
       name: 'Logement', 
-      icon: <Home className="w-6 h-6" />, 
+      icon: Home, 
       color: 'from-orange-500 to-orange-600',
-      description: 'Loyer, rénovation, ameublement'
+      bgColor: 'bg-orange-50',
+      iconColor: 'text-orange-600'
     },
     { 
       id: 'personal', 
-      name: 'Raison personnelle', 
-      icon: <User className="w-6 h-6" />, 
+      name: 'Personnel', 
+      icon: User, 
       color: 'from-purple-500 to-purple-600',
-      description: ''
+      bgColor: 'bg-purple-50',
+      iconColor: 'text-purple-600'
     },
     { 
       id: 'health', 
       name: 'Santé', 
-      icon: <Heart className="w-6 h-6" />, 
+      icon: Heart, 
       color: 'from-pink-500 to-pink-600',
-      description: 'Soins médicaux, médicaments, consultation'
+      bgColor: 'bg-pink-50',
+      iconColor: 'text-pink-600'
     }
   ];
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    
-    // Éviter les mises à jour inutiles qui causent des boucles
-    if (formData[name] === value) {
-      return;
-    }
-    
     setFormData({
       ...formData,
       [name]: value
@@ -229,1049 +175,788 @@ const LoanRequest = () => {
   };
 
   const handleCategorySelect = (categoryId) => {
-    setSelectedCategory(categoryId);
     setFormData(prev => ({
       ...prev,
-      category: categoryId,
-      purpose: '' // Ne pas pré-remplir le champ purpose
+      category: categoryId
     }));
+    setErrors(prev => ({ ...prev, category: '' }));
   };
-
-  const handleCalculation = (result) => {
-    setFormData(prev => ({
-      ...prev,
-      amount: result.principal.toString(),
-      duration: result.duration
-    }));
-    setCalculation(result);
-  };
-
-  // Calcul automatique quand le montant ou la durée change
-  useEffect(() => {
-    if (formData.amount && formData.duration) {
-      const numAmount = parseFloat(formData.amount);
-      const numDuration = parseInt(formData.duration);
-      
-      if (numAmount >= LOAN_CONFIG.amounts.min && numAmount <= LOAN_CONFIG.amounts.max) {
-        const interestRate = LOAN_CONFIG.getInterestRate(numDuration, numAmount);
-        const interestAmount = LOAN_CONFIG.calculateInterest(numAmount, numDuration);
-        const totalAmount = LOAN_CONFIG.calculateTotalAmount(numAmount, numDuration);
-        const paymentAmount = LOAN_CONFIG.calculatePaymentAmount(totalAmount, numDuration);
-
-        const result = {
-          principal: numAmount,
-          duration: numDuration,
-          interestRate,
-          interestAmount,
-          totalAmount,
-          paymentAmount,
-          durationLabel: LOAN_CONFIG.durations.find(d => d.days === numDuration)?.label
-        };
-
-        // Éviter la boucle infinie en vérifiant si le résultat a changé
-        if (!calculation || 
-            calculation.principal !== result.principal || 
-            calculation.duration !== result.duration) {
-        handleCalculation(result);
-      }
-    }
-    }
-  }, [formData.amount, formData.duration]); // Supprimé handleCalculation des dépendances
 
   const validateStep = (step) => {
     const newErrors = {};
-
-    switch (step) {
-      case 1:
-        if (!selectedCategory) {
-          newErrors.category = 'Veuillez sélectionner une catégorie';
-        }
-        break;
-      case 2:
-        if (!formData.amount || parseFloat(formData.amount) < LOAN_CONFIG.amounts.min) {
-          newErrors.amount = `Le montant minimum est de ${LOAN_CONFIG.amounts.min.toLocaleString()} FCFA`;
-        }
-        if (parseFloat(formData.amount) > LOAN_CONFIG.amounts.max) {
-          newErrors.amount = `Le montant maximum est de ${LOAN_CONFIG.amounts.max.toLocaleString()} FCFA`;
-        }
-        if (!formData.duration) {
-          newErrors.duration = 'Veuillez sélectionner une durée';
-        }
-        break;
-      case 3:
-        if (!formData.purpose.trim()) {
-          newErrors.purpose = 'Veuillez préciser l\'objet du prêt';
-        }
-        if (!formData.employmentStatus) {
-          newErrors.employmentStatus = 'Veuillez sélectionner votre statut professionnel';
-        }
-        if (!formData.guarantee.trim()) {
-          newErrors.guarantee = 'Veuillez sélectionner une garantie';
-        }
-        if (!formData.momoNumber.trim()) {
-          newErrors.momoNumber = 'Veuillez saisir votre numéro Momo';
-        }
-        if (!formData.momoNetwork) {
-          newErrors.momoNetwork = 'Veuillez sélectionner votre réseau mobile';
-        }
-        if (!formData.momoName.trim()) {
-          newErrors.momoName = 'Veuillez saisir le nom sur le numéro Momo';
-        }
-        break;
+    
+    if (step === 1) {
+      if (!formData.category) {
+        newErrors.category = 'Veuillez sélectionner une catégorie';
+      }
     }
-
+    
+    if (step === 2) {
+      const amount = parseFloat(formData.amount);
+      if (!amount || amount < LOAN_CONFIG.amounts.min) {
+        newErrors.amount = `Le montant minimum est ${formatCurrency(LOAN_CONFIG.amounts.min)}`;
+      } else if (amount > LOAN_CONFIG.amounts.max) {
+        newErrors.amount = `Le montant maximum est ${formatCurrency(LOAN_CONFIG.amounts.max)}`;
+      }
+    }
+    
+    if (step === 3) {
+      if (!formData.purpose || formData.purpose.trim().length < 10) {
+        newErrors.purpose = 'Veuillez décrire l\'utilisation du prêt (min. 10 caractères)';
+      }
+      
+      if (!formData.guarantee) {
+        newErrors.guarantee = 'Veuillez sélectionner une garantie';
+      }
+    }
+    
+    if (step === 4) {
+      if (!formData.momoNumber || formData.momoNumber.trim().length < 8) {
+        newErrors.momoNumber = 'Numéro Mobile Money invalide';
+      }
+      
+      if (!formData.momoNetwork) {
+        newErrors.momoNetwork = 'Veuillez sélectionner votre opérateur';
+      }
+      
+      if (!formData.momoName || formData.momoName.trim().length < 3) {
+        newErrors.momoName = 'Veuillez entrer le nom du compte Mobile Money';
+      }
+    }
+    
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
-  const nextStep = () => {
+  const handleNext = () => {
     if (validateStep(currentStep)) {
-      setCurrentStep(prev => Math.min(prev + 1, 5));
-      window.scrollTo({
-        top: 0,
-        behavior: 'smooth'
-      });
+      setCurrentStep(prev => Math.min(prev + 1, totalSteps));
+    } else {
+      showError('Veuillez corriger les erreurs avant de continuer');
     }
   };
 
-  const prevStep = () => {
-    setCurrentStep(prev => Math.max(prev - 1, 1));
-    window.scrollTo({
-      top: 0,
-      behavior: 'smooth'
-    });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    
-    if (!validateStep(currentStep)) return;
-
-    // Vérifier que l'utilisateur est connecté
-    if (!user || !user.id) {
-      showError('Vous devez être connecté pour soumettre une demande de prêt.');
-      return;
-    }
-
-    // Vérifier que le PDF a été téléchargé
-    if (!pdfDownloaded) {
-      showError('Vous devez d\'abord télécharger et lire le PDF récapitulatif avant de soumettre votre demande.');
-      return;
-    }
-
-    setLoading(true);
-    
-    // Préparer les données du prêt (en dehors du try pour être accessible dans le catch)
-    const loanData = {
-      user_id: user.id, // Ajouter l'ID de l'utilisateur
-      amount: parseFloat(formData.amount),
-      // duration_months existe dans la base, pas purpose
-      duration_months: formData.duration, // ✅ Champ correct
-      interest_rate: calculation ? calculation.interestRate : LOAN_CONFIG.getInterestRate(parseInt(formData.duration), parseFloat(formData.amount)), // ✅ Calcul correct basé sur la durée et le montant
-      status: 'pending',
-      // Informations personnelles
-      employment_status: formData.employmentStatus,
-      guarantee: formData.guarantee,
-      // Informations Momo
-      momo_number: formData.momoNumber,
-      momo_network: formData.momoNetwork,
-      momo_name: formData.momoName,
-      // Objet du prêt
-      purpose: formData.purpose || getPurposeText()
-    };
-    
+  const generatePreviewPDF = async () => {
     try {
-      console.log('[LOAN] Soumission de la demande de prêt:', loanData);
-      console.log('[LOAN] Utilisateur connecté:', user);
-      console.log('[LOAN] Données du formulaire:', formData);
-
-      // Sauvegarder la demande dans la base de données
-      const { createLoan } = await import('../../utils/supabaseAPI');
-      const result = await createLoan(loanData);
-
-      console.log('[LOAN] Résultat de createLoan:', result);
-
-      if (result.success) {
-        console.log('[LOAN] ✅ Demande de prêt créée avec succès:', result.data);
-        
-        // Ajouter une notification pour l'admin
-        addNotification({
-          title: 'Nouvelle demande de prêt',
-          message: `Demande de ${formatCurrency(formData.amount)} de ${user?.first_name || 'Utilisateur'}`,
-          type: 'info',
-          priority: 'high'
-        });
+      setLoading(true);
       
-      setSubmitted(true);
-      
-      setTimeout(() => {
-        showSuccess('Demande de prêt soumise avec succès ! Notre équipe vous contactera dans les 24h.');
-        navigate('/dashboard');
-      }, 1500);
-      } else {
-        console.error('[LOAN] ❌ Échec de la création:', result.error);
-        throw new Error(result.error || 'Erreur lors de la création de la demande');
+      // Récupérer les données complètes de l'utilisateur depuis Supabase
+      if (!supabase) {
+        throw new Error('Connexion à la base de données non disponible');
       }
       
-    } catch (error) {
-      console.error('[LOAN] ❌ Erreur lors de la soumission:', error);
-      console.error('[LOAN] ❌ Détails de l\'erreur:', {
-        message: error.message,
-        stack: error.stack,
-        loanData: loanData
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('*')
+        .eq('id', user.id)
+        .single();
+      
+      if (userError) {
+        console.error('[PDF] Erreur récupération utilisateur:', userError);
+        throw new Error('Impossible de récupérer vos informations');
+      }
+      
+      console.log('[PDF] Données utilisateur récupérées:', {
+        id: userData.id,
+        name: `${userData.first_name} ${userData.last_name}`,
+        hasTemoinName: !!userData.temoin_name,
+        hasTemoinPhone: !!userData.temoin_phone,
+        hasTemoinQuartier: !!userData.temoin_quartier
       });
-      showError(`Erreur lors de la soumission: ${error.message}`);
+      
+      const amount = parseFloat(formData.amount);
+      const duration = parseInt(formData.duration);
+      const interestRate = LOAN_CONFIG.getInterestRate(duration, amount);
+      const interest = Math.round(LOAN_CONFIG.calculateInterest(amount, duration));
+      const totalAmount = Math.round(LOAN_CONFIG.calculateTotalAmount(amount, duration));
+      
+      const pdfData = {
+        user: {
+          first_name: userData.first_name || user.user_metadata?.first_name,
+          last_name: userData.last_name || user.user_metadata?.last_name,
+          email: userData.email || user.email,
+          phone_number: userData.phone_number || user.phone,
+          temoin_name: userData.temoin_name,
+          temoin_phone: userData.temoin_phone,
+          temoin_quartier: userData.temoin_quartier,
+          temoin_email: userData.temoin_email
+        },
+        loan: {
+          amount: amount,
+          duration: duration,
+          interest_rate: interestRate,
+          purpose: formData.purpose,
+          guarantee: formData.guarantee,
+          category: formData.category
+        },
+        calculation: {
+          interest: interest,
+          totalAmount: totalAmount
+        }
+      };
+
+      console.log('[PDF] Envoi des données:', pdfData);
+      
+      const response = await fetch(`${BACKEND_URL}/api/generate-preview-pdf`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(pdfData),
+      });
+
+      console.log('[PDF] Response status:', response.status);
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('[PDF] Erreur serveur:', errorText);
+        throw new Error(`Erreur lors de la génération du PDF: ${response.status} - ${errorText}`);
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `engagement-pret-preview.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      window.URL.revokeObjectURL(url);
+      document.body.removeChild(a);
+
+      setPdfDownloaded(true);
+      showSuccess('PDF téléchargé avec succès ! Vous pouvez maintenant soumettre votre demande.');
+    } catch (error) {
+      console.error('[PDF] Erreur complète:', error);
+      console.error('[PDF] Message:', error.message);
+      console.error('[PDF] Stack:', error.stack);
+      showError(error.message || 'Erreur lors de la génération du PDF');
     } finally {
       setLoading(false);
     }
   };
 
-  // Fonction pour formater les montants en format FCFA
-  const formatAmountFCFA = (amount) => {
-    if (!amount || isNaN(amount)) return '0F';
-    const numAmount = parseFloat(amount);
-    // Formatage sans espaces, avec points pour les milliers
-    const formatted = numAmount.toString().replace(/\B(?=(\d{3})+(?!\d))/g, '.');
-    return formatted + 'F';
+  const handlePrevious = () => {
+    setCurrentStep(prev => Math.max(prev - 1, 1));
   };
 
-  // Fonction pour obtenir le texte de l'objectif basé sur la catégorie
-  const getPurposeText = () => {
-    if (formData.purpose && formData.purpose.trim() !== '') {
-      return formData.purpose;
-    }
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     
-    // Si pas d'objectif saisi, utiliser la catégorie sélectionnée
-    const selectedCategoryData = loanCategories.find(c => c.id === selectedCategory);
-    if (selectedCategoryData) {
-      return selectedCategoryData.description;
-    }
-    
-    // Valeur par défaut
-    return 'Financement personnel';
-  };
-
-  const generatePDF = async () => {
-    // Vérifier que l'utilisateur est connecté
-    if (!user) {
-      showError('Vous devez être connecté pour générer le PDF');
+    if (!pdfDownloaded) {
+      showError('Veuillez télécharger le PDF d\'engagement avant de soumettre');
       return;
     }
     
-    console.log('[PDF] Génération du PDF pour l\'utilisateur:', user);
+    if (!validateStep(currentStep)) {
+      showError('Veuillez corriger les erreurs dans le formulaire');
+      return;
+    }
     
+    if (hasActiveLoan) {
+      showError('Vous avez déjà un prêt en cours');
+      return;
+    }
+
+    setLoading(true);
+
     try {
-      // Préparer les données du prêt
+      const amount = parseFloat(formData.amount);
+      const duration = parseInt(formData.duration);
+      const interestRate = LOAN_CONFIG.getInterestRate(duration, amount);
+      
       const loanData = {
-        amount: parseFloat(formData.amount),
-        duration_months: parseInt(formData.duration),
-        interest_rate: calculation ? calculation.interestRate : LOAN_CONFIG.getInterestRate(parseInt(formData.duration), parseFloat(formData.amount)),
-        purpose: formData.purpose || getPurposeText()
+        user_id: user.id,
+        amount: amount,
+        duration: duration,
+        duration_months: duration,
+        interest_rate: interestRate,
+        purpose: formData.purpose,
+        employment_status: formData.employmentStatus,
+        guarantee: formData.guarantee,
+        momo_number: formData.momoNumber,
+        momo_network: formData.momoNetwork,
+        momo_name: formData.momoName,
+        status: 'pending'
+        // loan_type retiré car la colonne n'existe pas dans la table loans
       };
 
-      console.log('[PDF] Données du prêt à envoyer:', loanData);
+      console.log('[LOAN_REQUEST] Création du prêt via Supabase');
+      console.log('[LOAN_REQUEST] Données:', loanData);
 
-      // Appeler l'endpoint backend pour générer le PDF
-      const response = await fetch(`${BACKEND_URL}/api/generate-loan-pdf`, {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          userId: user.id,
-          loanData: loanData
-        })
-      });
+      // Utiliser la fonction createLoan de supabaseAPI
+      const result = await createLoan(loanData);
+      
+      console.log('[LOAN_REQUEST] Résultat:', result);
 
+      if (result.success && result.data) {
+        setLoanId(result.data.id);
+        setSubmitted(true);
+        showSuccess('Demande de prêt soumise avec succès !');
+      } else {
+        throw new Error(result.error || 'Erreur lors de la soumission');
+      }
+    } catch (error) {
+      console.error('[LOAN_REQUEST] Erreur:', error);
+      showError(error.message || 'Erreur lors de la soumission de la demande');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDownloadPDF = async () => {
+    if (!loanId) {
+      showError('ID de prêt manquant');
+      return;
+    }
+
+    try {
+      const response = await fetch(`${BACKEND_URL}/api/generate-pdf/${loanId}`);
+      
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Erreur lors de la génération du PDF');
+        throw new Error('Erreur lors de la génération du PDF');
       }
 
-      // Créer un blob à partir de la réponse
       const blob = await response.blob();
-      
-      // Créer un lien de téléchargement
       const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      
-      // Nom du fichier avec le nom du client
-      const clientName = `${user.first_name || 'Client'}_${user.last_name || 'Anonyme'}`.replace(/\s+/g, '_');
-      const fileName = `engagement_pret_${clientName}_${new Date().toISOString().split('T')[0]}.pdf`;
-      link.download = fileName;
-      
-      // Déclencher le téléchargement
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      // Nettoyer l'URL
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `engagement-pret-${loanId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
       window.URL.revokeObjectURL(url);
-      
-      // Marquer le PDF comme téléchargé
+      document.body.removeChild(a);
+
       setPdfDownloaded(true);
-      showSuccess('PDF téléchargé avec succès ! Vous pouvez maintenant soumettre votre demande.');
-      
-      console.log('[PDF] PDF généré et téléchargé avec succès');
-      
+      showSuccess('PDF téléchargé avec succès !');
     } catch (error) {
-      console.error('[PDF] Erreur lors de la génération du PDF:', error);
-      showError(`Erreur lors de la génération du PDF: ${error.message}`);
+      console.error('[PDF] Erreur:', error);
+      showError('Erreur lors du téléchargement du PDF');
     }
   };
 
-  const getStepIcon = (step) => {
-    switch (step) {
-      case 1: return <Target className="w-4 h-4 sm:w-5 sm:h-5" />;
-      case 2: return <DollarSign className="w-4 h-4 sm:w-5 sm:h-5" />;
-      case 3: return <User className="w-4 h-4 sm:w-5 sm:h-5" />;
-      case 4: return <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />;
-      default: return <FileText className="w-4 h-4 sm:w-5 sm:h-5" />;
-    }
-  };
+  if (checkingLoans) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
+          <p className="text-gray-600 font-medium">Vérification...</p>
+        </div>
+      </div>
+    );
+  }
 
-  const getStepTitle = (step) => {
-    switch (step) {
-      case 1: return 'Catégorie du prêt';
-      case 2: return 'Montant et durée';
-      case 3: return 'Informations personnelles';
-      case 4: return 'Validation';
-      default: return 'Étape';
-    }
-  };
+  if (submitted) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full text-center">
+          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+            <CheckCircle size={40} className="text-green-600" />
+          </div>
+          <h2 className="text-3xl font-bold text-gray-900 mb-4 font-montserrat">Demande envoyée !</h2>
+          <p className="text-gray-600 mb-6 font-montserrat">
+            Votre demande de prêt a été soumise avec succès. Nous l'examinerons dans les plus brefs délais.
+          </p>
+
+          {!pdfDownloaded && (
+            <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg mb-6 text-left">
+              <div className="flex items-start gap-3">
+                <FileText size={24} className="text-blue-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="font-bold text-blue-900 mb-1">Document d'engagement</h3>
+                  <p className="text-sm text-blue-700 mb-3">
+                    Veuillez télécharger et signer votre document d'engagement de prêt.
+                  </p>
+                  <button
+                    onClick={handleDownloadPDF}
+                    className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-all duration-200 text-sm"
+                  >
+                    <FileText size={18} />
+                    <span>Télécharger le PDF</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {pdfDownloaded && (
+            <div className="bg-green-50 border-l-4 border-green-500 p-4 rounded-lg mb-6 text-left">
+              <div className="flex items-start gap-3">
+                <CheckCircle size={24} className="text-green-600 flex-shrink-0 mt-0.5" />
+                <div>
+                  <h3 className="font-bold text-green-900 mb-1">PDF téléchargé</h3>
+                  <p className="text-sm text-green-700">
+                    Veuillez signer le document et le conserver précieusement.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
+          <button
+            onClick={() => navigate('/dashboard')}
+            className="w-full flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl font-medium transition-all duration-200"
+          >
+            <ArrowLeft size={20} />
+            <span>Retour au tableau de bord</span>
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const steps = [
+    { number: 1, title: 'Catégorie', icon: FileText },
+    { number: 2, title: 'Montant', icon: DollarSign },
+    { number: 3, title: 'Détails', icon: FileText },
+    { number: 4, title: 'Paiement', icon: CreditCard }
+  ];
 
   return (
-    <div id="loan-request-page" className="bg-accent-50">
-      <style>{gradientAnimation}</style>
-      
-      {/* Vérification des prêts existants */}
-      {checkingLoans ? (
-        <div className="min-h-screen flex items-center justify-center">
-          <div className="text-center">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary-500 mx-auto mb-4"></div>
-            <p className="text-gray-600">Vérification de vos prêts existants...</p>
-          </div>
-        </div>
-      ) : hasActiveLoan ? (
-        <div className="min-h-screen flex items-center justify-center p-4">
-          <div className="max-w-md w-full bg-white rounded-2xl shadow-xl p-8 text-center">
-            <div className="w-16 h-16 bg-orange-100 rounded-full flex items-center justify-center mx-auto mb-6">
-              <AlertCircle className="w-8 h-8 text-orange-600" />
-            </div>
-            <h2 className="text-2xl font-bold text-gray-900 mb-4">
-              Prêt en cours
-            </h2>
-            <p className="text-gray-600 mb-6">
-              Vous avez déjà un prêt actif. Vous devez le rembourser avant de faire une nouvelle demande.
-            </p>
-            <div className="space-y-3">
-              <Button
-                onClick={() => navigate('/repayment')}
-                className="w-full bg-primary-500 hover:bg-primary-600 text-white"
-              >
-                Rembourser mon prêt
-              </Button>
-              <Button
-                onClick={() => navigate('/loan-history')}
-                variant="outline"
-                className="w-full"
-              >
-                Voir l'historique
-              </Button>
-              <Button
+    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 pb-24">
+      {/* Header */}
+      <div className="bg-white/80 backdrop-blur-lg shadow-lg border-b border-white/50 sticky top-0 z-30">
+        <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <button
                 onClick={() => navigate('/dashboard')}
-                variant="outline"
-                className="w-full"
+                className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
               >
-                Retour au tableau de bord
-              </Button>
+                <ArrowLeft size={24} className="text-gray-700" />
+              </button>
+              <div className="flex items-center gap-3">
+                <div className="p-3 bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl shadow-lg">
+                  <CreditCard size={32} className="text-white" />
+                </div>
+                <div>
+                  <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 font-montserrat">Demande de prêt</h1>
+                  <p className="text-sm text-gray-600 font-montserrat">Étape {currentStep} sur {totalSteps}</p>
+                </div>
+              </div>
             </div>
           </div>
-        </div>
-      ) : (
-        <>
-        {/* Header avec design moderne */}
-      <div className="relative overflow-hidden">
-        {/* Background avec gradient animé */}
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-500 via-purple-600 to-indigo-600 opacity-15 animate-gradient"></div>
-        
-        {/* Couche de profondeur supplémentaire */}
-        <div className="absolute inset-0 bg-gradient-to-t from-white/20 via-transparent to-transparent"></div>
-        
-        {/* Pattern décoratif simplifié */}
-        <div className="absolute inset-0 opacity-8">
-          <div className="absolute top-0 left-0 w-72 h-72 bg-blue-400 rounded-full mix-blend-multiply filter blur-xl" />
-          <div className="absolute top-0 right-0 w-72 h-72 bg-purple-400 rounded-full mix-blend-multiply filter blur-xl" />
-          <div className="absolute -bottom-8 left-20 w-72 h-72 bg-indigo-400 rounded-full mix-blend-multiply filter blur-xl" />
-        </div>
 
-        {/* Contenu Header */}
-        <div className="relative px-4 lg:px-8 py-8 lg:py-12 backdrop-blur-sm">
-          <div className="max-w-7xl mx-auto">
-            {/* Section Hero - En-tête principal */}
-            <div className="text-center mb-8 lg:mb-12">
-
-
-              {/* Titre principal */}
-              <h1 className="text-4xl lg:text-6xl font-bold text-secondary-900 font-montserrat mb-4">
-                Demande de{' '}
-                <span className="bg-gradient-to-r from-blue-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
-                  Prêt
-                </span>{' '}
-                <span className="inline-block">
-                  💰
-                </span>
-              </h1>
-
-
-            </div>
-
-            {/* Indicateur de progression */}
-            <div className="mb-8">
-              <div className="flex items-center justify-center space-x-2 sm:space-x-4 px-4 max-w-md mx-auto">
-                {[1, 2, 3, 4].map((step) => (
-                  <div key={step} className="flex items-center flex-1 max-w-16 sm:max-w-20">
-                    <div className={`flex items-center justify-center w-8 h-8 sm:w-12 sm:h-12 rounded-full border-2 transition-all duration-300 flex-shrink-0 ${
-                      step <= currentStep 
-                        ? 'bg-primary-500 border-primary-500 text-white' 
-                        : 'bg-white border-gray-300 text-gray-400'
+          {/* Progress Steps */}
+          <div className="mt-6">
+            <div className="flex items-center justify-between">
+              {steps.map((step, index) => (
+                <React.Fragment key={step.number}>
+                  <div className="flex flex-col items-center">
+                    <div className={`w-12 h-12 rounded-full flex items-center justify-center transition-all duration-300 ${
+                      currentStep > step.number
+                        ? 'bg-green-500 text-white'
+                        : currentStep === step.number
+                        ? 'bg-gradient-to-br from-blue-500 to-purple-600 text-white'
+                        : 'bg-gray-200 text-gray-500'
                     }`}>
-                      {step < currentStep ? (
-                        <CheckCircle className="w-4 h-4 sm:w-6 sm:h-6 flex-shrink-0" />
+                      {currentStep > step.number ? (
+                        <Check size={24} />
                       ) : (
-                        <div className="flex items-center justify-center w-full h-full">
-                          {getStepIcon(step)}
-                        </div>
+                        <step.icon size={24} />
                       )}
                     </div>
-                    {step < 4 && (
-                      <div className={`flex-1 h-1 mx-1 sm:mx-2 transition-all duration-300 ${
-                        step < currentStep ? 'bg-primary-500' : 'bg-gray-300'
-                      }`} />
-                    )}
+                    <p className={`text-xs mt-2 font-medium ${
+                      currentStep >= step.number ? 'text-gray-900' : 'text-gray-500'
+                    }`}>
+                      {step.title}
+                    </p>
                   </div>
-                ))}
-              </div>
-              <div className="text-center mt-4 px-4 max-w-md mx-auto">
-                <p className="text-base sm:text-lg font-semibold text-secondary-900 font-montserrat">
-                  {getStepTitle(currentStep)}
-                </p>
-                <p className="text-xs sm:text-sm text-secondary-600 font-montserrat">
-                  Étape {currentStep} sur 5
-                </p>
-              </div>
-            </div>
-
-            {/* Contenu des étapes */}
-            <div className="max-w-6xl mx-auto">
-                {currentStep === 1 && (
-                  <div
-                    key="step1"
-                    className="grid grid-cols-1 lg:grid-cols-2 gap-8"
-                  >
-                    {/* Sélection de catégorie */}
-                    <Card className="bg-white">
-                      <div className="mb-4">
-                        <h3 className="text-xl font-bold text-secondary-900 font-montserrat mb-1">
-                          Choisissez votre catégorie
-                        </h3>
-                        <p className="text-sm text-secondary-600 font-montserrat">
-                          Sélectionnez la catégorie qui correspond le mieux à votre besoin
-                        </p>
-                      </div>
-                      
-                      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3">
-                        {loanCategories.map((category, index) => (
-                          <div
-                            key={category.id}
-                            className={`group cursor-pointer relative overflow-hidden ${
-                              selectedCategory === category.id
-                                ? 'bg-gradient-to-r from-primary-500 to-primary-600 shadow-lg'
-                                : 'bg-gradient-to-r from-gray-50 to-gray-100 hover:from-primary-50 hover:to-primary-100'
-                            } rounded-xl border border-gray-200 hover:border-primary-300 transition-all duration-300`}
-                            onClick={() => handleCategorySelect(category.id)}
-                          >
-                            
-                            <div className="p-3 h-24 flex flex-col justify-center relative z-10">
-                              <div className="flex items-center justify-between mb-2">
-                                <div className={`w-10 h-10 ${selectedCategory === category.id ? 'bg-white/20' : 'bg-primary-100'} backdrop-blur-sm rounded-lg flex items-center justify-center`}>
-                                  <div className={`${selectedCategory === category.id ? 'text-white' : 'text-primary-600'}`}>
-                                    {category.icon}
-                                  </div>
-                                </div>
-                                {selectedCategory === category.id && (
-                                  <div className="w-5 h-5 bg-white/20 backdrop-blur-sm rounded-full flex items-center justify-center">
-                                    <CheckCircle size={14} className="text-white" />
-                                  </div>
-                                )}
-                              </div>
-                              
-                              <h4 className={`font-semibold text-base font-montserrat mb-1 ${
-                                selectedCategory === category.id ? 'text-white' : 'text-secondary-900'
-                              }`}>
-                                {category.name}
-                              </h4>
-                              
-                              <p className={`text-xs font-montserrat leading-tight line-clamp-2 ${
-                                selectedCategory === category.id ? 'text-white/90' : 'text-secondary-600'
-                              }`}>
-                                {category.description}
-                              </p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-
-                      {errors.category && (
-                        <div className="mt-4 p-3 bg-red-50 border border-red-200 text-red-700 rounded-lg flex items-center space-x-2">
-                          <AlertCircle size={20} />
-                          <span>{errors.category}</span>
-                        </div>
-                      )}
-                    </Card>
-
-
-                  </div>
-                )}
-
-                {currentStep === 2 && (
-                  <div
-                    key="step2"
-                    className="grid grid-cols-1 lg:grid-cols-3 gap-8"
-                  >
-                    {/* Formulaire montant et durée */}
-                    <div className="lg:col-span-2">
-                      <Card className="bg-white">
-                        <div className="mb-6">
-                          <h3 className="text-2xl font-bold text-secondary-900 font-montserrat mb-2">
-                            Montant et durée
-                          </h3>
-                          <p className="text-secondary-600 font-montserrat">
-                            Définissez le montant que vous souhaitez emprunter et la durée de remboursement
-                          </p>
-                        </div>
-                        
-                        <div className="space-y-6">
-                          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <Input
-                              label={`Montant demandé (FCFA) - Min: ${LOAN_CONFIG.amounts.min.toLocaleString()} | Max: ${LOAN_CONFIG.amounts.max.toLocaleString()}`}
-                              type="number"
-                              name="amount"
-                              value={formData.amount}
-                              onChange={handleChange}
-                              placeholder={`${LOAN_CONFIG.amounts.min.toLocaleString()}`}
-                              error={errors.amount}
-                              required
-                            />
-
-                            <div>
-                              <Input
-                                label="Durée du prêt"
-                                type="select"
-                                name="duration"
-                                value={formData.duration}
-                                onChange={handleChange}
-                                error={errors.duration}
-                                required
-                              >
-                                {LOAN_CONFIG.durations.map((option) => (
-                                  <option key={option.value} value={option.days}>
-                                    {option.label}
-                                  </option>
-                                ))}
-                              </Input>
-
-                            </div>
-                          </div>
-                        </div>
-                      </Card>
-                    </div>
-
-                    {/* Détails du calcul */}
-                    <div className="space-y-6">
-                      {calculation ? (
-                        <Card className="bg-white">
-                          <div className="p-6">
-                            <div className="flex items-center space-x-3 mb-6">
-                              <BarChart3 size={24} className="text-primary-600" />
-                              <h3 className="text-xl font-semibold text-secondary-900 font-montserrat">
-                                Détails du calcul
-                              </h3>
-                            </div>
-                            
-                            <div className="space-y-4">
-                              <div className="p-4 bg-green-50 rounded-xl border border-green-200">
-                                <h4 className="font-semibold text-green-900 font-montserrat mb-3 flex items-center">
-                                  <BarChart3 className="w-5 h-5 mr-2" />
-                                  Récapitulatif du prêt
-                                </h4>
-                                <div className="space-y-3 text-sm">
-                                  <div className="flex justify-between items-center p-2 bg-white/60 rounded-lg">
-                                    <span className="text-green-700 font-montserrat">Taux d'intérêt:</span>
-                                    <span className="font-bold text-green-900 font-montserrat">
-                                      {calculation.interestRate}%
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between items-center p-2 bg-white/60 rounded-lg">
-                                    <span className="text-green-700 font-montserrat">Intérêts:</span>
-                                    <span className="font-bold text-green-900 font-montserrat">
-                                      {formatCurrency(calculation.interestAmount)}
-                                    </span>
-                                  </div>
-                                  <div className="flex justify-between items-center p-2 bg-green-100 rounded-lg border border-green-300">
-                                    <span className="text-green-800 font-semibold font-montserrat">Total à rembourser:</span>
-                                    <span className="font-bold text-green-900 text-lg font-montserrat">
-                                      {formatCurrency(calculation.totalAmount)}
-                                    </span>
-                                  </div>
-                                  <div className="text-center p-2 bg-blue-50 rounded-lg border border-blue-200">
-                                    <span className="text-blue-700 text-xs font-montserrat">
-                                      Paiement unique de <span className="font-bold">{formatCurrency(calculation.paymentAmount)}</span> à la fin de la période
-                                    </span>
-                                  </div>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        </Card>
-                      ) : (
-                        <Card className="bg-white">
-                          <div className="p-6">
-                            <div className="flex items-center space-x-3 mb-6">
-                              <BarChart3 size={24} className="text-primary-600" />
-                              <h3 className="text-xl font-semibold text-secondary-900 font-montserrat">
-                                Détails du calcul
-                              </h3>
-                            </div>
-                            
-                            <div className="text-center py-8">
-                              <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                                <BarChart3 size={24} className="text-gray-400" />
-                              </div>
-                              <p className="text-gray-500 font-montserrat">
-                                Les détails du calcul s'afficheront ici une fois que vous aurez saisi le montant et la durée.
-                              </p>
-                            </div>
-                          </div>
-                        </Card>
-                      )}
-                    </div>
-                  </div>
-                )}
-
-                {currentStep === 3 && (
-                  <div
-                    key="step3"
-                    className="grid grid-cols-1 lg:grid-cols-2 gap-8"
-                  >
-                    {/* Informations personnelles */}
-                    <Card className="bg-white">
-                      <div className="mb-6">
-                        <h3 className="text-2xl font-bold text-secondary-900 font-montserrat mb-2">
-                          Informations personnelles
-                        </h3>
-                        <p className="text-secondary-600 font-montserrat">
-                          Aidez-nous à mieux comprendre votre situation financière
-                        </p>
-                      </div>
-
-                      <div className="space-y-6">
-                        <Input
-                          label="Objet du prêt"
-                          type="textarea"
-                          name="purpose"
-                          value={formData.purpose}
-                          onChange={handleChange}
-                          placeholder="Décrivez l'objet de votre prêt."
-                          error={errors.purpose}
-                          required
-                        />
-
-                        <Input
-                          label="Statut professionnel"
-                          type="select"
-                          name="employmentStatus"
-                          value={formData.employmentStatus}
-                          onChange={handleChange}
-                          required
-                        >
-                          <option value="student">Étudiant</option>
-                          <option value="self-employed">Indépendant</option>
-                        </Input>
-
-                        <div className="space-y-2">
-                          <label className="block text-sm font-medium text-secondary-700 font-montserrat">
-                            Garantie <span className="text-red-500">*</span>
-                          </label>
-                          <select
-                          name="guarantee"
-                          value={formData.guarantee}
-                          onChange={handleChange}
-                            className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent font-montserrat ${
-                              errors.guarantee 
-                                ? 'border-red-500 bg-red-50' 
-                                : 'border-secondary-300 bg-white'
-                            }`}
-                          required
-                          >
-                            <option value="">Sélectionnez votre garantie</option>
-                            <option value="📱 Téléphone portable">📱 Téléphone portable</option>
-                            <option value="💻 Ordinateur portable">💻 Ordinateur portable</option>
-                            <option value="🔥 Bouteille de gaz">🔥 Bouteille de gaz</option>
-                            <option value="🪙 Montre connectée ou classique de valeur">🪙 Montre connectée ou classique de valeur</option>
-                            <option value="📷 Tablette">📷 Tablette</option>
-                            <option value="🎧 Écouteurs ou casque Bluetooth">🎧 Écouteurs ou casque Bluetooth</option>
-                            <option value="🧳 Petit ventilateur ou cuisinière électrique">🧳 Petit ventilateur ou cuisinière électrique</option>
-                            <option value="💾 Disque dur externe ou clé USB haut de gamme">💾 Disque dur externe ou clé USB haut de gamme</option>
-                            <option value="🪑 Petit appareil électroménager (fer à repasser, mixeur, etc.)">🪑 Petit appareil électroménager (fer à repasser, mixeur, etc.)</option>
-                          </select>
-                          {errors.guarantee && (
-                            <p className="text-red-500 text-sm font-montserrat">{errors.guarantee}</p>
-                          )}
-                        </div>
-
-                        <Input
-                          label="Numéro Momo"
-                          type="tel"
-                          name="momoNumber"
-                          value={formData.momoNumber}
-                          onChange={handleChange}
-                          placeholder="Ex: 01234567"
-                          error={errors.momoNumber}
-                          required
-                        />
-
-                        <Input
-                          label="Réseau"
-                          type="select"
-                          name="momoNetwork"
-                          value={formData.momoNetwork}
-                          onChange={handleChange}
-                          required
-                        >
-                          <option value="">Sélectionner un réseau</option>
-                          <option value="MTN">MTN</option>
-                          <option value="Moov">Moov</option>
-                          <option value="Celtiis">Celtiis</option>
-                        </Input>
-
-                        <Input
-                          label="Nom sur le numéro"
-                          type="text"
-                          name="momoName"
-                          value={formData.momoName}
-                          onChange={handleChange}
-                          placeholder="Le nom qui apparaît sur le numéro Momo"
-                          error={errors.momoName}
-                          required
-                        />
-                      </div>
-                    </Card>
-
-                    {/* Informations importantes */}
-                    <div className="space-y-6">
-                      <Card className="bg-gradient-to-br from-blue-500 to-blue-600 text-white">
-                        <div className="flex items-center space-x-3 mb-4">
-                          <AlertCircle className="w-6 h-6" />
-                          <h3 className="text-lg font-semibold font-montserrat">
-                            Informations importantes
-                          </h3>
-                        </div>
-                        <div className="space-y-3">
-                          <div className="flex items-center space-x-3">
-                            <CheckCircle className="w-5 h-5 text-green-300" />
-                            <span className="font-montserrat">Validation automatique en 1h max</span>
-                          </div>
-                          <div className="flex items-center space-x-3">
-                            <AlertCircle className="w-5 h-5 text-yellow-300" />
-                            <span className="font-montserrat">Le numéro momo doit porter obligatoirement le nom du propriétaire du compte AB Campus finance</span>
-                          </div>
-                        </div>
-                      </Card>
-
-
-                    </div>
-                  </div>
-                )}
-
-                {currentStep === 4 && (
-                  <div
-                    key="step4"
-                    className="max-w-4xl mx-auto"
-                  >
-                    <Card className="bg-white">
-                      <div className="text-center mb-8">
-                        <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <Download size={32} className="text-blue-600" />
-                        </div>
-                        <h3 className="text-2xl font-bold text-gray-900 mb-2">
-                          Téléchargement de l'Engagement de Prêt
-                        </h3>
-                        <p className="text-gray-600">
-                          Avant de soumettre votre demande, vous devez télécharger et lire attentivement le document d'engagement
-                        </p>
-                      </div>
-
-                      {/* Bouton de téléchargement PDF */}
-                      <div className="text-center mb-6">
-                        {!pdfDownloaded ? (
-                          <>
-                            <Button
-                              onClick={generatePDF}
-                              className="bg-gradient-to-r from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white shadow-lg hover:shadow-xl transform hover:scale-105 transition-all duration-300 flex items-center space-x-3 mx-auto"
-                            >
-                              <Download className="w-5 h-5" />
-                              <span className="font-semibold">Télécharger l'Engagement de Prêt (PDF)</span>
-                            </Button>
-                            <p className="text-sm text-gray-600 mt-2 font-montserrat">
-                              ⚠️ Vous devez télécharger et lire le PDF avant de continuer
-                            </p>
-                          </>
-                        ) : (
-                          <div className="bg-green-50 border border-green-200 rounded-lg p-4">
-                            <div className="flex items-center justify-center space-x-2 mb-2">
-                              <CheckCircle className="w-5 h-5 text-green-600" />
-                              <span className="font-medium text-green-800">PDF Téléchargé ✓</span>
-                            </div>
-                            <p className="text-sm text-green-600">
-                              Vous pouvez maintenant continuer vers la soumission de votre demande
-                            </p>
-                            <Button
-                              onClick={generatePDF}
-                              variant="outline"
-                              size="sm"
-                              className="mt-2 border-green-300 text-green-700 hover:bg-green-100"
-                            >
-                              <Download className="w-4 h-4 mr-1" />
-                              Télécharger à nouveau
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-
-                      {/* Informations importantes */}
-                      <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4 mb-6">
-                        <div className="flex items-start space-x-3">
-                          <AlertCircle className="w-5 h-5 text-yellow-600 mt-0.5" />
-                          <div>
-                            <h4 className="font-medium text-yellow-800 mb-1">Informations importantes</h4>
-                            <ul className="text-sm text-yellow-700 space-y-1">
-                              <li>• Lisez attentivement toutes les conditions du prêt</li>
-                              <li>• Notez la pénalité de 2% par jour en cas de retard</li>
-                              <li>• Vérifiez les informations du témoin</li>
-                              <li>• Assurez-vous de comprendre vos obligations</li>
-                            </ul>
-                          </div>
-                        </div>
-                      </div>
-                    </Card>
-                  </div>
-                )}
-
-                {currentStep === 5 && (
-                  <div
-                    key="step5"
-                    className="max-w-4xl mx-auto"
-                  >
-                    <Card className="bg-white">
-                      <div className="text-center mb-8">
-                        <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                          <CheckCircle className="w-8 h-8 text-green-600" />
-                        </div>
-                        <h3 className="text-2xl font-bold text-secondary-900 font-montserrat mb-2">
-                          Confirmation et soumission
-                        </h3>
-                        <p className="text-secondary-600 font-montserrat">
-                          Vérifiez toutes les informations et soumettez votre demande de prêt
-                        </p>
-                      </div>
-                      
-                                            <div className="max-w-2xl mx-auto mb-8 space-y-4">
-                          <div className="p-4 bg-accent-50 rounded-xl">
-                            <h4 className="font-semibold text-secondary-900 font-montserrat mb-2">Détails du prêt</h4>
-                            <div className="space-y-2 text-sm">
-                              <div className="flex justify-between">
-                                <span className="text-secondary-600 font-montserrat">Catégorie:</span>
-                                <span className="font-medium text-secondary-900 font-montserrat">
-                                  {loanCategories.find(c => c.id === selectedCategory)?.name}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-secondary-600 font-montserrat">Montant:</span>
-                                <span className="font-medium text-secondary-900 font-montserrat">
-                                  {formatCurrency(parseFloat(formData.amount) || 0)}
-                                </span>
-                              </div>
-                              <div className="flex justify-between">
-                                <span className="text-secondary-600 font-montserrat">Durée:</span>
-                                <span className="font-medium text-secondary-900 font-montserrat">
-                                  {LOAN_CONFIG.durations.find(d => d.days === parseInt(formData.duration))?.label}
-                                </span>
-                              </div>
-                            <div className="flex justify-between">
-                              <span className="text-secondary-600 font-montserrat">Statut professionnel:</span>
-                              <span className="font-medium text-secondary-900 font-montserrat">
-                                {formData.employmentStatus === 'self-employed' ? 'Étudiant' : 'Indépendant'}
-                              </span>
-                            </div>
-                            <div className="flex justify-between">
-                              <span className="text-secondary-600 font-montserrat">Garantie:</span>
-                              <span className="font-medium text-secondary-900 font-montserrat">
-                                {formData.guarantee}
-                              </span>
-                            </div>
-                          </div>
-                        </div>
-
-                        <div className="p-4 bg-blue-50 rounded-xl">
-                          <h4 className="font-semibold text-blue-900 font-montserrat mb-2">Informations de paiement</h4>
-                          <div className="space-y-2 text-sm">
-                            <div className="flex justify-between">
-                              <span className="text-blue-700 font-montserrat">Numéro Momo:</span>
-                              <span className="font-medium text-blue-900 font-montserrat">
-                                {formData.momoNumber}
-                                </span>
-                              </div>
-                            <div className="flex justify-between">
-                              <span className="text-blue-700 font-montserrat">Réseau:</span>
-                              <span className="font-medium text-blue-900 font-montserrat">
-                                {formData.momoNetwork}
-                                </span>
-                              </div>
-                            <div className="flex justify-between">
-                              <span className="text-blue-700 font-montserrat">Nom sur le numéro:</span>
-                              <span className="font-medium text-blue-900 font-montserrat">
-                                {formData.momoName}
-                                </span>
-                              </div>
-                              </div>
-                            </div>
-                      </div>
-
-                      {/* Notice de téléchargement */}
-                      <div className="bg-gray-50 border-l-4 border-blue-500 p-4 mb-6">
-                        <div className="flex items-start space-x-3">
-                          <div className="flex-shrink-0">
-                            <div className="w-2 h-2 bg-blue-500 rounded-full mt-2"></div>
-                          </div>
-                          <div>
-                            <p className="text-gray-700 font-montserrat text-sm">
-                              <span className="font-semibold text-blue-600">Note :</span> Télécharger le récapitulatif avant de soumettre la demande
-                            </p>
-                          </div>
-                        </div>
-                      </div>
-
-
-                    </Card>
-                  </div>
-                )}
-              
-
-              {/* Navigation entre les étapes */}
-              <div className="flex justify-between items-center mt-8">
-                <div>
-                  <Button
-                    variant="outline"
-                    onClick={prevStep}
-                    disabled={currentStep === 1}
-                    className="flex items-center space-x-2 relative overflow-hidden"
-                    >
-                      <ArrowLeft className="w-4 h-4" />
-                    <span>Précédent</span>
-                  </Button>
-                </div>
-
-                {currentStep < 5 ? (
-                  <div>
-                    {currentStep === 4 ? (
-                      // Bouton dynamique à l'étape 4 : Télécharger → Suivant
-                      <Button
-                        onClick={pdfDownloaded ? nextStep : generatePDF}
-                        className={`flex items-center space-x-2 relative overflow-hidden ${
-                          pdfDownloaded
-                            ? 'bg-primary-500 hover:bg-primary-600'
-                            : 'bg-blue-500 hover:bg-blue-600'
-                        }`}
-                      >
-                        {pdfDownloaded ? (
-                          <>
-                            <span>Suivant</span>
-                              <ArrowRight className="w-4 h-4" />
-                          </>
-                        ) : (
-                          <>
-                            <Download className="w-4 h-4" />
-                            <span>Télécharger l'engagement</span>
-                          </>
-                        )}
-                      </Button>
-                    ) : (
-                      // Bouton normal pour les autres étapes
-                    <Button
-                      onClick={nextStep}
-                      className="flex items-center space-x-2 bg-primary-500 hover:bg-primary-600 relative overflow-hidden"
-                    >
-                      <span>Suivant</span>
-                        <ArrowRight className="w-4 h-4" />
-                    </Button>
-                    )}
-                  </div>
-                ) : (
-                  <div>
-                    <Button
-                      onClick={handleSubmit}
-                      disabled={loading || submitted || !pdfDownloaded}
-                      className={`relative overflow-hidden flex items-center space-x-2 px-4 sm:px-8 py-3 sm:py-4 rounded-2xl font-semibold text-base sm:text-lg transition-all duration-500 ${
-                        submitted 
-                          ? 'bg-green-500 text-white shadow-lg shadow-green-500/50' 
-                          : loading
-                          ? 'bg-blue-500 text-white shadow-lg shadow-blue-500/50'
-                          : !pdfDownloaded
-                          ? 'bg-gray-400 text-gray-200 cursor-not-allowed shadow-lg'
-                          : 'bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white shadow-lg hover:shadow-xl hover:shadow-green-500/50 transform hover:scale-105'
-                      }`}
-                    >
-                      {submitted ? (
-                        <>
-                            <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6" />
-                          <span>Demande soumise !</span>
-                        </>
-                      ) : loading ? (
-                        <>
-                            <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full" />
-                          <span>Soumission en cours...</span>
-                        </>
-                      ) : (
-                        <>
-                            <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
-                          <span>Soumettre la demande</span>
-                        </>
-                      )}
-                    </Button>
-                    
-                    {/* Message d'aide pour le PDF */}
-                    {!pdfDownloaded && (
-                      <div className="mt-3 text-center">
-                        <p className="text-sm text-red-600 flex items-center justify-center space-x-2">
-                          <AlertCircle className="w-4 h-4" />
-                          <span>Vous devez d'abord télécharger le PDF récapitulatif</span>
-                        </p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+                  {index < steps.length - 1 && (
+                    <div className={`flex-1 h-1 mx-2 transition-all duration-300 ${
+                      currentStep > step.number ? 'bg-green-500' : 'bg-gray-200'
+                    }`} />
+                  )}
+                </React.Fragment>
+              ))}
             </div>
           </div>
         </div>
       </div>
-        </>
-      )}
+
+      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Message d'avertissement si prêt actif */}
+        {hasActiveLoan && (
+          <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg mb-6">
+            <div className="flex items-start gap-3">
+              <AlertCircle size={24} className="text-red-600 flex-shrink-0 mt-0.5" />
+              <div>
+                <h3 className="font-bold text-red-900 mb-1">Prêt actif détecté</h3>
+                <p className="text-sm text-red-700">
+                  Vous avez déjà un prêt en cours. Vous devez le rembourser avant de faire une nouvelle demande.
+                </p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit}>
+          {/* Step 1: Catégorie */}
+          {currentStep === 1 && (
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4 font-montserrat flex items-center gap-2">
+                <FileText size={24} className="text-blue-600" />
+                Sélectionnez la catégorie de votre prêt
+              </h2>
+              <p className="text-gray-600 mb-6">Choisissez la catégorie qui correspond le mieux à votre besoin</p>
+              
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-5 gap-4">
+                {loanCategories.map((category) => (
+                  <button
+                    key={category.id}
+                    type="button"
+                    onClick={() => handleCategorySelect(category.id)}
+                    className={`p-6 rounded-xl border-2 transition-all duration-200 ${
+                      formData.category === category.id
+                        ? 'border-blue-500 bg-blue-50 shadow-md scale-105'
+                        : 'border-gray-200 hover:border-gray-300 hover:bg-gray-50'
+                    }`}
+                  >
+                    <div className={`w-16 h-16 ${category.bgColor} rounded-xl flex items-center justify-center mx-auto mb-3`}>
+                      <category.icon size={32} className={category.iconColor} />
+                    </div>
+                    <p className="text-sm font-medium text-gray-900 text-center">{category.name}</p>
+                  </button>
+                ))}
+              </div>
+              {errors.category && (
+                <p className="text-red-500 text-sm mt-4">{errors.category}</p>
+              )}
+            </div>
+          )}
+
+          {/* Step 2: Montant et Durée */}
+          {currentStep === 2 && (
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4 font-montserrat flex items-center gap-2">
+                <DollarSign size={24} className="text-green-600" />
+                Montant et durée du prêt
+              </h2>
+              <p className="text-gray-600 mb-6">Indiquez le montant souhaité et la durée de remboursement</p>
+              
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Montant souhaité <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <DollarSign size={18} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <input
+                      type="number"
+                      name="amount"
+                      value={formData.amount}
+                      onChange={handleChange}
+                      placeholder="Ex: 50000"
+                      min={LOAN_CONFIG.amounts.min}
+                      max={LOAN_CONFIG.amounts.max}
+                      className={`w-full pl-12 pr-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                        errors.amount ? 'border-red-500 bg-red-50' : 'border-gray-200'
+                      }`}
+                    />
+                  </div>
+                  {errors.amount && (
+                    <p className="text-red-500 text-sm mt-1">{errors.amount}</p>
+                  )}
+                  <p className="text-xs text-gray-500 mt-1">
+                    Min: {formatCurrency(LOAN_CONFIG.amounts.min)} - Max: {formatCurrency(LOAN_CONFIG.amounts.max)}
+                  </p>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Durée <span className="text-red-500">*</span>
+                  </label>
+                  <div className="relative">
+                    <Calendar size={18} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
+                    <select
+                      name="duration"
+                      value={formData.duration}
+                      onChange={handleChange}
+                      className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none bg-white"
+                    >
+                      {LOAN_CONFIG.durations.map((duration) => (
+                        <option key={duration.value} value={duration.value}>
+                          {duration.label}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+                  <p className="text-xs text-gray-500 mt-1">Choisissez la durée de remboursement</p>
+                </div>
+
+                {/* Calcul */}
+                {calculation && (
+                  <div className="mt-6 p-6 bg-gradient-to-r from-blue-50 to-purple-50 rounded-xl border border-blue-200">
+                    <h3 className="font-bold text-gray-900 mb-4">Récapitulatif</h3>
+                    <div className="space-y-3">
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Montant demandé</span>
+                        <span className="font-bold text-gray-900">{formatCurrency(calculation.principal)}</span>
+                      </div>
+                      <div className="flex justify-between">
+                        <span className="text-gray-600">Intérêts ({calculation.interestRate}%)</span>
+                        <span className="font-bold text-orange-600">{formatCurrency(calculation.interest)}</span>
+                      </div>
+                      <div className="border-t border-gray-300 pt-3 flex justify-between">
+                        <span className="font-bold text-gray-900">Montant total à rembourser</span>
+                        <span className="font-bold text-2xl text-blue-600">{formatCurrency(calculation.totalAmount)}</span>
+                      </div>
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">Durée</span>
+                        <span className="font-medium text-gray-900">{calculation.duration} jours</span>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+
+          {/* Step 3: Détails */}
+          {currentStep === 3 && (
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4 font-montserrat flex items-center gap-2">
+                <FileText size={24} className="text-purple-600" />
+                Détails de la demande
+              </h2>
+              <p className="text-gray-600 mb-6">Fournissez plus d'informations sur votre demande</p>
+              
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Utilisation du prêt <span className="text-red-500">*</span>
+                  </label>
+                  <textarea
+                    name="purpose"
+                    value={formData.purpose}
+                    onChange={handleChange}
+                    placeholder="Décrivez précisément l'utilisation du prêt..."
+                    rows="4"
+                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                      errors.purpose ? 'border-red-500 bg-red-50' : 'border-gray-200'
+                    }`}
+                  />
+                  {errors.purpose && (
+                    <p className="text-red-500 text-sm mt-1">{errors.purpose}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Statut professionnel <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    name="employmentStatus"
+                    value={formData.employmentStatus}
+                    onChange={handleChange}
+                    className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
+                  >
+                    <option value="student">Étudiant</option>
+                    <option value="self-employed">Indépendant</option>
+                    <option value="employed">Salarié</option>
+                    <option value="unemployed">Sans emploi</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Garantie <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    name="guarantee"
+                    value={formData.guarantee}
+                    onChange={handleChange}
+                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                      errors.guarantee ? 'border-red-500 bg-red-50' : 'border-gray-200'
+                    }`}
+                  >
+                    <option value="">Sélectionnez votre garantie</option>
+                    <option value="📱 Téléphone portable">📱 Téléphone portable</option>
+                    <option value="💻 Ordinateur portable">💻 Ordinateur portable</option>
+                    <option value="🔥 Bouteille de gaz">🔥 Bouteille de gaz</option>
+                    <option value="🪙 Montre connectée ou classique de valeur">🪙 Montre connectée ou classique de valeur</option>
+                    <option value="📷 Tablette">📷 Tablette</option>
+                    <option value="🎧 Écouteurs ou casque Bluetooth">🎧 Écouteurs ou casque Bluetooth</option>
+                    <option value="🧳 Petit ventilateur ou cuisinière électrique">🧳 Petit ventilateur ou cuisinière électrique</option>
+                    <option value="💾 Disque dur externe ou clé USB haut de gamme">💾 Disque dur externe ou clé USB haut de gamme</option>
+                    <option value="🪑 Petit appareil électroménager (fer à repasser, mixeur, etc.)">🪑 Petit appareil électroménager (fer à repasser, mixeur, etc.)</option>
+                  </select>
+                  {errors.guarantee && (
+                    <p className="text-red-500 text-sm mt-1">{errors.guarantee}</p>
+                  )}
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Step 4: Mobile Money */}
+          {currentStep === 4 && (
+            <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
+              <h2 className="text-xl font-bold text-gray-900 mb-4 font-montserrat flex items-center gap-2">
+                <CreditCard size={24} className="text-green-600" />
+                Informations Mobile Money
+              </h2>
+              <p className="text-gray-600 mb-6">Indiquez vos coordonnées de paiement Mobile Money</p>
+              
+              <div className="space-y-6">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Opérateur <span className="text-red-500">*</span>
+                  </label>
+                  <select
+                    name="momoNetwork"
+                    value={formData.momoNetwork}
+                    onChange={handleChange}
+                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                      errors.momoNetwork ? 'border-red-500 bg-red-50' : 'border-gray-200'
+                    }`}
+                  >
+                    <option value="">Sélectionnez votre opérateur</option>
+                    <option value="MTN">MTN Mobile Money</option>
+                    <option value="Moov">Moov Money</option>
+                    <option value="Celtiis">Celtiis Cash</option>
+                  </select>
+                  {errors.momoNetwork && (
+                    <p className="text-red-500 text-sm mt-1">{errors.momoNetwork}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Numéro Mobile Money <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="tel"
+                    name="momoNumber"
+                    value={formData.momoNumber}
+                    onChange={handleChange}
+                    placeholder="Ex: 97123456"
+                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                      errors.momoNumber ? 'border-red-500 bg-red-50' : 'border-gray-200'
+                    }`}
+                  />
+                  {errors.momoNumber && (
+                    <p className="text-red-500 text-sm mt-1">{errors.momoNumber}</p>
+                  )}
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-2">
+                    Nom du compte <span className="text-red-500">*</span>
+                  </label>
+                  <input
+                    type="text"
+                    name="momoName"
+                    value={formData.momoName}
+                    onChange={handleChange}
+                    placeholder="Nom complet du titulaire"
+                    className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
+                      errors.momoName ? 'border-red-500 bg-red-50' : 'border-gray-200'
+                    }`}
+                  />
+                  {errors.momoName && (
+                    <p className="text-red-500 text-sm mt-1">{errors.momoName}</p>
+                  )}
+                </div>
+              </div>
+
+              {/* Message pour télécharger le PDF */}
+              {!pdfDownloaded && (
+                <div className="mt-6 bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <FileText size={24} className="text-blue-600 flex-shrink-0 mt-0.5" />
+                    <div className="flex-1">
+                      <h3 className="font-bold text-blue-900 mb-1">Document d'engagement requis</h3>
+                      <p className="text-sm text-blue-700 mb-3">
+                        Avant de soumettre votre demande, vous devez télécharger et signer le document d'engagement de prêt.
+                      </p>
+                      <button
+                        type="button"
+                        onClick={generatePreviewPDF}
+                        disabled={loading}
+                        className="flex items-center gap-2 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg font-medium transition-all duration-200 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        {loading ? (
+                          <>
+                            <div className="animate-spin rounded-full h-4 w-4 border-2 border-white border-t-transparent"></div>
+                            <span>Génération...</span>
+                          </>
+                        ) : (
+                          <>
+                            <FileText size={18} />
+                            <span>Télécharger le PDF d'engagement</span>
+                          </>
+                        )}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {pdfDownloaded && (
+                <div className="mt-6 bg-green-50 border-l-4 border-green-500 p-4 rounded-lg">
+                  <div className="flex items-start gap-3">
+                    <CheckCircle size={24} className="text-green-600 flex-shrink-0 mt-0.5" />
+                    <div>
+                      <h3 className="font-bold text-green-900 mb-1">PDF téléchargé ✓</h3>
+                      <p className="text-sm text-green-700">
+                        Vous pouvez maintenant soumettre votre demande. Veuillez signer le document et le conserver précieusement.
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Navigation Buttons */}
+          <div className="flex justify-between items-center mt-8">
+            <button
+              type="button"
+              onClick={handlePrevious}
+              disabled={currentStep === 1}
+              className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-200 ${
+                currentStep === 1
+                  ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
+                  : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+              }`}
+            >
+              <ArrowLeft size={20} />
+              <span>Précédent</span>
+            </button>
+
+            {currentStep < totalSteps ? (
+              <button
+                type="button"
+                onClick={handleNext}
+                className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
+              >
+                <span>Suivant</span>
+                <ArrowRight size={20} />
+              </button>
+            ) : (
+              <button
+                type="submit"
+                disabled={loading || hasActiveLoan}
+                className="flex items-center gap-2 px-8 py-3 bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white rounded-xl font-bold transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {loading ? (
+                  <>
+                    <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
+                    <span>Envoi en cours...</span>
+                  </>
+                ) : (
+                  <>
+                    <Send size={20} />
+                    <span>Soumettre la demande</span>
+                  </>
+                )}
+              </button>
+            )}
+          </div>
+        </form>
+      </div>
     </div>
   );
 };
 
 export default LoanRequest;
-

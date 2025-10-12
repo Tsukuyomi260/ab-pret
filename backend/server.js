@@ -23,6 +23,10 @@ const webPush = require('./config/push');
 
 // Import Supabase client
 const { supabase } = require('./utils/supabaseClient-server');
+
+// Import PDF Generator
+const pdfGenerator = require('./routes/pdfGenerator');
+
 app.use(express.json({
   verify: (req, res, buf) => {
     req.rawBody = buf.toString('utf8'); // ← important de bien définir l'encodage
@@ -37,6 +41,9 @@ require('dotenv').config({ path: '.env.local' });
 require('dotenv').config();
 
 app.use(cors());
+
+// Routes PDF
+app.use('/api', pdfGenerator);
 
 // Route de test pour vérifier que l'API fonctionne
 app.get("/api/health", (req, res) => res.json({ ok: true }));

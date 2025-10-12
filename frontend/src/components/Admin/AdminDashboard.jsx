@@ -261,7 +261,7 @@ const AdminDashboard = () => {
               <div>
                 <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 font-montserrat">Tableau de bord</h1>
                 <p className="text-sm sm:text-base text-gray-600 font-montserrat">
-                  Bienvenue, {user?.first_name || 'Admin'}
+                  Bonjour {user?.first_name || 'Admin'}
                 </p>
               </div>
             </div>

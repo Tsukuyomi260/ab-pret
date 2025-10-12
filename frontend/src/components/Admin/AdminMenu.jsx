@@ -1,6 +1,6 @@
 import React from 'react';
 import { useNavigate } from 'react-router-dom';
-import { PiggyBank, CreditCard, ArrowRight } from 'lucide-react';
+import { PiggyBank, CreditCard, Users, ArrowRight } from 'lucide-react';
 
 const AdminMenu = () => {
   const navigate = useNavigate();
@@ -25,6 +25,16 @@ const AdminMenu = () => {
       bgColor: 'bg-blue-50',
       iconColor: 'text-blue-600',
       path: '/admin/loan-requests'
+    },
+    {
+      id: 'utilisateurs',
+      title: 'Utilisateurs',
+      description: 'Gérer les clients et voir leurs informations',
+      icon: Users,
+      color: 'from-purple-500 to-pink-600',
+      bgColor: 'bg-purple-50',
+      iconColor: 'text-purple-600',
+      path: '/admin/user-management'
     }
   ];
 
@@ -45,8 +55,8 @@ const AdminMenu = () => {
       </div>
 
       {/* Menu Items */}
-      <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {menuItems.map((item) => (
             <button
               key={item.id}
