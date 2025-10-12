@@ -665,7 +665,7 @@ const LoanRequest = () => {
 
             {/* Contenu des étapes */}
             <div className="max-w-6xl mx-auto">
-              {currentStep === 1 && (
+                {currentStep === 1 && (
                   <div
                     key="step1"
                     className="grid grid-cols-1 lg:grid-cols-2 gap-8"
@@ -905,15 +905,15 @@ const LoanRequest = () => {
                             Garantie <span className="text-red-500">*</span>
                           </label>
                           <select
-                            name="guarantee"
-                            value={formData.guarantee}
-                            onChange={handleChange}
+                          name="guarantee"
+                          value={formData.guarantee}
+                          onChange={handleChange}
                             className={`w-full px-3 py-2 border rounded-lg focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent font-montserrat ${
                               errors.guarantee 
                                 ? 'border-red-500 bg-red-50' 
                                 : 'border-secondary-300 bg-white'
                             }`}
-                            required
+                          required
                           >
                             <option value="">Sélectionnez votre garantie</option>
                             <option value="📱 Téléphone portable">📱 Téléphone portable</option>
@@ -1177,8 +1177,8 @@ const LoanRequest = () => {
                     onClick={prevStep}
                     disabled={currentStep === 1}
                     className="flex items-center space-x-2 relative overflow-hidden"
-                  >
-                    <ArrowLeft className="w-4 h-4" />
+                    >
+                      <ArrowLeft className="w-4 h-4" />
                     <span>Précédent</span>
                   </Button>
                 </div>
@@ -1198,7 +1198,7 @@ const LoanRequest = () => {
                         {pdfDownloaded ? (
                           <>
                             <span>Suivant</span>
-                            <ArrowRight className="w-4 h-4" />
+                              <ArrowRight className="w-4 h-4" />
                           </>
                         ) : (
                           <>
@@ -1214,7 +1214,7 @@ const LoanRequest = () => {
                       className="flex items-center space-x-2 bg-primary-500 hover:bg-primary-600 relative overflow-hidden"
                     >
                       <span>Suivant</span>
-                      <ArrowRight className="w-4 h-4" />
+                        <ArrowRight className="w-4 h-4" />
                     </Button>
                     )}
                   </div>
@@ -1235,17 +1235,17 @@ const LoanRequest = () => {
                     >
                       {submitted ? (
                         <>
-                          <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6" />
+                            <CheckCircle className="w-5 h-5 sm:w-6 sm:h-6" />
                           <span>Demande soumise !</span>
                         </>
                       ) : loading ? (
                         <>
-                          <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full" />
+                            <div className="w-4 h-4 sm:w-5 sm:h-5 border-2 border-white border-t-transparent rounded-full" />
                           <span>Soumission en cours...</span>
                         </>
                       ) : (
                         <>
-                          <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
+                            <CheckCircle className="w-4 h-4 sm:w-5 sm:h-5" />
                           <span>Soumettre la demande</span>
                         </>
                       )}

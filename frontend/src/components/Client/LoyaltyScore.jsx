@@ -188,8 +188,8 @@ const LoyaltyScore = () => {
       bgColor: 'bg-green-100'
     },
     {
-      title: 'Forfait d\'appel gratuit',
-      description: 'Recevez un crédit téléphonique sur le numéro de votre choix',
+      title: 'Forfait d\'internet',
+      description: 'Recevez un forfait internet sur le numéro de votre choix',
       icon: Phone,
       color: 'text-blue-600',
       bgColor: 'bg-blue-100'
@@ -434,29 +434,12 @@ const LoyaltyScore = () => {
               </Card>
 
               {/* Récompenses disponibles */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                <Card className="bg-gradient-to-br from-green-500 to-green-600 text-white">
-                  <div className="p-6">
-                    <div className="flex items-center justify-between mb-4">
-                      <div>
-                        <h3 className="text-lg font-bold font-montserrat mb-1">Réduction active</h3>
-                        <p className="text-green-100 text-sm">2% sur tous vos prêts</p>
-                      </div>
-                      <div className="p-2 bg-white/20 rounded-full">
-                        <Percent size={20} />
-                      </div>
-                    </div>
-                    <p className="text-2xl font-bold">
-                      {formatCurrency(loyaltyData.totalSavings)} économisés
-                    </p>
-                  </div>
-                </Card>
-
+              <div className="grid grid-cols-1 gap-6">
                 <Card className="bg-gradient-to-br from-purple-500 to-purple-600 text-white">
                   <div className="p-6">
                     <div className="flex items-center justify-between mb-4">
                       <div>
-                        <h3 className="text-lg font-bold font-montserrat mb-1">Forfait d'appel</h3>
+                        <h3 className="text-lg font-bold font-montserrat mb-1">Forfait internet</h3>
                         <p className="text-purple-100 text-sm">Prochaine récompense</p>
                       </div>
                       <div className="p-2 bg-white/20 rounded-full">
@@ -592,7 +575,7 @@ const LoyaltyScore = () => {
                       <div className="space-y-2">
                         <div className="flex items-center space-x-2">
                           <CheckCircle size={16} className="text-green-600" />
-                          <span className="text-sm font-montserrat">Forfait d'appel gratuit</span>
+                          <span className="text-sm font-montserrat">Forfait internet gratuit</span>
                         </div>
                         <div className="flex items-center space-x-2">
                           <CheckCircle size={16} className="text-green-600" />
@@ -704,7 +687,7 @@ const LoyaltyScore = () => {
                   <h4 className="font-semibold text-green-900 mb-2">Avantages débloqués :</h4>
                   <ul className="space-y-1 text-green-800">
                     <li>• Réduction de 2% sur les frais</li>
-                    <li>• Forfait d'appel gratuit</li>
+                    <li>• Forfait internet gratuit</li>
                     <li>• Traitement prioritaire</li>
                     <li>• Taux d'intérêt préférentiels</li>
                   </ul>

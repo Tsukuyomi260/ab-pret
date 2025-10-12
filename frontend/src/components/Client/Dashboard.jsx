@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 // Animations supprimées pour améliorer les performances
 import Card from '../UI/Card';
 import Button from '../UI/Button';
+import ContactButton from '../UI/ContactButton';
 import { getLoans, getPayments } from '../../utils/supabaseAPI';
 import { 
   CreditCard, 
@@ -630,6 +631,9 @@ const ClientDashboard = () => {
 
           </div>
       </div>
+      
+      {/* Bouton de contact flottant */}
+      <ContactButton />
       </div>
   );
 };
