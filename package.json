@@ -1,7 +1,7 @@
 {
   "name": "ab-campus-finance",
   "version": "1.0.0",
-  "description": "AB Campus Finance - Monorepo",
+  "description": "AB Campus Finance - Application de financement et d'épargne pour étudiants du Bénin - Made in Bénin",
   "private": true,
   "scripts": {
     "dev": "concurrently \"npm run dev:frontend\" \"npm run dev:backend\"",

@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import ContactButton from '../UI/ContactButton';
 import { getLoans, getPayments } from '../../utils/supabaseAPI';
+import { supabase } from '../../utils/supabaseClient';
 import { 
   CreditCard, 
   Clock, 
@@ -33,7 +34,8 @@ const ClientDashboard = () => {
     nextPayment: 0,
     daysUntilNextPayment: 0,
     dueDate: null,
-    loyaltyScore: 0
+    loyaltyScore: 0,
+    savingsBalance: 0
   });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -54,6 +56,16 @@ const ClientDashboard = () => {
       
       const loansResult = await getLoans(user.id);
       const paymentsResult = await getPayments(user.id);
+      
+      // Récupérer le plan d'épargne actif
+      const { data: savingsPlan, error: savingsError } = await supabase
+        .from('savings_plans')
+        .select('current_balance')
+        .eq('user_id', user.id)
+        .eq('status', 'active')
+        .single();
+      
+      const savingsBalance = savingsPlan?.current_balance || 0;
 
       if (loansResult.success && paymentsResult.success) {
         const loans = loansResult.data || [];
@@ -132,7 +144,8 @@ const ClientDashboard = () => {
           nextPayment,
           daysUntilNextPayment,
           dueDate,
-          loyaltyScore
+          loyaltyScore,
+          savingsBalance
         });
       }
     } catch (error) {
@@ -288,18 +301,18 @@ const ClientDashboard = () => {
             <p className="text-sm text-gray-600 font-montserrat">Prêt{stats.activeLoans > 1 ? 's' : ''} en cours</p>
           </div>
 
-          {/* Montant emprunté */}
+          {/* Compte Épargne */}
           <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-6 flex flex-col justify-between hover:shadow-xl transition-all duration-300">
             <div className="flex items-center justify-between mb-3">
-              <div className="p-2 sm:p-3 bg-purple-100 rounded-xl">
-                <DollarSign size={20} className="text-purple-600" />
+              <div className="p-2 sm:p-3 bg-green-100 rounded-xl">
+                <PiggyBank size={20} className="text-green-600" />
               </div>
-              <span className="text-xs font-medium text-gray-500">Emprunté</span>
+              <span className="text-xs font-medium text-gray-500">Compte Épargne</span>
             </div>
             <p className="text-2xl sm:text-3xl font-bold text-gray-900 font-montserrat mb-1">
-              {formatCurrency(stats.totalLoaned)}
+              {formatCurrency(stats.savingsBalance)}
             </p>
-            <p className="text-sm text-gray-600 font-montserrat">Montant total</p>
+            <p className="text-sm text-gray-600 font-montserrat">Solde disponible</p>
           </div>
 
           {/* Prochain paiement */}

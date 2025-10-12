@@ -1091,6 +1091,42 @@ app.post('/api/fedapay/webhook', async (req, res) => {
 
           console.log('[FEDAPAY_WEBHOOK] ✅ Prêt mis à jour:', updatedLoan);
 
+          // Notifier l'admin du remboursement
+          try {
+            // Récupérer les infos du client
+            const { data: clientData } = await supabase
+              .from('users')
+              .select('first_name, last_name')
+              .eq('id', userId)
+              .single();
+            
+            if (clientData) {
+              const clientName = `${clientData.first_name} ${clientData.last_name}`;
+              
+              console.log('[FEDAPAY_WEBHOOK] 📢 Envoi notification admin remboursement');
+              
+              const notifResponse = await fetch(`${process.env.BACKEND_URL || 'http://localhost:5000'}/api/notify-admin-repayment`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  loanId: loanId,
+                  clientName: clientName,
+                  amount: transaction.amount,
+                  userId: userId
+                })
+              });
+              
+              if (notifResponse.ok) {
+                console.log('[FEDAPAY_WEBHOOK] ✅ Notification admin envoyée');
+              } else {
+                console.error('[FEDAPAY_WEBHOOK] ❌ Erreur notification admin:', await notifResponse.text());
+              }
+            }
+          } catch (notifError) {
+            console.error('[FEDAPAY_WEBHOOK] ❌ Erreur lors de la notification admin:', notifError);
+            // Ne pas faire échouer le webhook si la notification échoue
+          }
+
           console.log('[FEDAPAY_WEBHOOK] ✅ Prêt mis à jour - Statut: remboursé');
 
           // Vérifier et notifier l'atteinte du score de fidélité maximum
@@ -2434,6 +2470,116 @@ app.post('/api/notify-admin-new-loan', async (req, res) => {
     
   } catch (error) {
     console.error('[ADMIN_NOTIFICATION] Erreur lors de l\'envoi de la notification:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Erreur serveur lors de l\'envoi de la notification' 
+    });
+  }
+});
+
+// Route pour notifier l'admin d'un remboursement
+app.post('/api/notify-admin-repayment', async (req, res) => {
+  try {
+    const { loanId, clientName, amount, userId } = req.body;
+    
+    if (!loanId || !clientName || !amount) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'loanId, clientName et amount sont requis' 
+      });
+    }
+    
+    console.log('[ADMIN_NOTIFICATION_REPAYMENT] Remboursement reçu:', { loanId, clientName, amount });
+    
+    // Récupérer l'admin
+    const { data: adminData, error: adminError } = await supabase
+      .from('users')
+      .select('id, first_name, last_name, role')
+      .eq('role', 'admin')
+      .single();
+
+    if (adminError || !adminData) {
+      console.error('[ADMIN_NOTIFICATION_REPAYMENT] ❌ Aucun admin trouvé:', adminError);
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Aucun administrateur trouvé' 
+      });
+    }
+
+    console.log('[ADMIN_NOTIFICATION_REPAYMENT] Admin trouvé:', {
+      id: adminData.id,
+      name: `${adminData.first_name} ${adminData.last_name}`
+    });
+
+    const adminName = adminData.first_name || 'Admin';
+    const amountFormatted = `${parseInt(amount).toLocaleString()} FCFA`;
+    
+    const title = "AB Campus Finance - Remboursement reçu";
+    const body = `Hello ${adminName}, ${clientName} vient d'effectuer un remboursement de ${amountFormatted}. Prêt #${loanId} complété.`;
+    
+    // Récupérer les abonnements de l'admin
+    const { data: subscriptions } = await supabase
+      .from('push_subscriptions')
+      .select('subscription, user_id')
+      .eq('user_id', adminData.id);
+    
+    console.log('[ADMIN_NOTIFICATION_REPAYMENT] Abonnements trouvés:', {
+      adminId: adminData.id,
+      subscriptionsCount: subscriptions?.length || 0
+    });
+    
+    if (!subscriptions || subscriptions.length === 0) {
+      console.log(`[ADMIN_NOTIFICATION_REPAYMENT] Admin ${adminName} non abonné aux notifications`);
+      return res.json({ 
+        success: true, 
+        message: 'Remboursement enregistré mais admin non abonné aux notifications' 
+      });
+    }
+    
+    let notificationsSent = 0;
+    let errors = 0;
+    
+    for (const sub of subscriptions) {
+      try {
+        await webPush.sendNotification(sub.subscription, JSON.stringify({
+          title,
+          body,
+          data: {
+            url: '/admin/loan-requests',
+            icon: '/logo192.png',
+            badge: '/logo192.png',
+            type: 'loan_repayment',
+            loanId: loanId,
+            amount: amountFormatted,
+            clientName: clientName,
+            userId: userId
+          },
+          vibrate: [200, 50, 100]
+        }));
+        notificationsSent++;
+        console.log(`[ADMIN_NOTIFICATION_REPAYMENT] ✅ Notification envoyée à l'admin ${adminName}`);
+      } catch (pushError) {
+        console.error(`[ADMIN_NOTIFICATION_REPAYMENT] ❌ Erreur envoi notification:`, pushError);
+        errors++;
+      }
+    }
+    
+    if (notificationsSent > 0) {
+      res.json({ 
+        success: true, 
+        message: `Notification de remboursement envoyée à l'admin ${adminName}`,
+        notificationsSent,
+        errors
+      });
+    } else {
+      res.status(500).json({ 
+        success: false, 
+        error: 'Aucune notification envoyée à l\'admin' 
+      });
+    }
+    
+  } catch (error) {
+    console.error('[ADMIN_NOTIFICATION_REPAYMENT] Erreur:', error);
     res.status(500).json({ 
       success: false, 
       error: 'Erreur serveur lors de l\'envoi de la notification' 

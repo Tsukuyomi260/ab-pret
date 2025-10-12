@@ -67,7 +67,7 @@ const Footer = () => {
           <div className="mt-3 pt-3 border-t border-accent-200">
             <div className="flex items-center justify-between text-xs text-neutral-600 font-montserrat">
               <span>&copy; 2025 AB CAMPUS FINANCE</span>
-              <span className="text-primary-600">Votre succès, notre mission</span>
+              <span className="text-primary-600 font-semibold">Made in Bénin 🇧🇯</span>
             </div>
           </div>
         </div>
@@ -117,7 +117,7 @@ const Footer = () => {
             </div>
             
             <div className="text-sm text-neutral-600 font-montserrat">
-              &copy; 2025 AB CAMPUS FINANCE. Tous droits réservés.
+              &copy; 2025 AB CAMPUS FINANCE. Tous droits réservés. <span className="text-primary-600 font-semibold ml-2">Made in Bénin 🇧🇯</span>
             </div>
           </div>
         </div>

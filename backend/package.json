@@ -1,7 +1,7 @@
 {
   "name": "ab-campus-finance-backend",
   "version": "1.0.0",
-  "description": "API Backend pour AB Campus Finance",
+  "description": "API Backend pour AB Campus Finance - Application de financement et d'épargne pour étudiants du Bénin",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",

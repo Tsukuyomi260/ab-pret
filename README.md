@@ -1,6 +1,12 @@
 # 🏦 AB Campus Finance - Monorepo
 
-Application de financement étudiant avec architecture séparée frontend/backend.
+**Application de financement et d'épargne pour étudiants du Bénin** 🇧🇯
+
+*Made in Bénin - Copyright © 2025 AB Campus Finance. Tous droits réservés.*
+
+---
+
+Application avec architecture séparée frontend/backend.
 
 ## 📁 Structure du projet
 

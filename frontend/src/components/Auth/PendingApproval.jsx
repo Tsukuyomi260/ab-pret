@@ -133,7 +133,10 @@ const PendingApproval = () => {
         {/* Footer */}
         <div className="text-center mt-6">
           <p className="text-sm text-gray-500">
-            © 2024 AB CAMPUS FINANCE. Tous droits réservés.
+            © 2025 AB CAMPUS FINANCE. Tous droits réservés.
+          </p>
+          <p className="text-sm text-primary-600 font-semibold mt-1">
+            Made in Bénin 🇧🇯
           </p>
         </div>
       </motion.div>

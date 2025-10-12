@@ -196,7 +196,10 @@ const Login = () => {
         {/* Footer */}
         <div className="text-center mt-6">
           <p className="text-sm text-gray-600">
-            © 2024 AB Campus Finance. Tous droits réservés.
+            © 2025 AB Campus Finance. Tous droits réservés.
+          </p>
+          <p className="text-sm text-primary-600 font-semibold mt-1">
+            Made in Bénin 🇧🇯
           </p>
         </div>
       </div>
