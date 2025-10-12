@@ -49,13 +49,57 @@ export const AuthProvider = ({ children }) => {
         
         if (session?.user) {
           console.log('[AUTH] Session trouvée:', session.user.email);
-          const roleFromJwt = session.user?.user_metadata?.role || session.user?.app_metadata?.role || 'client';
-          const userData = { ...session.user, role: roleFromJwt };
           
-          setUser(userData);
+          // Récupérer le rôle depuis la DB pour être sûr
+          let roleFromJwt = session.user?.user_metadata?.role || session.user?.app_metadata?.role || 'client';
           
-          // Mettre en cache
           try {
+            const { data: dbUser, error: dbError } = await supabase
+              .from('users')
+              .select('role, first_name, last_name')
+              .eq('id', session.user.id)
+              .single();
+            
+            if (!dbError && dbUser) {
+              console.log('[AUTH] Rôle récupéré depuis la DB:', dbUser.role);
+              roleFromJwt = dbUser.role || roleFromJwt;
+              
+              // Mettre à jour les métadonnées locales
+              const userData = { 
+                ...session.user, 
+                role: roleFromJwt,
+                firstName: dbUser.first_name || session.user.user_metadata?.first_name,
+                lastName: dbUser.last_name || session.user.user_metadata?.last_name
+              };
+              
+              setUser(userData);
+              
+              // Mettre en cache avec le bon rôle
+              localStorage.setItem('ab_user_cache', JSON.stringify({
+                id: userData.id,
+                email: userData.email,
+                role: roleFromJwt,
+                first_name: dbUser.first_name || '',
+                last_name: dbUser.last_name || ''
+              }));
+            } else {
+              console.warn('[AUTH] Impossible de récupérer le rôle depuis la DB, utilisation JWT');
+              const userData = { ...session.user, role: roleFromJwt };
+              setUser(userData);
+              
+              localStorage.setItem('ab_user_cache', JSON.stringify({
+                id: userData.id,
+                email: userData.email,
+                role: roleFromJwt,
+                first_name: userData.user_metadata?.first_name || '',
+                last_name: userData.user_metadata?.last_name || ''
+              }));
+            }
+          } catch (dbError) {
+            console.error('[AUTH] Erreur récupération rôle DB:', dbError);
+            const userData = { ...session.user, role: roleFromJwt };
+            setUser(userData);
+            
             localStorage.setItem('ab_user_cache', JSON.stringify({
               id: userData.id,
               email: userData.email,
@@ -63,8 +107,6 @@ export const AuthProvider = ({ children }) => {
               first_name: userData.user_metadata?.first_name || '',
               last_name: userData.user_metadata?.last_name || ''
             }));
-          } catch (cacheError) {
-            console.warn('[AUTH] Erreur cache:', cacheError);
           }
         } else {
           console.log('[AUTH] Aucune session active');
@@ -90,11 +132,53 @@ export const AuthProvider = ({ children }) => {
             console.log('[AUTH] Événement auth:', event, session?.user?.email);
             
             if (event === 'SIGNED_IN' && session) {
-              const roleFromJwt = session.user?.user_metadata?.role || session.user?.app_metadata?.role || 'client';
-              const userData = { ...session.user, role: roleFromJwt };
-              setUser(userData);
+              // Récupérer le rôle depuis la DB
+              let roleFromJwt = session.user?.user_metadata?.role || session.user?.app_metadata?.role || 'client';
               
               try {
+                const { data: dbUser, error: dbError } = await supabase
+                  .from('users')
+                  .select('role, first_name, last_name')
+                  .eq('id', session.user.id)
+                  .single();
+                
+                if (!dbError && dbUser) {
+                  console.log('[AUTH] SIGNED_IN - Rôle DB:', dbUser.role);
+                  roleFromJwt = dbUser.role || roleFromJwt;
+                  
+                  const userData = { 
+                    ...session.user, 
+                    role: roleFromJwt,
+                    firstName: dbUser.first_name || session.user.user_metadata?.first_name,
+                    lastName: dbUser.last_name || session.user.user_metadata?.last_name
+                  };
+                  
+                  setUser(userData);
+                  
+                  localStorage.setItem('ab_user_cache', JSON.stringify({
+                    id: userData.id,
+                    email: userData.email,
+                    role: roleFromJwt,
+                    first_name: dbUser.first_name || '',
+                    last_name: dbUser.last_name || ''
+                  }));
+                } else {
+                  const userData = { ...session.user, role: roleFromJwt };
+                  setUser(userData);
+                  
+                  localStorage.setItem('ab_user_cache', JSON.stringify({
+                    id: userData.id,
+                    email: userData.email,
+                    role: roleFromJwt,
+                    first_name: userData.user_metadata?.first_name || '',
+                    last_name: userData.user_metadata?.last_name || ''
+                  }));
+                }
+              } catch (dbError) {
+                console.error('[AUTH] Erreur récupération rôle DB (SIGNED_IN):', dbError);
+                const userData = { ...session.user, role: roleFromJwt };
+                setUser(userData);
+                
                 localStorage.setItem('ab_user_cache', JSON.stringify({
                   id: userData.id,
                   email: userData.email,
@@ -102,8 +186,6 @@ export const AuthProvider = ({ children }) => {
                   first_name: userData.user_metadata?.first_name || '',
                   last_name: userData.user_metadata?.last_name || ''
                 }));
-              } catch (cacheError) {
-                console.warn('[AUTH] Erreur cache:', cacheError);
               }
             } else if (event === 'SIGNED_OUT') {
               console.log('[AUTH] Utilisateur déconnecté');
@@ -115,9 +197,36 @@ export const AuthProvider = ({ children }) => {
               }
             } else if (event === 'TOKEN_REFRESHED' && session) {
               console.log('[AUTH] Token rafraîchi');
-              const roleFromJwt = session.user?.user_metadata?.role || session.user?.app_metadata?.role || 'client';
-              const userData = { ...session.user, role: roleFromJwt };
-              setUser(userData);
+              // Récupérer le rôle depuis la DB aussi lors du refresh
+              let roleFromJwt = session.user?.user_metadata?.role || session.user?.app_metadata?.role || 'client';
+              
+              try {
+                const { data: dbUser, error: dbError } = await supabase
+                  .from('users')
+                  .select('role, first_name, last_name')
+                  .eq('id', session.user.id)
+                  .single();
+                
+                if (!dbError && dbUser) {
+                  roleFromJwt = dbUser.role || roleFromJwt;
+                  
+                  const userData = { 
+                    ...session.user, 
+                    role: roleFromJwt,
+                    firstName: dbUser.first_name || session.user.user_metadata?.first_name,
+                    lastName: dbUser.last_name || session.user.user_metadata?.last_name
+                  };
+                  
+                  setUser(userData);
+                } else {
+                  const userData = { ...session.user, role: roleFromJwt };
+                  setUser(userData);
+                }
+              } catch (dbError) {
+                console.error('[AUTH] Erreur récupération rôle DB (TOKEN_REFRESHED):', dbError);
+                const userData = { ...session.user, role: roleFromJwt };
+                setUser(userData);
+              }
             }
           }
         );
