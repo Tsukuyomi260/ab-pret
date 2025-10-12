@@ -37,10 +37,171 @@
       Learn how to configure a non-root public URL by running `npm run build`.
     -->
     <title>AB CAMPUS FINANCE</title>
+    
+    <!-- Script de compatibilité iOS/Safari -->
+    <script src="%PUBLIC_URL%/ios-fix.js"></script>
+    
+    <style>
+      /* Fix pour le bug 100vh sur iOS */
+      html, body {
+        height: 100%;
+        height: calc(var(--vh, 1vh) * 100);
+        overflow: hidden;
+      }
+      
+      #root {
+        height: 100%;
+        overflow: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      
+      /* Message de chargement */
+      .loading-screen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        z-index: 9999;
+        color: white;
+        font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+      }
+      
+      .loading-spinner {
+        width: 50px;
+        height: 50px;
+        border: 4px solid rgba(255, 255, 255, 0.3);
+        border-top-color: white;
+        border-radius: 50%;
+        animation: spin 1s linear infinite;
+      }
+      
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+      
+      .loading-text {
+        margin-top: 20px;
+        font-size: 18px;
+        font-weight: 500;
+      }
+      
+      /* Message d'erreur */
+      .error-screen {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: #f8f9fa;
+        padding: 20px;
+        text-align: center;
+        z-index: 10000;
+      }
+      
+      .error-screen.show {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+      }
+      
+      .error-icon {
+        font-size: 48px;
+        margin-bottom: 20px;
+      }
+      
+      .error-title {
+        font-size: 24px;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 10px;
+      }
+      
+      .error-message {
+        font-size: 16px;
+        color: #666;
+        margin-bottom: 20px;
+      }
+      
+      .retry-button {
+        padding: 12px 24px;
+        background: #667eea;
+        color: white;
+        border: none;
+        border-radius: 8px;
+        font-size: 16px;
+        font-weight: 500;
+        cursor: pointer;
+      }
+    </style>
   </head>
   <body>
-    <noscript>You need to enable JavaScript to run this app.</noscript>
+    <noscript>
+      <div style="padding: 20px; text-align: center; font-family: sans-serif;">
+        <h1>JavaScript requis</h1>
+        <p>Vous devez activer JavaScript pour utiliser cette application.</p>
+        <p>Veuillez activer JavaScript dans les paramètres de votre navigateur.</p>
+      </div>
+    </noscript>
+    
+    <!-- Écran de chargement -->
+    <div id="loading-screen" class="loading-screen">
+      <div class="loading-spinner"></div>
+      <div class="loading-text">Chargement...</div>
+    </div>
+    
+    <!-- Écran d'erreur -->
+    <div id="error-screen" class="error-screen">
+      <div class="error-icon">⚠️</div>
+      <div class="error-title">Erreur de chargement</div>
+      <div class="error-message">Une erreur s'est produite lors du chargement de l'application.</div>
+      <button class="retry-button" onclick="window.location.reload()">Réessayer</button>
+    </div>
+    
     <div id="root"></div>
+    
+    <script>
+      // Masquer l'écran de chargement après le chargement de React
+      window.addEventListener('load', function() {
+        setTimeout(function() {
+          const loadingScreen = document.getElementById('loading-screen');
+          if (loadingScreen) {
+            loadingScreen.style.opacity = '0';
+            loadingScreen.style.transition = 'opacity 0.3s';
+            setTimeout(function() {
+              loadingScreen.style.display = 'none';
+            }, 300);
+          }
+        }, 1000);
+      });
+      
+      // Afficher l'écran d'erreur si React ne se charge pas
+      setTimeout(function() {
+        const root = document.getElementById('root');
+        if (!root || !root.hasChildNodes()) {
+          const loadingScreen = document.getElementById('loading-screen');
+          const errorScreen = document.getElementById('error-screen');
+          if (loadingScreen) loadingScreen.style.display = 'none';
+          if (errorScreen) errorScreen.classList.add('show');
+        }
+      }, 10000); // 10 secondes timeout
+      
+      // Gérer les erreurs globales
+      window.addEventListener('error', function(e) {
+        console.error('Erreur globale:', e.message);
+      });
+      
+      window.addEventListener('unhandledrejection', function(e) {
+        console.error('Promise rejetée:', e.reason);
+      });
+    </script>
     <!--
       This HTML file is a template.
       If you open it directly in the browser, you will see an empty page.
