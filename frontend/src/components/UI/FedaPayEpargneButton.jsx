@@ -57,7 +57,7 @@ const FedaPayEpargneButton = ({ planConfig }) => {
     startPollingForPlan();
 
     window.FedaPay.init(buttonRef.current, {
-      public_key: "pk_sandbox_ZXhGKFGNXwn853-mYF9pANmi",
+      public_key: "pk_live_u0sqkP5Irt1BvqvnU5gh4FOC",
       transaction: {
         amount: 1000, // frais de création fixe
         description: `Création plan épargne - ${user?.email}`,

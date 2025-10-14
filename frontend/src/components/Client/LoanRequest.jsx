@@ -60,33 +60,33 @@ const LoanRequest = () => {
     checkExistingLoans();
   }, [user?.id]);
 
-  const checkExistingLoans = async () => {
-    try {
-      setCheckingLoans(true);
-      const loansResult = await getLoans(user.id);
-      
-      if (loansResult.success) {
-        const userLoans = loansResult.data || [];
-        const activeLoan = userLoans.find(loan => 
-          loan.status === 'active' || loan.status === 'approved' || loan.status === 'overdue'
-        );
+    const checkExistingLoans = async () => {
+      try {
+        setCheckingLoans(true);
+        const loansResult = await getLoans(user.id);
         
-        setHasActiveLoan(!!activeLoan);
-        
-        if (activeLoan) {
-          if (activeLoan.status === 'overdue') {
+        if (loansResult.success) {
+          const userLoans = loansResult.data || [];
+          const activeLoan = userLoans.find(loan => 
+            loan.status === 'active' || loan.status === 'approved' || loan.status === 'overdue'
+          );
+          
+          setHasActiveLoan(!!activeLoan);
+          
+          if (activeLoan) {
+            if (activeLoan.status === 'overdue') {
             showError('Vous ne pouvez pas demander un nouveau prêt tant que votre prêt en retard n\'est pas remboursé.');
-          } else {
-            showError('Vous avez déjà un prêt en cours. Vous devez le rembourser avant de faire une nouvelle demande.');
+            } else {
+              showError('Vous avez déjà un prêt en cours. Vous devez le rembourser avant de faire une nouvelle demande.');
+            }
           }
         }
-      }
-    } catch (error) {
+      } catch (error) {
       console.error('[LOAN_REQUEST] Erreur:', error);
-    } finally {
-      setCheckingLoans(false);
-    }
-  };
+      } finally {
+        setCheckingLoans(false);
+      }
+    };
 
   useEffect(() => {
     if (formData.amount && formData.duration) {
@@ -184,11 +184,11 @@ const LoanRequest = () => {
 
   const validateStep = (step) => {
     const newErrors = {};
-    
+
     if (step === 1) {
       if (!formData.category) {
-        newErrors.category = 'Veuillez sélectionner une catégorie';
-      }
+          newErrors.category = 'Veuillez sélectionner une catégorie';
+        }
     }
     
     if (step === 2) {
@@ -215,15 +215,15 @@ const LoanRequest = () => {
         newErrors.momoNumber = 'Numéro Mobile Money invalide';
       }
       
-      if (!formData.momoNetwork) {
+        if (!formData.momoNetwork) {
         newErrors.momoNetwork = 'Veuillez sélectionner votre opérateur';
-      }
+        }
       
       if (!formData.momoName || formData.momoName.trim().length < 3) {
         newErrors.momoName = 'Veuillez entrer le nom du compte Mobile Money';
-      }
+        }
     }
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
@@ -346,36 +346,36 @@ const LoanRequest = () => {
       showError('Veuillez télécharger le PDF d\'engagement avant de soumettre');
       return;
     }
-    
+
     if (!validateStep(currentStep)) {
       showError('Veuillez corriger les erreurs dans le formulaire');
       return;
     }
-    
+
     if (hasActiveLoan) {
       showError('Vous avez déjà un prêt en cours');
       return;
     }
 
     setLoading(true);
-
+    
     try {
       const amount = parseFloat(formData.amount);
       const duration = parseInt(formData.duration);
       const interestRate = LOAN_CONFIG.getInterestRate(duration, amount);
       
-      const loanData = {
+    const loanData = {
         user_id: user.id,
         amount: amount,
         duration: duration,
         duration_months: duration,
         interest_rate: interestRate,
         purpose: formData.purpose,
-        employment_status: formData.employmentStatus,
-        guarantee: formData.guarantee,
-        momo_number: formData.momoNumber,
-        momo_network: formData.momoNetwork,
-        momo_name: formData.momoName,
+      employment_status: formData.employmentStatus,
+      guarantee: formData.guarantee,
+      momo_number: formData.momoNumber,
+      momo_network: formData.momoNetwork,
+      momo_name: formData.momoName,
         status: 'pending'
         // loan_type retiré car la colonne n'existe pas dans la table loans
       };
@@ -385,12 +385,12 @@ const LoanRequest = () => {
 
       // Utiliser la fonction createLoan de supabaseAPI
       const result = await createLoan(loanData);
-      
+
       console.log('[LOAN_REQUEST] Résultat:', result);
 
       if (result.success && result.data) {
         setLoanId(result.data.id);
-        setSubmitted(true);
+      setSubmitted(true);
         showSuccess('Demande de prêt soumise avec succès !');
       } else {
         throw new Error(result.error || 'Erreur lors de la soumission');
@@ -411,7 +411,7 @@ const LoanRequest = () => {
 
     try {
       const response = await fetch(`${BACKEND_URL}/api/generate-pdf/${loanId}`);
-      
+
       if (!response.ok) {
         throw new Error('Erreur lors de la génération du PDF');
       }
@@ -425,7 +425,7 @@ const LoanRequest = () => {
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
-
+      
       setPdfDownloaded(true);
       showSuccess('PDF téléchargé avec succès !');
     } catch (error) {
@@ -435,13 +435,13 @@ const LoanRequest = () => {
   };
 
   if (checkingLoans) {
-    return (
+  return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center">
-        <div className="text-center">
+          <div className="text-center">
           <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
           <p className="text-gray-600 font-medium">Vérification...</p>
+          </div>
         </div>
-      </div>
     );
   }
 
@@ -451,7 +451,7 @@ const LoanRequest = () => {
         <div className="bg-white rounded-3xl shadow-2xl p-8 max-w-md w-full text-center">
           <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
             <CheckCircle size={40} className="text-green-600" />
-          </div>
+            </div>
           <h2 className="text-3xl font-bold text-gray-900 mb-4 font-montserrat">Demande envoyée !</h2>
           <p className="text-gray-600 mb-6 font-montserrat">
             Votre demande de prêt a été soumise avec succès. Nous l'examinerons dans les plus brefs délais.
@@ -473,9 +473,9 @@ const LoanRequest = () => {
                     <FileText size={18} />
                     <span>Télécharger le PDF</span>
                   </button>
-                </div>
-              </div>
             </div>
+          </div>
+        </div>
           )}
 
           {pdfDownloaded && (
@@ -487,7 +487,7 @@ const LoanRequest = () => {
                   <p className="text-sm text-green-700">
                     Veuillez signer le document et le conserver précieusement.
                   </p>
-                </div>
+        </div>
               </div>
             </div>
           )}
@@ -534,7 +534,7 @@ const LoanRequest = () => {
                 </div>
               </div>
             </div>
-          </div>
+            </div>
 
           {/* Progress Steps */}
           <div className="mt-6">
@@ -564,12 +564,12 @@ const LoanRequest = () => {
                   {index < steps.length - 1 && (
                     <div className={`flex-1 h-1 mx-2 transition-all duration-300 ${
                       currentStep > step.number ? 'bg-green-500' : 'bg-gray-200'
-                    }`} />
-                  )}
+                      }`} />
+                    )}
                 </React.Fragment>
-              ))}
-            </div>
-          </div>
+                ))}
+              </div>
+              </div>
         </div>
       </div>
 
@@ -583,11 +583,11 @@ const LoanRequest = () => {
                 <h3 className="font-bold text-red-900 mb-1">Prêt actif détecté</h3>
                 <p className="text-sm text-red-700">
                   Vous avez déjà un prêt en cours. Vous devez le rembourser avant de faire une nouvelle demande.
-                </p>
-              </div>
-            </div>
-          </div>
-        )}
+                        </p>
+                      </div>
+                                  </div>
+                                  </div>
+                                )}
 
         <form onSubmit={handleSubmit}>
           {/* Step 1: Catégorie */}
@@ -613,27 +613,27 @@ const LoanRequest = () => {
                   >
                     <div className={`w-16 h-16 ${category.bgColor} rounded-xl flex items-center justify-center mx-auto mb-3`}>
                       <category.icon size={32} className={category.iconColor} />
-                    </div>
+                            </div>
                     <p className="text-sm font-medium text-gray-900 text-center">{category.name}</p>
                   </button>
-                ))}
-              </div>
-              {errors.category && (
+                        ))}
+                      </div>
+                      {errors.category && (
                 <p className="text-red-500 text-sm mt-4">{errors.category}</p>
               )}
-            </div>
-          )}
+                        </div>
+                      )}
 
           {/* Step 2: Montant et Durée */}
-          {currentStep === 2 && (
+                {currentStep === 2 && (
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-4 font-montserrat flex items-center gap-2">
                 <DollarSign size={24} className="text-green-600" />
                 Montant et durée du prêt
               </h2>
               <p className="text-gray-600 mb-6">Indiquez le montant souhaité et la durée de remboursement</p>
-              
-              <div className="space-y-6">
+                        
+                        <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Montant souhaité <span className="text-red-500">*</span>
@@ -641,10 +641,10 @@ const LoanRequest = () => {
                   <div className="relative">
                     <DollarSign size={18} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     <input
-                      type="number"
-                      name="amount"
-                      value={formData.amount}
-                      onChange={handleChange}
+                              type="number"
+                              name="amount"
+                              value={formData.amount}
+                              onChange={handleChange}
                       placeholder="Ex: 50000"
                       min={LOAN_CONFIG.amounts.min}
                       max={LOAN_CONFIG.amounts.max}
@@ -661,27 +661,27 @@ const LoanRequest = () => {
                   </p>
                 </div>
 
-                <div>
+                            <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Durée <span className="text-red-500">*</span>
                   </label>
                   <div className="relative">
                     <Calendar size={18} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
                     <select
-                      name="duration"
-                      value={formData.duration}
-                      onChange={handleChange}
+                                name="duration"
+                                value={formData.duration}
+                                onChange={handleChange}
                       className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none bg-white"
                     >
                       {LOAN_CONFIG.durations.map((duration) => (
                         <option key={duration.value} value={duration.value}>
                           {duration.label}
-                        </option>
-                      ))}
+                                  </option>
+                                ))}
                     </select>
-                  </div>
+                            </div>
                   <p className="text-xs text-gray-500 mt-1">Choisissez la durée de remboursement</p>
-                </div>
+                    </div>
 
                 {/* Calcul */}
                 {calculation && (
@@ -691,44 +691,44 @@ const LoanRequest = () => {
                       <div className="flex justify-between">
                         <span className="text-gray-600">Montant demandé</span>
                         <span className="font-bold text-gray-900">{formatCurrency(calculation.principal)}</span>
-                      </div>
+                            </div>
                       <div className="flex justify-between">
                         <span className="text-gray-600">Intérêts ({calculation.interestRate}%)</span>
                         <span className="font-bold text-orange-600">{formatCurrency(calculation.interest)}</span>
-                      </div>
+                                  </div>
                       <div className="border-t border-gray-300 pt-3 flex justify-between">
                         <span className="font-bold text-gray-900">Montant total à rembourser</span>
                         <span className="font-bold text-2xl text-blue-600">{formatCurrency(calculation.totalAmount)}</span>
-                      </div>
+                                  </div>
                       <div className="flex justify-between text-sm">
                         <span className="text-gray-600">Durée</span>
                         <span className="font-medium text-gray-900">{calculation.duration} jours</span>
-                      </div>
-                    </div>
-                  </div>
+                                  </div>
+                                  </div>
+                                </div>
                 )}
-              </div>
-            </div>
+                              </div>
+                            </div>
           )}
 
           {/* Step 3: Détails */}
-          {currentStep === 3 && (
+                {currentStep === 3 && (
             <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6">
               <h2 className="text-xl font-bold text-gray-900 mb-4 font-montserrat flex items-center gap-2">
                 <FileText size={24} className="text-purple-600" />
                 Détails de la demande
               </h2>
               <p className="text-gray-600 mb-6">Fournissez plus d'informations sur votre demande</p>
-              
-              <div className="space-y-6">
+
+                      <div className="space-y-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-2">
                     Utilisation du prêt <span className="text-red-500">*</span>
                   </label>
                   <textarea
-                    name="purpose"
-                    value={formData.purpose}
-                    onChange={handleChange}
+                          name="purpose"
+                          value={formData.purpose}
+                          onChange={handleChange}
                     placeholder="Décrivez précisément l'utilisation du prêt..."
                     rows="4"
                     className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
@@ -745,12 +745,12 @@ const LoanRequest = () => {
                     Statut professionnel <span className="text-red-500">*</span>
                   </label>
                   <select
-                    name="employmentStatus"
-                    value={formData.employmentStatus}
-                    onChange={handleChange}
+                          name="employmentStatus"
+                          value={formData.employmentStatus}
+                          onChange={handleChange}
                     className="w-full px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all"
-                  >
-                    <option value="student">Étudiant</option>
+                        >
+                          <option value="student">Étudiant</option>
                     <option value="self-employed">Indépendant</option>
                     <option value="employed">Salarié</option>
                     <option value="unemployed">Sans emploi</option>
@@ -762,9 +762,9 @@ const LoanRequest = () => {
                     Garantie <span className="text-red-500">*</span>
                   </label>
                   <select
-                    name="guarantee"
-                    value={formData.guarantee}
-                    onChange={handleChange}
+                          name="guarantee"
+                          value={formData.guarantee}
+                          onChange={handleChange}
                     className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
                       errors.guarantee ? 'border-red-500 bg-red-50' : 'border-gray-200'
                     }`}
@@ -803,9 +803,9 @@ const LoanRequest = () => {
                     Opérateur <span className="text-red-500">*</span>
                   </label>
                   <select
-                    name="momoNetwork"
-                    value={formData.momoNetwork}
-                    onChange={handleChange}
+                          name="momoNetwork"
+                          value={formData.momoNetwork}
+                          onChange={handleChange}
                     className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
                       errors.momoNetwork ? 'border-red-500 bg-red-50' : 'border-gray-200'
                     }`}
@@ -844,10 +844,10 @@ const LoanRequest = () => {
                     Nom du compte <span className="text-red-500">*</span>
                   </label>
                   <input
-                    type="text"
-                    name="momoName"
-                    value={formData.momoName}
-                    onChange={handleChange}
+                          type="text"
+                          name="momoName"
+                          value={formData.momoName}
+                          onChange={handleChange}
                     placeholder="Nom complet du titulaire"
                     className={`w-full px-4 py-3 border rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all ${
                       errors.momoName ? 'border-red-500 bg-red-50' : 'border-gray-200'
@@ -856,8 +856,8 @@ const LoanRequest = () => {
                   {errors.momoName && (
                     <p className="text-red-500 text-sm mt-1">{errors.momoName}</p>
                   )}
-                </div>
-              </div>
+                        </div>
+                      </div>
 
               {/* Message pour télécharger le PDF */}
               {!pdfDownloaded && (
@@ -887,23 +887,23 @@ const LoanRequest = () => {
                           </>
                         )}
                       </button>
-                    </div>
-                  </div>
-                </div>
+                          </div>
+                        </div>
+                      </div>
               )}
 
               {pdfDownloaded && (
                 <div className="mt-6 bg-green-50 border-l-4 border-green-500 p-4 rounded-lg">
                   <div className="flex items-start gap-3">
                     <CheckCircle size={24} className="text-green-600 flex-shrink-0 mt-0.5" />
-                    <div>
+                          <div>
                       <h3 className="font-bold text-green-900 mb-1">PDF téléchargé ✓</h3>
                       <p className="text-sm text-green-700">
                         Vous pouvez maintenant soumettre votre demande. Veuillez signer le document et le conserver précieusement.
-                      </p>
-                    </div>
-                  </div>
-                </div>
+                            </p>
+                          </div>
+                        </div>
+                      </div>
               )}
             </div>
           )}
@@ -913,7 +913,7 @@ const LoanRequest = () => {
             <button
               type="button"
               onClick={handlePrevious}
-              disabled={currentStep === 1}
+                    disabled={currentStep === 1}
               className={`flex items-center gap-2 px-6 py-3 rounded-xl font-medium transition-all duration-200 ${
                 currentStep === 1
                   ? 'bg-gray-100 text-gray-400 cursor-not-allowed'
@@ -921,7 +921,7 @@ const LoanRequest = () => {
               }`}
             >
               <ArrowLeft size={20} />
-              <span>Précédent</span>
+                    <span>Précédent</span>
             </button>
 
             {currentStep < totalSteps ? (
@@ -930,7 +930,7 @@ const LoanRequest = () => {
                 onClick={handleNext}
                 className="flex items-center gap-2 px-6 py-3 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl font-medium transition-all duration-200 shadow-lg hover:shadow-xl"
               >
-                <span>Suivant</span>
+                            <span>Suivant</span>
                 <ArrowRight size={20} />
               </button>
             ) : (
@@ -943,18 +943,18 @@ const LoanRequest = () => {
                   <>
                     <div className="animate-spin rounded-full h-5 w-5 border-2 border-white border-t-transparent"></div>
                     <span>Envoi en cours...</span>
-                  </>
-                ) : (
-                  <>
+                        </>
+                      ) : (
+                        <>
                     <Send size={20} />
-                    <span>Soumettre la demande</span>
-                  </>
-                )}
+                          <span>Soumettre la demande</span>
+                        </>
+                      )}
               </button>
             )}
-          </div>
+            </div>
         </form>
-      </div>
+          </div>
     </div>
   );
 };

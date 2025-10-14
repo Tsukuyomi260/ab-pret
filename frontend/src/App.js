@@ -7,6 +7,7 @@ import './utils/testPWA'; // Import des fonctions de test PWA
 import './utils/testNotificationPrompt'; // Import des utilitaires de test notifications
 import { Toaster } from 'react-hot-toast';
 import updateNotifier from './utils/updateNotifier';
+import { initCacheManagement } from './utils/clearCache'; // Gestion du cache
 import Layout from './components/Common/Layout';
 import PushNotificationPrompt from './components/UI/PushNotificationPrompt';
 import PWAInstallPrompt from './components/UI/PWAInstallPrompt';
@@ -490,6 +491,10 @@ const App = () => {
 
     // Vérification immédiate sans délai
     checkConfiguration();
+    
+    // Initialiser la gestion du cache
+    console.log('[APP] Initialisation de la gestion du cache...');
+    initCacheManagement();
   }, []);
 
   // Afficher un loader pendant la vérification

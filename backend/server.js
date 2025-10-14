@@ -742,7 +742,7 @@ app.get('/api/debug/status', (req, res) => {
 // Configuration FedaPay
 const FEDAPAY_CONFIG = {
   secretKey: process.env.FEDAPAY_SECRET_KEY,
-  baseUrl: process.env.FEDAPAY_BASE_URL || 'https://sandbox-api.fedapay.com',
+  baseUrl: process.env.FEDAPAY_BASE_URL || 'https://api.fedapay.com',
   currency: process.env.FEDAPAY_CURRENCY || 'XOF',
   country: process.env.FEDAPAY_COUNTRY || 'BJ'
 };
@@ -1452,8 +1452,8 @@ app.post('/api/create-savings-deposit', async (req, res) => {
     console.log('[SAVINGS_DEPOSIT] 🔑 Clé secrète FedaPay:', process.env.FEDAPAY_SECRET_KEY ? 'Configurée' : 'MANQUANTE');
     console.log('[SAVINGS_DEPOSIT] 🚀 Création transaction dépôt:', { user_id, plan_id, amount });
 
-    // Appel à FedaPay API
-    const response = await fetch("https://sandbox-api.fedapay.com/v1/transactions", {
+    // Appel à FedaPay API (LIVE)
+    const response = await fetch("https://api.fedapay.com/v1/transactions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${process.env.FEDAPAY_SECRET_KEY}`,
@@ -1512,8 +1512,8 @@ app.post('/api/create-loan-repayment', async (req, res) => {
       });
     }
 
-    // Appel à FedaPay API
-    const response = await fetch("https://sandbox-api.fedapay.com/v1/transactions", {
+    // Appel à FedaPay API (LIVE)
+    const response = await fetch("https://api.fedapay.com/v1/transactions", {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${process.env.FEDAPAY_SECRET_KEY}`,
@@ -2580,6 +2580,116 @@ app.post('/api/notify-admin-repayment', async (req, res) => {
     
   } catch (error) {
     console.error('[ADMIN_NOTIFICATION_REPAYMENT] Erreur:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Erreur serveur lors de l\'envoi de la notification' 
+    });
+  }
+});
+
+// Route pour notifier l'admin d'une nouvelle demande de retrait
+app.post('/api/notify-admin-withdrawal', async (req, res) => {
+  try {
+    const { withdrawalId, clientName, amount, userId } = req.body;
+    
+    if (!withdrawalId || !clientName || !amount) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'withdrawalId, clientName et amount sont requis' 
+      });
+    }
+    
+    console.log('[ADMIN_NOTIFICATION_WITHDRAWAL] Nouvelle demande de retrait:', { withdrawalId, clientName, amount });
+    
+    // Récupérer l'admin
+    const { data: adminData, error: adminError } = await supabase
+      .from('users')
+      .select('id, first_name, last_name, role')
+      .eq('role', 'admin')
+      .single();
+
+    if (adminError || !adminData) {
+      console.error('[ADMIN_NOTIFICATION_WITHDRAWAL] ❌ Aucun admin trouvé:', adminError);
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Aucun administrateur trouvé' 
+      });
+    }
+
+    console.log('[ADMIN_NOTIFICATION_WITHDRAWAL] Admin trouvé:', {
+      id: adminData.id,
+      name: `${adminData.first_name} ${adminData.last_name}`
+    });
+
+    const adminName = adminData.first_name || 'Admin';
+    const amountFormatted = `${parseInt(amount).toLocaleString()} FCFA`;
+    
+    const title = "AB Campus Finance - Demande de retrait";
+    const body = `Hello ${adminName}, ${clientName} demande un retrait de ${amountFormatted}. Cliquez pour traiter la demande.`;
+    
+    // Récupérer les abonnements de l'admin
+    const { data: subscriptions } = await supabase
+      .from('push_subscriptions')
+      .select('subscription, user_id')
+      .eq('user_id', adminData.id);
+    
+    console.log('[ADMIN_NOTIFICATION_WITHDRAWAL] Abonnements trouvés:', {
+      adminId: adminData.id,
+      subscriptionsCount: subscriptions?.length || 0
+    });
+    
+    if (!subscriptions || subscriptions.length === 0) {
+      console.log(`[ADMIN_NOTIFICATION_WITHDRAWAL] Admin ${adminName} non abonné aux notifications`);
+      return res.json({ 
+        success: true, 
+        message: 'Demande enregistrée mais admin non abonné aux notifications' 
+      });
+    }
+    
+    let notificationsSent = 0;
+    let errors = 0;
+    
+    for (const sub of subscriptions) {
+      try {
+        await webPush.sendNotification(sub.subscription, JSON.stringify({
+          title,
+          body,
+          data: {
+            url: '/admin/ab-epargne',
+            icon: '/logo192.png',
+            badge: '/logo192.png',
+            type: 'withdrawal_request',
+            withdrawalId: withdrawalId,
+            amount: amountFormatted,
+            clientName: clientName,
+            userId: userId
+          },
+          vibrate: [200, 50, 100]
+        }));
+        notificationsSent++;
+        console.log(`[ADMIN_NOTIFICATION_WITHDRAWAL] ✅ Notification envoyée à l'admin ${adminName}`);
+      } catch (pushError) {
+        console.error(`[ADMIN_NOTIFICATION_WITHDRAWAL] ❌ Erreur envoi notification:`, pushError);
+        errors++;
+      }
+    }
+    
+    if (notificationsSent > 0) {
+      res.json({ 
+        success: true, 
+        message: `Notification de retrait envoyée à l'admin ${adminName}`,
+        notificationsSent,
+        errors
+      });
+    } else {
+      res.status(500).json({ 
+        success: false, 
+        error: 'Aucune notification envoyée à l\'admin' 
+      });
+    }
+    
+  } catch (error) {
+    console.error('[ADMIN_NOTIFICATION_WITHDRAWAL] Erreur:', error);
     res.status(500).json({ 
       success: false, 
       error: 'Erreur serveur lors de l\'envoi de la notification' 

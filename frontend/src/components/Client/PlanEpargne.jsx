@@ -4,6 +4,8 @@ import { BACKEND_URL } from '../../config/backend';
 import { useAuth } from '../../context/AuthContext';
 import { ChevronLeft, Plus, Minus, Wallet, Calendar, Target, TrendingUp } from 'lucide-react';
 import FedaPayDepotButton from '../UI/FedaPayDepotButton';
+import WithdrawalRequestModal from '../UI/WithdrawalRequestModal';
+import toast from 'react-hot-toast';
 
 const PlanEpargne = () => {
   const { id } = useParams();
@@ -12,6 +14,7 @@ const PlanEpargne = () => {
   const [plan, setPlan] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
 
   useEffect(() => {
     const fetchPlan = async () => {
@@ -118,6 +121,49 @@ const PlanEpargne = () => {
     });
   };
 
+  // Vérifier si le plan est éligible au retrait
+  const isEligibleForWithdrawal = () => {
+    if (!plan) return false;
+    
+    // Conditions :
+    // 1. Plan actif
+    // 2. Objectif atteint (current_balance >= target_amount)
+    // 3. Pas de retard (is_overdue = false)
+    // 4. Pas déjà en attente de retrait
+    const isActive = plan.status === 'active';
+    const isCompleted = plan.current_balance >= plan.target_amount;
+    const noDelay = !plan.is_overdue;
+    const notPendingWithdrawal = plan.status !== 'withdrawal_pending';
+    
+    return isActive && isCompleted && noDelay && notPendingWithdrawal;
+  };
+
+  const handleWithdrawalClick = () => {
+    if (!isEligibleForWithdrawal()) {
+      if (plan.status === 'withdrawal_pending') {
+        toast.info('Votre demande de retrait est en cours de traitement');
+      } else if (plan.is_overdue) {
+        toast.error('Vous ne pouvez pas effectuer de retrait car vous avez des retards de dépôt');
+      } else if (plan.current_balance < plan.target_amount) {
+        toast.error('Vous devez atteindre votre objectif d\'épargne avant de pouvoir retirer');
+      } else {
+        toast.error('Retrait non disponible pour ce plan');
+      }
+      return;
+    }
+    
+    setShowWithdrawalModal(true);
+  };
+
+  const handleWithdrawalSuccess = (message) => {
+    toast.success(message);
+    setShowWithdrawalModal(false);
+    // Recharger le plan
+    setTimeout(() => {
+      window.location.reload();
+    }, 1500);
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
       {/* Header */}
@@ -164,10 +210,24 @@ const PlanEpargne = () => {
       <div className="space-y-4">
         <FedaPayDepotButton plan={plan} />
         
-        <button className="w-full bg-gradient-to-r from-orange-500 to-orange-600 text-white py-4 rounded-xl font-semibold shadow-lg flex items-center justify-center">
+        <button 
+          onClick={handleWithdrawalClick}
+          disabled={!isEligibleForWithdrawal()}
+          className={`w-full py-4 rounded-xl font-semibold shadow-lg flex items-center justify-center transition-all duration-200 ${
+            isEligibleForWithdrawal()
+              ? 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white cursor-pointer'
+              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+          }`}
+        >
           <Minus className="w-5 h-5 mr-2" />
-          Effectuer un Retrait
+          {plan.status === 'withdrawal_pending' ? 'Retrait en cours...' : 'Effectuer un Retrait'}
         </button>
+        
+        {!isEligibleForWithdrawal() && plan.current_balance < plan.target_amount && (
+          <p className="text-xs text-center text-gray-600">
+            Atteignez votre objectif de {plan.target_amount?.toLocaleString()} F pour pouvoir retirer
+          </p>
+        )}
       </div>
 
       {/* Plan Details */}
@@ -229,6 +289,15 @@ const PlanEpargne = () => {
           </div>
         </div>
       </div>
+
+      {/* Modal de demande de retrait */}
+      {showWithdrawalModal && (
+        <WithdrawalRequestModal
+          plan={plan}
+          onClose={() => setShowWithdrawalModal(false)}
+          onSuccess={handleWithdrawalSuccess}
+        />
+      )}
     </div>
   );
 };

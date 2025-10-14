@@ -144,7 +144,7 @@ const LoanRequests = () => {
       const result = await updateLoanStatus(requestId, 'approved');
       
       if (result.success) {
-        setLoanRequests(prev => 
+      setLoanRequests(prev => 
           prev.map(req => 
             req.id === requestId ? { ...req, status: 'approved' } : req
           )
@@ -165,7 +165,7 @@ const LoanRequests = () => {
       const result = await updateLoanStatus(requestId, 'rejected');
       
       if (result.success) {
-        setLoanRequests(prev => 
+      setLoanRequests(prev => 
           prev.map(req => 
             req.id === requestId ? { ...req, status: 'rejected' } : req
           )
@@ -399,16 +399,16 @@ const LoanRequests = () => {
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 mb-6">
           <div className="flex flex-col sm:flex-row gap-4">
             {/* Barre de recherche */}
-            <div className="flex-1 relative">
+              <div className="flex-1 relative">
               <Search size={20} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-              <input
-                type="text"
+                <input
+                  type="text"
                 placeholder="Rechercher par nom, email ou téléphone..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent font-montserrat"
-              />
-            </div>
+                />
+              </div>
             
             {/* Filtre de statut */}
             <div className="flex items-center gap-2 sm:min-w-[250px]">
@@ -504,7 +504,7 @@ const LoanRequests = () => {
                       <div className="flex items-start gap-3 min-w-0 flex-1">
                         <div className="w-12 h-12 sm:w-14 sm:h-14 bg-gradient-to-br from-blue-400 to-purple-500 rounded-full flex items-center justify-center text-white font-bold text-lg sm:text-xl shadow-lg flex-shrink-0">
                           {profile.user.firstName?.[0] || '?'}{profile.user.lastName?.[0] || ''}
-                        </div>
+                          </div>
                         <div className="min-w-0 flex-1">
                           <h3 className="text-base sm:text-lg font-bold text-gray-900 font-montserrat truncate">
                             {profile.user.firstName} {profile.user.lastName}
@@ -543,14 +543,14 @@ const LoanRequests = () => {
                         <p className="text-xl sm:text-2xl font-bold text-green-700">{profile.stats.completedLoans}</p>
                         <p className="text-[10px] sm:text-xs text-gray-600 mt-1">Remboursés</p>
                       </div>
-                    </div>
+                          </div>
 
                     {/* Footer */}
                     <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-gray-100">
                       <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600">
                         <span className="truncate">Total emprunté: <span className="font-bold text-gray-900">{formatCurrency(profile.stats.totalBorrowed)}</span></span>
                         <span className="truncate">Total payé: <span className="font-bold text-green-600">{formatCurrency(profile.stats.totalPaid)}</span></span>
-                      </div>
+                          </div>
                       
                       <button
                         className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl transition-all duration-200 shadow-md hover:shadow-lg w-full sm:w-auto"
@@ -560,9 +560,9 @@ const LoanRequests = () => {
                       </button>
                     </div>
                   </div>
-                </div>
+                    </div>
               ))}
-            </div>
+              </div>
           )}
         </div>
       </div>
@@ -570,9 +570,9 @@ const LoanRequests = () => {
       {/* Modal de détails utilisateur */}
       {selectedUser && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-y-auto my-8">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full my-8">
             <div className="sticky top-0 bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6 rounded-t-3xl z-10">
-              <div className="flex items-center justify-between">
+                <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
                   <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center text-white font-bold text-2xl">
                     {selectedUser.user.firstName?.[0]}{selectedUser.user.lastName?.[0]}
@@ -581,17 +581,17 @@ const LoanRequests = () => {
                     <h3 className="text-2xl font-bold">{selectedUser.user.firstName} {selectedUser.user.lastName}</h3>
                     <p className="text-blue-100">{selectedUser.loans.length} demande{selectedUser.loans.length > 1 ? 's' : ''} de prêt</p>
                   </div>
-                </div>
-                <button
+                  </div>
+                  <button
                   onClick={() => setSelectedUser(null)}
-                  className="p-2 hover:bg-white/20 rounded-full transition-colors"
-                >
-                  <X size={24} />
-                </button>
+                    className="p-2 hover:bg-white/20 rounded-full transition-colors"
+                  >
+                    <X size={24} />
+                  </button>
+                </div>
               </div>
-            </div>
-            
-            <div className="p-6 space-y-6">
+
+                <div className="p-6 pb-32 space-y-6 max-h-[calc(90vh-200px)] overflow-y-auto">
               {/* Infos contact */}
               <div className="bg-gray-50 rounded-2xl p-4">
                 <h4 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
@@ -599,24 +599,24 @@ const LoanRequests = () => {
                   Informations de contact
                 </h4>
                 <div className="grid grid-cols-2 gap-3 text-sm">
-                  <div>
+                        <div>
                     <p className="text-gray-600">Email</p>
                     <p className="font-medium">{selectedUser.user.email}</p>
-                  </div>
-                  <div>
+                        </div>
+                        <div>
                     <p className="text-gray-600">Téléphone</p>
                     <p className="font-medium">{selectedUser.user.phone}</p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
 
               {/* Liste des prêts */}
-              <div>
+                        <div>
                 <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
                   <FileText size={18} />
                   Historique des prêts
                 </h4>
-                <div className="space-y-3">
+                      <div className="space-y-3">
                   {selectedUser.loans.map((loan) => (
                     <div key={loan.id} className="bg-gray-50 rounded-xl p-4 border-l-4 border-blue-500">
                       <div className="flex items-start justify-between mb-3">
@@ -638,7 +638,7 @@ const LoanRequests = () => {
                            loan.status === 'active' || loan.status === 'approved' ? 'En cours' :
                            loan.status === 'completed' ? 'Remboursé' : 'Rejeté'}
                         </span>
-                      </div>
+                  </div>
 
                       <div className="grid grid-cols-3 gap-3 text-xs mb-3">
                         <div>
@@ -684,11 +684,11 @@ const LoanRequests = () => {
                 </div>
               </div>
             </div>
-          </div>
-        </div>
-      )}
+                </div>
+              </div>
+        )}
     </div>
   );
 };
 
-export default LoanRequests;
+export default LoanRequests; 

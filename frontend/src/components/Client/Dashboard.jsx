@@ -44,18 +44,18 @@ const ClientDashboard = () => {
     loadStats();
   }, [user?.id]);
 
-  const loadStats = async () => {
-    if (!user?.id) {
-      setLoading(false);
-      return;
-    }
+    const loadStats = async () => {
+      if (!user?.id) {
+        setLoading(false);
+        return;
+      }
 
-    try {
-      setLoading(true);
+      try {
+        setLoading(true);
       setError(null);
-      
-      const loansResult = await getLoans(user.id);
-      const paymentsResult = await getPayments(user.id);
+        
+        const loansResult = await getLoans(user.id);
+        const paymentsResult = await getPayments(user.id);
       
       // Récupérer le plan d'épargne actif
       const { data: savingsPlan, error: savingsError } = await supabase
@@ -67,91 +67,91 @@ const ClientDashboard = () => {
       
       const savingsBalance = savingsPlan?.current_balance || 0;
 
-      if (loansResult.success && paymentsResult.success) {
-        const loans = loansResult.data || [];
-        const payments = paymentsResult.data || [];
+        if (loansResult.success && paymentsResult.success) {
+          const loans = loansResult.data || [];
+          const payments = paymentsResult.data || [];
 
-        const totalLoaned = loans.reduce((sum, loan) => sum + (loan.amount || 0), 0);
-        const totalRepaid = payments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
-        const activeLoans = loans.filter(loan => loan.status === 'active').length;
-        const amountToRepay = totalLoaned - totalRepaid;
+          const totalLoaned = loans.reduce((sum, loan) => sum + (loan.amount || 0), 0);
+          const totalRepaid = payments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
+          const activeLoans = loans.filter(loan => loan.status === 'active').length;
+          const amountToRepay = totalLoaned - totalRepaid;
 
-        let nextPayment = 0;
-        let daysUntilNextPayment = 0;
-        let dueDate = null;
-        
-        const activeLoan = loans.find(loan => loan.status === 'active');
-        if (activeLoan) {
-          const principalAmount = parseFloat(activeLoan.amount) || 0;
-          const interestRate = parseFloat(activeLoan.interest_rate) || 0;
+          let nextPayment = 0;
+          let daysUntilNextPayment = 0;
+          let dueDate = null;
           
-          if (principalAmount > 0) {
-            const totalDue = Math.round(principalAmount * (1 + (interestRate / 100)));
-            nextPayment = totalDue;
-          }
+          const activeLoan = loans.find(loan => loan.status === 'active');
+          if (activeLoan) {
+            const principalAmount = parseFloat(activeLoan.amount) || 0;
+            const interestRate = parseFloat(activeLoan.interest_rate) || 0;
+            
+            if (principalAmount > 0) {
+              const totalDue = Math.round(principalAmount * (1 + (interestRate / 100)));
+              nextPayment = totalDue;
+            }
 
-          const loanDate = new Date(activeLoan.created_at);
-          const durationDays = parseInt(activeLoan.duration_months || activeLoan.duration, 10) || 30;
-          
-          dueDate = new Date(loanDate);
-          dueDate.setDate(dueDate.getDate() + durationDays);
-          
-          const now = new Date();
-          now.setHours(0, 0, 0, 0);
-          dueDate.setHours(0, 0, 0, 0);
-          
-          const msRemaining = dueDate.getTime() - now.getTime();
+            const loanDate = new Date(activeLoan.created_at);
+            const durationDays = parseInt(activeLoan.duration_months || activeLoan.duration, 10) || 30;
+            
+            dueDate = new Date(loanDate);
+            dueDate.setDate(dueDate.getDate() + durationDays);
+            
+            const now = new Date();
+            now.setHours(0, 0, 0, 0);
+            dueDate.setHours(0, 0, 0, 0);
+            
+            const msRemaining = dueDate.getTime() - now.getTime();
           daysUntilNextPayment = Math.floor(msRemaining / (1000 * 60 * 60 * 24));
         }
 
         // Calculer le score de fidélité
-        const loanById = new Map(loans.map(l => [l.id, l]));
-        const completedPayments = payments.filter(p => (p.status || '').toLowerCase() === 'completed');
-        const onTimeLoanIds = new Set();
+          const loanById = new Map(loans.map(l => [l.id, l]));
+          const completedPayments = payments.filter(p => (p.status || '').toLowerCase() === 'completed');
+          const onTimeLoanIds = new Set();
 
-        completedPayments.forEach(p => {
-          const loan = loanById.get(p.loan_id);
-          if (!loan) return;
-          const created = new Date(loan.created_at || new Date());
-          const durationDays = parseInt(loan.duration_months || loan.duration || 30, 10);
-          const loanDue = new Date(created.getTime() + durationDays * 24 * 60 * 60 * 1000);
-          loanDue.setHours(23, 59, 59, 999);
+          completedPayments.forEach(p => {
+            const loan = loanById.get(p.loan_id);
+            if (!loan) return;
+            const created = new Date(loan.created_at || new Date());
+            const durationDays = parseInt(loan.duration_months || loan.duration || 30, 10);
+            const loanDue = new Date(created.getTime() + durationDays * 24 * 60 * 60 * 1000);
+            loanDue.setHours(23, 59, 59, 999);
 
-          const payDate = new Date(p.payment_date || p.created_at || new Date());
-          const payDateNorm = new Date(payDate);
-          payDateNorm.setHours(0, 0, 0, 0);
+            const payDate = new Date(p.payment_date || p.created_at || new Date());
+            const payDateNorm = new Date(payDate);
+            payDateNorm.setHours(0, 0, 0, 0);
 
-          const isOnTime = payDateNorm.getTime() <= loanDue.getTime();
-          if (isOnTime) {
-            onTimeLoanIds.add(p.loan_id);
-          }
-        });
+            const isOnTime = payDateNorm.getTime() <= loanDue.getTime();
+            if (isOnTime) {
+              onTimeLoanIds.add(p.loan_id);
+            }
+          });
 
-        loans.forEach(l => {
-          const s = (l.status || '').toLowerCase();
-          if ((s === 'completed' || s === 'remboursé') && !onTimeLoanIds.has(l.id)) {
-            onTimeLoanIds.add(l.id);
-          }
-        });
+          loans.forEach(l => {
+            const s = (l.status || '').toLowerCase();
+            if ((s === 'completed' || s === 'remboursé') && !onTimeLoanIds.has(l.id)) {
+              onTimeLoanIds.add(l.id);
+            }
+          });
 
-        const loyaltyScore = Math.max(0, Math.min(5, onTimeLoanIds.size));
+          const loyaltyScore = Math.max(0, Math.min(5, onTimeLoanIds.size));
 
-        setStats({
-          totalLoaned,
-          totalRepaid,
-          amountToRepay,
-          activeLoans,
-          nextPayment,
-          daysUntilNextPayment,
-          dueDate,
+      setStats({
+            totalLoaned,
+            totalRepaid,
+            amountToRepay,
+            activeLoans,
+            nextPayment,
+            daysUntilNextPayment,
+            dueDate,
           loyaltyScore,
           savingsBalance
-        });
-      }
-    } catch (error) {
+          });
+        }
+      } catch (error) {
       console.error('[DASHBOARD] Erreur:', error);
       setError('Erreur lors du chargement des données');
-    } finally {
+      } finally {
       setLoading(false);
     }
   };
@@ -168,7 +168,7 @@ const ClientDashboard = () => {
   }
 
   if (error) {
-    return (
+  return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center p-4">
         <div className="bg-white rounded-2xl shadow-xl p-8 max-w-md w-full text-center">
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -183,7 +183,7 @@ const ClientDashboard = () => {
             <RefreshCw size={18} />
             Réessayer
           </button>
-        </div>
+            </div>
       </div>
     );
   }
@@ -249,7 +249,7 @@ const ClientDashboard = () => {
                 </p>
               </div>
             </div>
-            
+
             <button
               onClick={loadStats}
               disabled={loading}
@@ -259,8 +259,8 @@ const ClientDashboard = () => {
               <span className="hidden sm:inline">Actualiser</span>
             </button>
           </div>
-        </div>
-      </div>
+                  </div>
+                </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Statistiques principales */}
@@ -278,14 +278,14 @@ const ClientDashboard = () => {
             </p>
             <p className="text-sm text-yellow-100 font-montserrat">/ 5 points</p>
             <div className="flex mt-2">
-              {[...Array(5)].map((_, i) => (
-                <Star 
-                  key={i} 
+                          {[...Array(5)].map((_, i) => (
+                            <Star 
+                              key={i} 
                   className={`w-3 h-3 sm:w-4 sm:h-4 ${i < stats.loyaltyScore ? 'text-white fill-current' : 'text-yellow-300/30'}`} 
-                />
-              ))}
-            </div>
-          </div>
+                            />
+                          ))}
+                        </div>
+                      </div>
 
           {/* Prêts actifs */}
           <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-6 flex flex-col justify-between hover:shadow-xl transition-all duration-300">
@@ -294,13 +294,13 @@ const ClientDashboard = () => {
                 <CreditCard size={20} className="text-blue-600" />
               </div>
               <span className="text-xs font-medium text-gray-500">Actifs</span>
-            </div>
+                  </div>
             <p className="text-2xl sm:text-3xl font-bold text-gray-900 font-montserrat mb-1">
               {stats.activeLoans}
             </p>
             <p className="text-sm text-gray-600 font-montserrat">Prêt{stats.activeLoans > 1 ? 's' : ''} en cours</p>
-          </div>
-
+                </div>
+                
           {/* Compte Épargne */}
           <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-4 sm:p-6 flex flex-col justify-between hover:shadow-xl transition-all duration-300">
             <div className="flex items-center justify-between mb-3">
@@ -313,7 +313,7 @@ const ClientDashboard = () => {
               {formatCurrency(stats.savingsBalance)}
             </p>
             <p className="text-sm text-gray-600 font-montserrat">Solde disponible</p>
-          </div>
+      </div>
 
           {/* Prochain paiement */}
           <div className="bg-gradient-to-br from-orange-500 to-red-600 text-white rounded-2xl shadow-lg border border-orange-400/50 p-4 sm:p-6 flex flex-col justify-between hover:shadow-xl transition-all duration-300">
@@ -329,8 +329,8 @@ const ClientDashboard = () => {
               {formatCurrency(stats.nextPayment)}
             </p>
             <p className="text-sm text-orange-100 font-montserrat">Prochain paiement</p>
-          </div>
-        </div>
+              </div>
+            </div>
 
         {/* Actions Rapides */}
         <h2 className="text-xl font-bold text-gray-900 font-montserrat mb-4">Nos Services</h2>
@@ -352,15 +352,15 @@ const ClientDashboard = () => {
                     {service.badge}
                   </span>
                 )}
-              </div>
-              
+            </div>
+
               <h3 className="relative z-10 text-lg font-bold text-gray-900 font-montserrat mb-1">{service.title}</h3>
               <p className="relative z-10 text-sm text-gray-600 font-montserrat mb-4">{service.description}</p>
-              
+
               <ArrowRight size={20} className="absolute bottom-6 right-6 text-gray-400 group-hover:text-blue-600 transition-all duration-300 group-hover:translate-x-1" />
             </button>
           ))}
-        </div>
+          </div>
 
         {/* Bouton principal */}
         <div className="flex justify-center">
@@ -371,11 +371,11 @@ const ClientDashboard = () => {
             <Plus size={24} />
             <span>Nouvelle demande de prêt</span>
           </button>
-        </div>
+          </div>
       </div>
       
       <ContactButton />
-    </div>
+      </div>
   );
 };
 

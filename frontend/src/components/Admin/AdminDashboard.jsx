@@ -7,7 +7,7 @@ import {
   Users, 
   CreditCard, 
   TrendingUp, 
-  AlertCircle,
+  AlertCircle, 
   CheckCircle,
   Clock,
   Eye,
@@ -49,15 +49,15 @@ const AdminDashboard = () => {
   }, []);
 
   const loadDashboardData = async () => {
-    try {
-      setLoading(true);
+      try {
+        setLoading(true);
       setError(null);
       console.log('[ADMIN_DASHBOARD] 📥 Chargement des données...');
-
+        
       // Charger toutes les données en parallèle
       const [usersResult, loansResult, savingsResult] = await Promise.all([
-        getAllUsers(),
-        getLoans(),
+          getAllUsers(),
+          getLoans(),
         supabase.from('savings_plans').select('*')
       ]);
 
@@ -84,18 +84,18 @@ const AdminDashboard = () => {
         
         // Les 5 dernières activités de prêts
         recentLoans = loans.slice(0, 5).map(loan => ({
-          id: loan.id,
+            id: loan.id,
           type: 'loan',
           status: loan.status,
-          user: {
-            firstName: loan.users?.first_name || 'Utilisateur',
-            lastName: loan.users?.last_name || 'Inconnu',
-          },
-          amount: loan.amount || 0,
+            user: {
+              firstName: loan.users?.first_name || 'Utilisateur',
+              lastName: loan.users?.last_name || 'Inconnu',
+            },
+            amount: loan.amount || 0,
           date: loan.created_at,
           description: loan.purpose || 'Prêt'
-        }));
-      }
+          }));
+        }
 
       // Traiter l'épargne
       let totalSavings = 0;
@@ -116,8 +116,8 @@ const AdminDashboard = () => {
           target: plan.total_amount_target || 0,
           date: plan.created_at,
           description: 'Plan d\'épargne'
-        }));
-      }
+          }));
+        }
 
       // Combiner et trier les activités récentes
       const allActivities = [...recentLoans, ...recentSavings]
@@ -137,13 +137,13 @@ const AdminDashboard = () => {
 
       setRecentActivities(allActivities);
 
-    } catch (error) {
+      } catch (error) {
       console.error('[ADMIN_DASHBOARD] ❌ Erreur:', error);
       setError(error.message || 'Une erreur est survenue');
-    } finally {
-      setLoading(false);
-    }
-  };
+      } finally {
+        setLoading(false);
+      }
+    };
 
   const getActivityIcon = (activity) => {
     if (activity.type === 'loan') {
@@ -263,7 +263,7 @@ const AdminDashboard = () => {
                 <p className="text-sm sm:text-base text-gray-600 font-montserrat">
                   Bonjour {user?.first_name || 'Admin'}
                 </p>
-              </div>
+          </div>
             </div>
             
             <div className="flex items-center gap-3">
@@ -282,8 +282,8 @@ const AdminDashboard = () => {
               </button>
             </div>
           </div>
-        </div>
-      </div>
+                    </div>
+                  </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         {/* Stats Cards */}
@@ -304,36 +304,36 @@ const AdminDashboard = () => {
             <div className="flex items-start justify-between mb-3 sm:mb-4">
               <div className="p-2 sm:p-3 bg-white/20 rounded-xl group-hover:scale-110 transition-transform duration-300">
                 <Activity size={20} className="sm:w-6 sm:h-6 text-white" />
-              </div>
-            </div>
+                  </div>
+                </div>
             <p className="text-2xl sm:text-3xl font-bold">{stats.activeLoans}</p>
             <p className="text-xs sm:text-sm text-blue-100 mt-1">Prêts actifs</p>
-          </div>
+                  </div>
 
           {/* Montant total */}
           <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 group">
             <div className="flex items-start justify-between mb-3 sm:mb-4">
               <div className="p-2 sm:p-3 bg-green-100 rounded-xl group-hover:scale-110 transition-transform duration-300">
                 <Wallet size={20} className="sm:w-6 sm:h-6 text-green-600" />
-              </div>
-            </div>
+                      </div>
+                    </div>
             <p className="text-lg sm:text-xl font-bold text-gray-900">{formatCurrency(stats.totalAmount)}</p>
             <p className="text-xs sm:text-sm text-gray-600 mt-1">Prêts total</p>
-          </div>
+                  </div>
 
           {/* En attente */}
           <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 group">
             <div className="flex items-start justify-between mb-3 sm:mb-4">
               <div className="p-2 sm:p-3 bg-yellow-100 rounded-xl group-hover:scale-110 transition-transform duration-300">
                 <Clock size={20} className="sm:w-6 sm:h-6 text-yellow-600" />
-              </div>
-            </div>
+                      </div>
+                    </div>
             <p className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.pendingRequests}</p>
             <p className="text-xs sm:text-sm text-gray-600 mt-1">En attente</p>
-          </div>
-        </div>
+                  </div>
+                </div>
 
-        {/* Actions rapides */}
+                {/* Actions rapides */}
         <div className="mb-8">
           <h2 className="text-xl font-bold text-gray-900 font-montserrat mb-4">Actions rapides</h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
@@ -351,7 +351,7 @@ const AdminDashboard = () => {
                   {/* Icon */}
                   <div className={`inline-flex p-3 rounded-xl ${action.iconBg} mb-4 group-hover:scale-110 transition-transform duration-300`}>
                     <action.icon size={24} className={action.iconColor} />
-                  </div>
+                        </div>
 
                   {/* Badge si présent */}
                   {action.badge && (
@@ -363,7 +363,7 @@ const AdminDashboard = () => {
                   {/* Title */}
                   <h3 className="text-lg font-bold text-gray-900 font-montserrat mb-2">
                     {action.title}
-                  </h3>
+                        </h3>
 
                   {/* Description */}
                   <p className="text-sm text-gray-600 font-montserrat mb-4">
@@ -375,30 +375,30 @@ const AdminDashboard = () => {
                     <span className="text-sm">Accéder</span>
                     <ArrowRight size={16} className="ml-2" />
                   </div>
-                </div>
+                        </div>
               </button>
             ))}
-          </div>
-        </div>
-
+                      </div>
+                    </div>
+                    
         {/* Activités récentes */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden">
           <div className="p-4 sm:p-6 border-b border-gray-100">
             <h2 className="text-xl font-bold text-gray-900 font-montserrat">Activités récentes</h2>
-          </div>
+                            </div>
           
           <div className="divide-y divide-gray-100">
             {recentActivities.length === 0 ? (
               <div className="p-8 sm:p-12 text-center">
                 <Activity size={48} className="mx-auto text-gray-300 mb-4" />
                 <p className="text-gray-500 font-medium">Aucune activité récente</p>
-              </div>
+                            </div>
             ) : (
               recentActivities.map((activity, index) => (
                 <div
                   key={index}
                   className="p-4 sm:p-6 hover:bg-gray-50 transition-colors cursor-pointer"
-                  onClick={() => {
+                            onClick={() => {
                     if (activity.type === 'loan') navigate('/admin/loan-requests');
                     if (activity.type === 'savings') navigate('/admin/ab-epargne');
                   }}
@@ -406,8 +406,8 @@ const AdminDashboard = () => {
                   <div className="flex items-start gap-3 sm:gap-4">
                     <div className="flex-shrink-0 w-10 h-10 bg-gray-100 rounded-full flex items-center justify-center">
                       {getActivityIcon(activity)}
-                    </div>
-                    
+                  </div>
+
                     <div className="flex-1 min-w-0">
                       <div className="flex items-start justify-between gap-2 mb-1">
                         <p className="text-sm sm:text-base font-semibold text-gray-900 truncate">
@@ -416,8 +416,8 @@ const AdminDashboard = () => {
                             : activity.description}
                         </p>
                         {getActivityBadge(activity)}
-                      </div>
-                      
+                  </div>
+
                       <p className="text-xs sm:text-sm text-gray-600 mb-2">
                         {activity.type === 'loan' ? activity.description : `${formatCurrency(activity.amount)} / ${formatCurrency(activity.target)}`}
                       </p>
@@ -435,8 +435,8 @@ const AdminDashboard = () => {
               ))
             )}
           </div>
-        </div>
-      </div>
+            </div>
+          </div>
     </div>
   );
 };

@@ -2,14 +2,23 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../context/NotificationContext';
 import { useAuth } from '../../context/AuthContext';
-import Card from '../UI/Card';
-import Button from '../UI/Button';
 import FedaPayRemboursementButton from '../UI/FedaPayRemboursementButton';
 import { 
   getLoans, 
   getPayments 
 } from '../../utils/supabaseAPI';
-import { ArrowLeft, Wallet, AlertTriangle } from 'lucide-react';
+import { 
+  ArrowLeft, 
+  Wallet, 
+  AlertTriangle, 
+  CreditCard,
+  Calendar,
+  TrendingUp,
+  CheckCircle,
+  DollarSign,
+  Clock,
+  Info
+} from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 
 const Repayment = () => {
@@ -152,128 +161,205 @@ const Repayment = () => {
   };
 
   return (
-    <div className="bg-gradient-to-br from-primary-50 via-accent-50 to-secondary-50">
-      
-      
-      {/* Section Hero - En-tête principal */}
-      <div className="relative overflow-hidden">
-        {/* Background avec gradient animé - Thème remboursement (vert/orange) */}
-        <div className="absolute inset-0 bg-gradient-to-br from-green-500 via-emerald-600 to-orange-500 opacity-15 animate-gradient"></div>
-        
-        {/* Couche de profondeur supplémentaire */}
-        <div className="absolute inset-0 bg-gradient-to-t from-white/20 via-transparent to-transparent"></div>
-        
-
-
-        {/* Contenu Header */}
-        <div className="relative px-4 lg:px-8 py-8 lg:py-12 backdrop-blur-sm">
-          <div className="max-w-7xl mx-auto">
-            {/* Navigation */}
-            <div className="flex items-center justify-between mb-8">
-              <Button
-                variant="outline"
-                onClick={() => navigate('/dashboard')}
-                className="flex items-center space-x-2 px-4 py-2 bg-white/20 backdrop-blur-sm border-white/30"
-              >
-                <ArrowLeft size={20} />
-                <span>Retour</span>
-              </Button>
-            </div>
-
-            {/* Section Hero - En-tête principal */}
-            <div className="text-center mb-8 lg:mb-12">
-
-
-              {/* Titre principal */}
-              <h1 className="text-4xl lg:text-6xl font-bold text-secondary-900 font-montserrat mb-4">
-                Remboursement de Prêt{' '}
-                <span className="inline-block">
-                  💳
-                </span>
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-yellow-50 to-slate-100 pb-24">
+      {/* Header */}
+      <div className="bg-white/80 backdrop-blur-lg shadow-lg border-b border-white/50 sticky top-0 z-30">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="flex items-center justify-between py-6">
+            <button 
+              onClick={() => navigate('/dashboard')} 
+              className="p-2 hover:bg-gray-100 rounded-xl transition-colors"
+            >
+              <ArrowLeft size={24} className="text-gray-600" />
+            </button>
+            <div className="text-center flex-1">
+              <h1 className="text-3xl font-bold text-secondary-900 font-montserrat flex items-center justify-center gap-3">
+                <CreditCard className="text-primary-600" size={32} />
+                Remboursement de Prêt
               </h1>
-
-
             </div>
+            <div className="w-10"></div>
           </div>
         </div>
       </div>
 
-      {/* Contenu principal centré */}
-      <div className="max-w-4xl mx-auto px-4 pb-8">
-        <div className="grid grid-cols-1 gap-8">
-          {/* Informations du prêt actif */}
-          {currentLoan ? (
-            <Card title="Votre prêt" className="bg-white/90 backdrop-blur-sm border-white/20">
-              <div className="border rounded-2xl p-6 bg-gradient-to-r from-primary-50/80 to-accent-50/80 border-primary-200/50 shadow-lg">
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="font-semibold text-gray-900 text-xl font-montserrat">Prêt #{currentLoan.id}</h3>
-                  <span className="text-sm text-primary-600 font-medium bg-primary-100/80 px-4 py-2 rounded-full">
-                    {formatCurrency(currentLoan.remainingAmount)} à rembourser
-                  </span>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-sm">
-                  <div className="p-4 bg-white/60 rounded-xl border border-white/50">
-                    <span className="text-gray-600 text-xs uppercase tracking-wide">Montant du prêt</span>
-                    <p className="font-semibold text-xl text-gray-900">{formatCurrency(currentLoan.amount)}</p>
-                  </div>
-                  <div className="p-4 bg-white/60 rounded-xl border border-white/50">
-                    <span className="text-gray-600 text-xs uppercase tracking-wide">Montant payé</span>
-                    <p className="font-semibold text-xl text-gray-900">{formatCurrency(currentLoan.paidAmount)}</p>
-                  </div>
-                  {currentLoan.penaltyAmount > 0 && (
-                    <div className="p-4 bg-red-50/80 rounded-xl border border-red-200/50">
-                      <span className="text-red-600 text-xs uppercase tracking-wide">Pénalités de retard</span>
-                      <p className="font-semibold text-xl text-red-700">{formatCurrency(currentLoan.penaltyAmount)}</p>
-                      <p className="text-xs text-red-600 mt-1">2% par jour</p>
+      {/* Contenu principal */}
+      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {loading ? (
+          <div className="flex items-center justify-center py-20">
+            <div className="animate-spin rounded-full h-16 w-16 border-4 border-primary-600 border-t-transparent"></div>
+          </div>
+        ) : currentLoan ? (
+          <div className="space-y-6">
+            {/* Card principale du prêt */}
+            <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+              {/* Header du prêt avec gradient */}
+              <div className="bg-gradient-to-r from-secondary-800 to-secondary-900 p-8">
+                <div className="flex items-center justify-between mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="p-3 bg-white rounded-xl">
+                      <Wallet size={28} className="text-primary-600" />
                     </div>
-                  )}
-                  <div className="p-4 bg-white/60 rounded-xl border border-white/50">
-                    <span className="text-gray-600 text-xs uppercase tracking-wide">Montant à rembourser</span>
-                    <p className="font-semibold text-xl text-gray-900">{formatCurrency(currentLoan.remainingAmount)}</p>
+                    <div>
+                      <h2 className="text-2xl font-bold text-white">Prêt Actif</h2>
+                      <p className="text-gray-300 text-sm">ID: #{currentLoan.id.substring(0, 8)}</p>
+                    </div>
+                  </div>
+                  <div className="text-right">
+                    <p className="text-gray-300 text-sm">Objet du prêt</p>
+                    <p className="text-white font-semibold">{currentLoan.purpose}</p>
                   </div>
                 </div>
                 
-                {currentLoan.penaltyAmount > 0 && (
-                  <div className="mt-4 p-4 bg-red-50/80 rounded-xl border border-red-200/50">
-                    <div className="flex items-center space-x-2">
-                      <AlertTriangle className="w-5 h-5 text-red-600" />
-                      <span className="text-red-800 font-medium">Prêt en retard</span>
+                {/* Montant restant - mise en avant */}
+                <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
+                  <p className="text-gray-200 text-sm mb-2">Montant restant à rembourser</p>
+                  <p className="text-5xl font-bold text-white">{formatCurrency(currentLoan.remainingAmount)}</p>
+                </div>
+              </div>
+
+              {/* Stats détaillées */}
+              <div className="p-8">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                  {/* Montant initial */}
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-5 border border-blue-200">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-2 bg-blue-200 rounded-lg">
+                        <DollarSign size={20} className="text-blue-700" />
+                      </div>
+                      <p className="text-blue-900 font-medium text-sm">Montant initial</p>
                     </div>
-                    <p className="text-red-700 text-sm mt-2">
-                      Votre prêt est en retard. Des pénalités de 2% par jour sont appliquées jusqu'au remboursement complet.
+                    <p className="text-2xl font-bold text-blue-900">{formatCurrency(currentLoan.amount)}</p>
+                  </div>
+
+                  {/* Montant payé */}
+                  <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-5 border border-green-200">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-2 bg-green-200 rounded-lg">
+                        <CheckCircle size={20} className="text-green-700" />
+                      </div>
+                      <p className="text-green-900 font-medium text-sm">Déjà remboursé</p>
+                    </div>
+                    <p className="text-2xl font-bold text-green-900">{formatCurrency(currentLoan.paidAmount)}</p>
+                  </div>
+
+                  {/* Total à rembourser */}
+                  <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-2xl p-5 border border-primary-200">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-2 bg-primary-200 rounded-lg">
+                        <TrendingUp size={20} className="text-primary-700" />
+                      </div>
+                      <p className="text-primary-900 font-medium text-sm">Total avec intérêts</p>
+                    </div>
+                    <p className="text-2xl font-bold text-primary-900">{formatCurrency(currentLoan.totalAmount)}</p>
+                    <p className="text-xs text-primary-700 mt-1">Taux: {currentLoan.interest_rate}%</p>
+                  </div>
+
+                  {/* Date d'échéance */}
+                  <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-5 border border-purple-200">
+                    <div className="flex items-center gap-3 mb-3">
+                      <div className="p-2 bg-purple-200 rounded-lg">
+                        <Calendar size={20} className="text-purple-700" />
+                      </div>
+                      <p className="text-purple-900 font-medium text-sm">Date d'échéance</p>
+                    </div>
+                    <p className="text-lg font-bold text-purple-900">
+                      {new Date(currentLoan.dueDate).toLocaleDateString('fr-FR', { 
+                        day: 'numeric', 
+                        month: 'long', 
+                        year: 'numeric' 
+                      })}
                     </p>
+                    <p className="text-xs text-purple-700 mt-1">Durée: {currentLoan.duration} jours</p>
+                  </div>
+                </div>
+
+                {/* Alerte pénalités si applicable */}
+                {currentLoan.penaltyAmount > 0 && (
+                  <div className="bg-gradient-to-r from-red-50 to-orange-50 border-l-4 border-red-500 rounded-xl p-6 mb-6">
+                    <div className="flex items-start gap-4">
+                      <div className="p-3 bg-red-100 rounded-xl">
+                        <AlertTriangle size={24} className="text-red-600" />
+                      </div>
+                      <div className="flex-1">
+                        <h3 className="font-bold text-red-900 text-lg mb-2">⚠️ Prêt en retard</h3>
+                        <p className="text-red-800 mb-3">
+                          Votre prêt a dépassé la date d'échéance. Des pénalités de <strong>2% par jour</strong> sont appliquées.
+                        </p>
+                        <div className="bg-white/50 rounded-xl p-4 border border-red-200">
+                          <div className="flex items-center justify-between">
+                            <span className="text-red-900 font-medium">Pénalités accumulées</span>
+                            <span className="text-2xl font-bold text-red-700">{formatCurrency(currentLoan.penaltyAmount)}</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
                 )}
-              </div>
-              
-              {/* Bouton Effectuer le paiement */}
-              <div className="mt-6">
-                <FedaPayRemboursementButton
-                  loan={currentLoan}
-                  onSuccess={handleRepaymentSuccess}
-                />
-              </div>
-            </Card>
-          ) : (
-            <Card title="Aucun prêt" className="bg-white/90 backdrop-blur-sm border-white/20">
-              <div className="text-center py-12">
-                <Wallet size={64} className="mx-auto mb-6 text-gray-300" />
-                <p className="text-gray-500 mb-6 text-lg">Vous n'avez actuellement aucun prêt en cours</p>
-                <p className="text-gray-400 mb-6 text-sm">Un seul prêt autorisé à la fois</p>
-                <Button 
-                  onClick={() => navigate('/loan-request')}
-                  className="px-8 py-4 text-lg rounded-2xl bg-primary-500 hover:bg-primary-600"
-                >
-                  Demander un prêt
-                </Button>
-              </div>
-            </Card>
-          )}
 
+                {/* Info box */}
+                <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-2xl p-6 border border-blue-200 mb-6">
+                  <div className="flex items-start gap-4">
+                    <div className="p-2 bg-blue-100 rounded-lg">
+                      <Info size={20} className="text-blue-600" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-blue-900 mb-2">Informations importantes</h3>
+                      <ul className="text-blue-800 text-sm space-y-1">
+                        <li>• Le remboursement se fait via Mobile Money (MTN, Moov)</li>
+                        <li>• Vous pouvez rembourser partiellement ou totalement</li>
+                        <li>• Le remboursement est instantané et sécurisé</li>
+                        <li>• Évitez les pénalités en remboursant avant l'échéance</li>
+                      </ul>
+                    </div>
+                  </div>
+                </div>
 
-
-        </div>
+                {/* Bouton de remboursement */}
+                <div className="bg-gradient-to-br from-primary-50 to-yellow-50 rounded-2xl p-6 border-2 border-primary-300">
+                  <div className="flex items-center gap-3 mb-4">
+                    <div className="p-3 bg-primary-500 rounded-xl">
+                      <CreditCard size={24} className="text-white" />
+                    </div>
+                    <div>
+                      <h3 className="font-bold text-secondary-900 text-lg">Effectuer un remboursement</h3>
+                      <p className="text-gray-600 text-sm">Paiement sécurisé via FedaPay</p>
+                    </div>
+                  </div>
+                  <FedaPayRemboursementButton
+                    loan={currentLoan}
+                    onSuccess={handleRepaymentSuccess}
+                  />
+                </div>
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Aucun prêt actif */
+          <div className="bg-white rounded-3xl shadow-xl border border-gray-100 overflow-hidden">
+            <div className="p-16 text-center">
+              <div className="w-32 h-32 bg-gradient-to-br from-gray-100 to-gray-200 rounded-full flex items-center justify-center mx-auto mb-6">
+                <Wallet size={64} className="text-gray-400" />
+              </div>
+              <h2 className="text-3xl font-bold text-gray-900 mb-4 font-montserrat">
+                Aucun prêt en cours
+              </h2>
+              <p className="text-gray-600 mb-2 max-w-md mx-auto">
+                Vous n'avez actuellement aucun prêt actif à rembourser.
+              </p>
+              <p className="text-gray-500 text-sm mb-8">
+                Un seul prêt peut être actif à la fois
+              </p>
+              <button
+                onClick={() => navigate('/loan-request')}
+                className="inline-flex items-center gap-2 px-8 py-4 bg-primary-500 hover:bg-primary-600 text-white font-semibold rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl"
+              >
+                <CreditCard size={20} />
+                Demander un nouveau prêt
+              </button>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );

@@ -154,7 +154,7 @@ const UserManagement = () => {
   const filteredUsers = users.filter(user => {
     const matchesSearch = 
       user.firstName.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+                         user.lastName.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user.phone.includes(searchTerm);
     
@@ -203,14 +203,14 @@ const UserManagement = () => {
                   {filteredUsers.length} utilisateur{filteredUsers.length > 1 ? 's' : ''}
                 </p>
               </div>
-            </div>
+                  </div>
             <button
               onClick={loadUsers}
               className="flex items-center gap-2 px-4 py-2 bg-primary-500 hover:bg-primary-600 text-white rounded-xl font-medium transition-all duration-200"
             >
               <RefreshCw size={18} />
               <span className="hidden sm:inline">Actualiser</span>
-            </button>
+                </button>
           </div>
         </div>
       </div>
@@ -269,34 +269,34 @@ const UserManagement = () => {
 
         {/* Search and Filter */}
         <div className="bg-white rounded-2xl shadow-lg border border-gray-100 p-6 mb-8">
-          <div className="flex flex-col md:flex-row gap-4">
+            <div className="flex flex-col md:flex-row gap-4">
             {/* Search */}
-            <div className="flex-1 relative">
+              <div className="flex-1 relative">
               <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-              <input
-                type="text"
+                  <input
+                    type="text"
                 placeholder="Rechercher par nom, email ou téléphone..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                    value={searchTerm}
+                    onChange={(e) => setSearchTerm(e.target.value)}
                 className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all"
-              />
-            </div>
+                  />
+              </div>
 
             {/* Filter */}
             <div className="relative">
               <Filter className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
-              <select
-                value={statusFilter}
-                onChange={(e) => setStatusFilter(e.target.value)}
+                  <select
+                    value={statusFilter}
+                    onChange={(e) => setStatusFilter(e.target.value)}
                 className="pl-12 pr-8 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-transparent transition-all appearance-none bg-white cursor-pointer min-w-[200px]"
-              >
-                <option value="all">Tous les statuts</option>
-                <option value="approved">Approuvés</option>
-                <option value="pending">En attente</option>
-                <option value="rejected">Rejetés</option>
-              </select>
-            </div>
-          </div>
+                  >
+                    <option value="all">Tous les statuts</option>
+                    <option value="approved">Approuvés</option>
+                    <option value="pending">En attente</option>
+                    <option value="rejected">Rejetés</option>
+                  </select>
+                </div>
+              </div>
         </div>
 
         {/* Users Grid */}
@@ -311,27 +311,27 @@ const UserManagement = () => {
                 <div className="flex items-center gap-4">
                   <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-lg">
                     <User size={32} className="text-primary-600" />
-                  </div>
+                      </div>
                   <div className="flex-1 min-w-0">
                     <h3 className="text-lg font-bold text-white truncate">
-                      {user.firstName} {user.lastName}
-                    </h3>
+                            {user.firstName} {user.lastName}
+                          </h3>
                     <p className="text-gray-200 text-sm truncate">{user.email}</p>
-                  </div>
-                </div>
-              </div>
-
+                        </div>
+                      </div>
+                    </div>
+                    
               {/* User Info */}
               <div className="p-6 space-y-4">
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <Phone size={16} className="text-gray-400" />
                   <span>{user.phone}</span>
-                </div>
+                      </div>
 
                 <div className="flex items-center gap-2 text-sm text-gray-600">
                   <CreditCard size={16} className="text-gray-400" />
                   <span>{user.activeLoans} prêt{user.activeLoans > 1 ? 's' : ''} actif{user.activeLoans > 1 ? 's' : ''}</span>
-                </div>
+                  </div>
 
                 <div className="flex items-center justify-between pt-4 border-t border-gray-100">
                   {getStatusBadge(user.status)}
@@ -362,19 +362,19 @@ const UserManagement = () => {
       </div>
 
       {/* Details Modal */}
-      {showDetailsModal && selectedUser && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+        {showDetailsModal && selectedUser && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full my-8">
             {/* Modal Header */}
-            <div className="bg-gradient-to-r from-secondary-800 to-secondary-900 p-6 flex items-center justify-between">
+            <div className="sticky top-0 bg-gradient-to-r from-secondary-800 to-secondary-900 p-6 flex items-center justify-between z-10">
               <div className="flex items-center gap-4">
                 <div className="w-16 h-16 bg-white rounded-full flex items-center justify-center shadow-lg">
                   <User size={32} className="text-primary-600" />
                 </div>
-                <div>
+                  <div>
                   <h2 className="text-2xl font-bold text-white">
                     {selectedUser.firstName} {selectedUser.lastName}
-                  </h2>
+                    </h2>
                   <p className="text-gray-200">{selectedUser.email}</p>
                 </div>
               </div>
@@ -387,32 +387,32 @@ const UserManagement = () => {
             </div>
 
             {/* Modal Content */}
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-200px)] space-y-6">
+            <div className="p-6 pb-32 overflow-y-auto max-h-[calc(90vh-200px)] space-y-6">
               {/* Contact Info */}
-              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border border-blue-200">
-                <h3 className="text-lg font-semibold text-blue-900 font-montserrat mb-4 flex items-center">
+                  <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border border-blue-200">
+                    <h3 className="text-lg font-semibold text-blue-900 font-montserrat mb-4 flex items-center">
                   <Mail className="w-5 h-5 mr-2" />
                   Informations de Contact
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
                     <p className="text-sm text-blue-700 font-medium">Téléphone</p>
                     <p className="text-blue-900 font-semibold">{selectedUser.phone}</p>
-                  </div>
-                  <div>
+                        </div>
+                        <div>
                     <p className="text-sm text-blue-700 font-medium">Email</p>
                     <p className="text-blue-900 font-semibold break-all">{selectedUser.email}</p>
-                  </div>
-                  <div>
+                        </div>
+                        <div>
                     <p className="text-sm text-blue-700 font-medium">Adresse</p>
                     <p className="text-blue-900">{selectedUser.address}</p>
-                  </div>
-                  <div>
+                        </div>
+                        <div>
                     <p className="text-sm text-blue-700 font-medium">Facebook</p>
                     <p className="text-blue-900">{selectedUser.facebookName}</p>
-                  </div>
-                </div>
-              </div>
+                        </div>
+                      </div>
+                        </div>
 
               {/* Academic Info */}
               <div className="bg-gradient-to-br from-primary-50 to-primary-100 rounded-2xl p-6 border border-primary-200">
@@ -421,88 +421,88 @@ const UserManagement = () => {
                   Informations Académiques
                 </h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
+                        <div>
                     <p className="text-sm text-primary-800 font-medium">Filière</p>
                     <p className="text-secondary-900 font-semibold">{selectedUser.filiere}</p>
-                  </div>
-                  <div>
+                        </div>
+                        <div>
                     <p className="text-sm text-primary-800 font-medium">Année d'étude</p>
                     <p className="text-secondary-900 font-semibold">{selectedUser.anneeEtude}</p>
-                  </div>
-                  <div>
+                        </div>
+                        <div>
                     <p className="text-sm text-primary-800 font-medium">Entité</p>
                     <p className="text-secondary-900 font-semibold">{selectedUser.entite}</p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
 
               {/* Witness Info */}
-              <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-6 border border-green-200">
-                <h3 className="text-lg font-semibold text-green-900 font-montserrat mb-4 flex items-center">
-                  <Shield className="w-5 h-5 mr-2" />
-                  Informations du Témoin
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
+                  <div className="bg-gradient-to-br from-green-50 to-green-100 rounded-2xl p-6 border border-green-200">
+                    <h3 className="text-lg font-semibold text-green-900 font-montserrat mb-4 flex items-center">
+                      <Shield className="w-5 h-5 mr-2" />
+                      Informations du Témoin
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
                     <p className="text-sm text-green-700 font-medium">Nom</p>
-                    <p className="text-green-900 font-semibold">{selectedUser.temoinName}</p>
-                  </div>
-                  <div>
+                          <p className="text-green-900 font-semibold">{selectedUser.temoinName}</p>
+                        </div>
+                        <div>
                     <p className="text-sm text-green-700 font-medium">Téléphone</p>
-                    <p className="text-green-900">{selectedUser.temoinPhone}</p>
-                  </div>
-                  <div>
+                          <p className="text-green-900">{selectedUser.temoinPhone}</p>
+                        </div>
+                        <div>
                     <p className="text-sm text-green-700 font-medium">Email</p>
                     <p className="text-green-900 break-all">{selectedUser.temoinEmail}</p>
-                  </div>
+                        </div>
                   <div>
                     <p className="text-sm text-green-700 font-medium">Quartier</p>
                     <p className="text-green-900">{selectedUser.temoinQuartier}</p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
 
               {/* Emergency Contact */}
-              <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-2xl p-6 border border-red-200">
-                <h3 className="text-lg font-semibold text-red-900 font-montserrat mb-4 flex items-center">
-                  <AlertTriangle className="w-5 h-5 mr-2" />
-                  Contact d'Urgence
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
+                  <div className="bg-gradient-to-br from-red-50 to-red-100 rounded-2xl p-6 border border-red-200">
+                    <h3 className="text-lg font-semibold text-red-900 font-montserrat mb-4 flex items-center">
+                      <AlertTriangle className="w-5 h-5 mr-2" />
+                      Contact d'Urgence
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
                     <p className="text-sm text-red-700 font-medium">Nom</p>
-                    <p className="text-red-900 font-semibold">{selectedUser.emergencyName}</p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-red-700 font-medium">Relation</p>
-                    <p className="text-red-900">{selectedUser.emergencyRelation}</p>
-                  </div>
-                  <div>
+                          <p className="text-red-900 font-semibold">{selectedUser.emergencyName}</p>
+                        </div>
+                        <div>
+                          <p className="text-sm text-red-700 font-medium">Relation</p>
+                          <p className="text-red-900">{selectedUser.emergencyRelation}</p>
+                        </div>
+                        <div>
                     <p className="text-sm text-red-700 font-medium">Téléphone</p>
-                    <p className="text-red-900">{selectedUser.emergencyPhone}</p>
-                  </div>
-                  <div>
+                          <p className="text-red-900">{selectedUser.emergencyPhone}</p>
+                        </div>
+                        <div>
                     <p className="text-sm text-red-700 font-medium">Email</p>
                     <p className="text-red-900 break-all">{selectedUser.emergencyEmail}</p>
-                  </div>
+                        </div>
                   <div className="md:col-span-2">
                     <p className="text-sm text-red-700 font-medium">Adresse</p>
-                    <p className="text-red-900">{selectedUser.emergencyAddress}</p>
+                          <p className="text-red-900">{selectedUser.emergencyAddress}</p>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
 
-              {/* Documents */}
+                  {/* Documents */}
               <div className="bg-gradient-to-br from-secondary-50 to-secondary-100 rounded-2xl p-6 border border-secondary-200">
                 <h3 className="text-lg font-semibold text-secondary-900 font-montserrat mb-4 flex items-center">
-                  <FileImage className="w-5 h-5 mr-2" />
-                  Documents
-                </h3>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
+                      <FileImage className="w-5 h-5 mr-2" />
+                      Documents
+                    </h3>
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
                     <p className="text-sm text-secondary-700 font-medium mb-2">Carte d'identité</p>
-                    <button
-                      onClick={() => openImageModal(selectedUser.userIdentityCardUrl, 'Carte d\'identité')}
+                        <button
+                          onClick={() => openImageModal(selectedUser.userIdentityCardUrl, 'Carte d\'identité')}
                       disabled={!selectedUser.userIdentityCardUrl}
                       className={`w-full px-4 py-3 rounded-xl font-medium transition-all ${
                         selectedUser.userIdentityCardUrl
@@ -511,12 +511,12 @@ const UserManagement = () => {
                       }`}
                     >
                       {selectedUser.userIdentityCardUrl ? 'Voir' : 'Non disponible'}
-                    </button>
-                  </div>
-                  <div>
+                        </button>
+                      </div>
+                      <div>
                     <p className="text-sm text-secondary-700 font-medium mb-2">Carte témoin</p>
-                    <button
-                      onClick={() => openImageModal(selectedUser.temoinIdentityCardUrl, 'Carte d\'identité témoin')}
+                        <button
+                          onClick={() => openImageModal(selectedUser.temoinIdentityCardUrl, 'Carte d\'identité témoin')}
                       disabled={!selectedUser.temoinIdentityCardUrl}
                       className={`w-full px-4 py-3 rounded-xl font-medium transition-all ${
                         selectedUser.temoinIdentityCardUrl
@@ -525,12 +525,12 @@ const UserManagement = () => {
                       }`}
                     >
                       {selectedUser.temoinIdentityCardUrl ? 'Voir' : 'Non disponible'}
-                    </button>
-                  </div>
-                  <div>
+                        </button>
+                      </div>
+                      <div>
                     <p className="text-sm text-secondary-700 font-medium mb-2">Carte étudiant</p>
-                    <button
-                      onClick={() => openImageModal(selectedUser.studentCardUrl, 'Carte d\'étudiant')}
+                        <button
+                          onClick={() => openImageModal(selectedUser.studentCardUrl, 'Carte d\'étudiant')}
                       disabled={!selectedUser.studentCardUrl}
                       className={`w-full px-4 py-3 rounded-xl font-medium transition-all ${
                         selectedUser.studentCardUrl
@@ -539,33 +539,33 @@ const UserManagement = () => {
                       }`}
                     >
                       {selectedUser.studentCardUrl ? 'Voir' : 'Non disponible'}
-                    </button>
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
 
               {/* Account Info */}
-              <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl p-6 border border-orange-200">
-                <h3 className="text-lg font-semibold text-orange-900 font-montserrat mb-4 flex items-center">
-                  <CreditCard className="w-5 h-5 mr-2" />
-                  Informations du Compte
-                </h3>
+                  <div className="bg-gradient-to-br from-orange-50 to-orange-100 rounded-2xl p-6 border border-orange-200">
+                    <h3 className="text-lg font-semibold text-orange-900 font-montserrat mb-4 flex items-center">
+                      <CreditCard className="w-5 h-5 mr-2" />
+                      Informations du Compte
+                    </h3>
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div>
+                        <div>
                     <p className="text-sm text-orange-700 font-medium">Prêts actifs</p>
                     <p className="text-2xl font-bold text-orange-900">{selectedUser.activeLoans}</p>
-                  </div>
-                  <div>
+                        </div>
+                        <div>
                     <p className="text-sm text-orange-700 font-medium">Total prêts</p>
                     <p className="text-2xl font-bold text-orange-900">{selectedUser.totalLoans}</p>
-                  </div>
-                  <div>
+                        </div>
+                        <div>
                     <p className="text-sm text-orange-700 font-medium">Statut</p>
                     <div className="mt-2">{getStatusBadge(selectedUser.status)}</div>
+                        </div>
+                      </div>
+                    </div>
                   </div>
-                </div>
-              </div>
-            </div>
 
             {/* Modal Footer */}
             <div className="p-6 bg-gray-50 border-t border-gray-200 flex gap-4">
@@ -595,11 +595,11 @@ const UserManagement = () => {
                   Fermer
                 </button>
               )}
+              </div>
             </div>
           </div>
-        </div>
-      )}
-
+        )}
+      
       {/* Image Modal */}
       {showImageModal && selectedImage.url && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 flex items-center justify-center p-4">
@@ -609,20 +609,20 @@ const UserManagement = () => {
               className="absolute -top-12 right-0 p-2 bg-white/10 hover:bg-white/20 rounded-xl transition-colors"
             >
               <X size={24} className="text-white" />
-            </button>
+                  </button>
             <div className="bg-white rounded-3xl p-4">
               <h3 className="text-xl font-bold text-gray-900 mb-4 text-center">
                 {selectedImage.title}
               </h3>
-              <img
-                src={selectedImage.url}
-                alt={selectedImage.title}
+                  <img
+                    src={selectedImage.url}
+                    alt={selectedImage.title}
                 className="w-full h-auto rounded-2xl"
               />
             </div>
+            </div>
           </div>
-        </div>
-      )}
+        )}
     </div>
   );
 };
