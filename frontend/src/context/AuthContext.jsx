@@ -25,6 +25,28 @@ export const AuthProvider = ({ children }) => {
   useEffect(() => {
     console.log('[AUTH] Initialisation du contexte d\'authentification...');
     
+    // Nettoyer le cache obsolète au démarrage
+    try {
+      const cached = localStorage.getItem('ab_user_cache');
+      if (cached) {
+        const cachedUser = JSON.parse(cached);
+        // Vérifier si le cache est récent (moins de 24h)
+        const cacheTime = localStorage.getItem('ab_user_cache_time');
+        if (cacheTime) {
+          const timeDiff = Date.now() - parseInt(cacheTime);
+          if (timeDiff > 24 * 60 * 60 * 1000) { // 24h
+            console.log('[AUTH] Cache obsolète détecté, nettoyage...');
+            localStorage.removeItem('ab_user_cache');
+            localStorage.removeItem('ab_user_cache_time');
+          }
+        }
+      }
+    } catch (cacheError) {
+      console.warn('[AUTH] Erreur vérification cache:', cacheError);
+      localStorage.removeItem('ab_user_cache');
+      localStorage.removeItem('ab_user_cache_time');
+    }
+    
     // Sécurité: timeout anti-blocage du loader
     const safetyTimeout = setTimeout(() => {
       console.log('[AUTH] ⚠️ Timeout de sécurité - arrêt du loader');
@@ -74,7 +96,7 @@ export const AuthProvider = ({ children }) => {
               
               setUser(userData);
               
-              // Mettre en cache avec le bon rôle
+              // Mettre en cache avec le bon rôle et timestamp
               localStorage.setItem('ab_user_cache', JSON.stringify({
                 id: userData.id,
                 email: userData.email,
@@ -82,6 +104,7 @@ export const AuthProvider = ({ children }) => {
                 first_name: dbUser.first_name || '',
                 last_name: dbUser.last_name || ''
               }));
+              localStorage.setItem('ab_user_cache_time', Date.now().toString());
             } else {
               console.warn('[AUTH] Impossible de récupérer le rôle depuis la DB, utilisation JWT');
               const userData = { ...session.user, role: roleFromJwt };
@@ -94,6 +117,7 @@ export const AuthProvider = ({ children }) => {
                 first_name: userData.user_metadata?.first_name || '',
                 last_name: userData.user_metadata?.last_name || ''
               }));
+              localStorage.setItem('ab_user_cache_time', Date.now().toString());
             }
           } catch (dbError) {
             console.error('[AUTH] Erreur récupération rôle DB:', dbError);
@@ -107,6 +131,7 @@ export const AuthProvider = ({ children }) => {
               first_name: userData.user_metadata?.first_name || '',
               last_name: userData.user_metadata?.last_name || ''
             }));
+            localStorage.setItem('ab_user_cache_time', Date.now().toString());
           }
         } else {
           console.log('[AUTH] Aucune session active');
@@ -346,6 +371,57 @@ export const AuthProvider = ({ children }) => {
     }
   };
 
+  const forceRefreshRole = async () => {
+    if (!supabase || !user) {
+      return { success: false, error: 'Utilisateur non connecté' };
+    }
+    
+    try {
+      console.log('[AUTH] 🔄 Forçage de la récupération du rôle depuis la DB...');
+      
+      // Récupérer le rôle depuis la DB
+      const { data: dbUser, error: dbError } = await supabase
+        .from('users')
+        .select('role, first_name, last_name')
+        .eq('id', user.id)
+        .single();
+      
+      if (dbError || !dbUser) {
+        console.error('[AUTH] Erreur récupération rôle DB:', dbError);
+        return { success: false, error: 'Impossible de récupérer le rôle' };
+      }
+      
+      console.log('[AUTH] ✅ Rôle récupéré depuis la DB:', dbUser.role);
+      
+      // Mettre à jour l'utilisateur avec le bon rôle
+      const updatedUser = {
+        ...user,
+        role: dbUser.role,
+        firstName: dbUser.first_name,
+        lastName: dbUser.last_name
+      };
+      
+      setUser(updatedUser);
+      
+      // Mettre à jour le cache
+      localStorage.setItem('ab_user_cache', JSON.stringify({
+        id: updatedUser.id,
+        email: updatedUser.email,
+        role: dbUser.role,
+        first_name: dbUser.first_name || '',
+        last_name: dbUser.last_name || ''
+      }));
+      localStorage.setItem('ab_user_cache_time', Date.now().toString());
+      
+      console.log('[AUTH] ✅ Rôle mis à jour:', dbUser.role);
+      return { success: true, role: dbUser.role };
+      
+    } catch (error) {
+      console.error('[AUTH] Erreur lors du forçage du rôle:', error);
+      return { success: false, error: error.message };
+    }
+  };
+
   const value = {
     user,
     loading,
@@ -355,6 +431,7 @@ export const AuthProvider = ({ children }) => {
     signInWithPhoneNumber,
     logout,
     refreshUser,
+    forceRefreshRole,
     setUser
   };
 
