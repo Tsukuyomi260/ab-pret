@@ -24,7 +24,6 @@ import {
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 import { supabase } from '../../utils/supabaseClient';
-import RoleDebugger from './RoleDebugger';
 
 const AdminDashboard = () => {
   const { user } = useAuth();
@@ -438,9 +437,6 @@ const AdminDashboard = () => {
           </div>
             </div>
           </div>
-    
-    {/* Debug component for role issues */}
-    <RoleDebugger />
     </div>
   );
 };

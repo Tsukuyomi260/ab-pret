@@ -57,15 +57,18 @@ const ClientDashboard = () => {
         const loansResult = await getLoans(user.id);
         const paymentsResult = await getPayments(user.id);
       
-      // Récupérer le plan d'épargne actif
-      const { data: savingsPlan, error: savingsError } = await supabase
+      // Récupérer le plan d'épargne actif (prendre celui avec le plus grand solde)
+      const { data: savingsPlans, error: savingsError } = await supabase
         .from('savings_plans')
         .select('current_balance')
         .eq('user_id', user.id)
         .eq('status', 'active')
-        .single();
+        .order('current_balance', { ascending: false });
       
-      const savingsBalance = savingsPlan?.current_balance || 0;
+      // Prendre le plan avec le plus grand solde
+      const savingsBalance = savingsPlans && savingsPlans.length > 0 
+        ? Math.max(...savingsPlans.map(plan => plan.current_balance || 0))
+        : 0;
 
         if (loansResult.success && paymentsResult.success) {
           const loans = loansResult.data || [];

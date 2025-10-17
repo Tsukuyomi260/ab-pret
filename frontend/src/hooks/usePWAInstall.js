@@ -26,15 +26,20 @@ const usePWAInstall = () => {
 
     // Vérifier si l'utilisateur a déjà vu le prompt d'installation
     const hasSeenInstallPrompt = localStorage.getItem('pwa-install-prompt-seen');
-    const lastSeenDate = localStorage.getItem('pwa-install-prompt-last-seen');
+    const hasDismissedPrompt = localStorage.getItem('pwa-install-prompt-dismissed');
+    const hasAcceptedInstall = localStorage.getItem('pwa-install-accepted');
     
-    // Si l'utilisateur a vu le prompt récemment (dans les 7 derniers jours), ne pas le re-afficher
-    if (hasSeenInstallPrompt && lastSeenDate) {
-      const daysSinceLastSeen = (Date.now() - parseInt(lastSeenDate)) / (1000 * 60 * 60 * 24);
-      if (daysSinceLastSeen < 7) {
-        console.log('[PWA_INSTALL] Prompt déjà vu récemment, pas d\'affichage');
-        return;
-      }
+    // Si l'utilisateur a déjà accepté l'installation, ne pas re-afficher
+    if (hasAcceptedInstall === 'true') {
+      console.log('[PWA_INSTALL] App déjà acceptée par l\'utilisateur');
+      setIsInstalled(true);
+      return;
+    }
+    
+    // Si l'utilisateur a déjà vu le prompt ET l'a rejeté, ne pas le re-afficher
+    if (hasSeenInstallPrompt === 'true' && hasDismissedPrompt === 'true') {
+      console.log('[PWA_INSTALL] Prompt déjà rejeté par l\'utilisateur, pas d\'affichage');
+      return;
     }
 
     // Vérifier si l'app est déjà installée
@@ -49,6 +54,16 @@ const usePWAInstall = () => {
       
       // Empêcher l'affichage automatique du prompt
       e.preventDefault();
+      
+      // Vérifier à nouveau les préférences avant d'afficher
+      const hasSeenInstallPrompt = localStorage.getItem('pwa-install-prompt-seen');
+      const hasDismissedPrompt = localStorage.getItem('pwa-install-prompt-dismissed');
+      const hasAcceptedInstall = localStorage.getItem('pwa-install-accepted');
+      
+      if (hasAcceptedInstall === 'true' || (hasSeenInstallPrompt === 'true' && hasDismissedPrompt === 'true')) {
+        console.log('[PWA_INSTALL] Prompt déjà géré par l\'utilisateur - pas d\'affichage');
+        return;
+      }
       
       // Sauvegarder l'événement pour l'utiliser plus tard
       setDeferredPrompt(e);
@@ -134,9 +149,10 @@ const usePWAInstall = () => {
     console.log('[PWA_INSTALL] Prompt d\'installation fermé');
     setShowInstallPrompt(false);
     
-    // Marquer que l'utilisateur a vu le prompt
+    // Marquer que l'utilisateur a vu le prompt et l'a rejeté
     localStorage.setItem('pwa-install-prompt-seen', 'true');
-    localStorage.setItem('pwa-install-prompt-last-seen', Date.now().toString());
+    localStorage.setItem('pwa-install-prompt-dismissed', 'true');
+    console.log('[PWA_INSTALL] Prompt d\'installation rejeté par l\'utilisateur');
   };
 
   // Fonction pour vérifier si l'app peut être installée

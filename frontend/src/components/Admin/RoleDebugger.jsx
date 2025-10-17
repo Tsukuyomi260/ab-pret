@@ -2,7 +2,8 @@ import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { forceRoleRefresh, checkRoleConsistency } from '../../utils/forceRoleRefresh';
 import { clearAllCache } from '../../utils/clearAllCache';
-import { RefreshCw, User, AlertTriangle, CheckCircle, Zap, Trash2 } from 'lucide-react';
+import { clearAllServiceWorkers } from '../../utils/clearServiceWorkers';
+import { RefreshCw, User, AlertTriangle, CheckCircle, Zap, Trash2, Wifi } from 'lucide-react';
 
 const RoleDebugger = () => {
   const { user, forceRefreshRole } = useAuth();
@@ -64,10 +65,22 @@ const RoleDebugger = () => {
     }
   };
 
+  const handleClearServiceWorkers = async () => {
+    if (window.confirm('⚠️ ATTENTION: Cette action va nettoyer TOUS les Service Workers. Continuer ?')) {
+      console.log('[ROLE_DEBUGGER] 🧹 Nettoyage des Service Workers...');
+      const success = await clearAllServiceWorkers();
+      if (success) {
+        alert('✅ Service Workers nettoyés avec succès !');
+      } else {
+        alert('❌ Erreur lors du nettoyage des Service Workers');
+      }
+    }
+  };
+
   if (!user) return null;
 
   return (
-    <div className="fixed top-4 right-4 z-50 bg-white rounded-lg shadow-lg border border-gray-200 p-4 max-w-sm">
+    <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-4 max-w-sm mx-auto">
       <div className="flex items-center gap-2 mb-3">
         <User size={20} className="text-blue-600" />
         <h3 className="font-semibold text-gray-900">Debug Rôle</h3>
@@ -140,6 +153,14 @@ const RoleDebugger = () => {
         >
           <Trash2 size={16} />
           Nettoyer Tout + Reload
+        </button>
+        
+        <button
+          onClick={handleClearServiceWorkers}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors text-sm"
+        >
+          <Wifi size={16} />
+          Nettoyer Service Workers
         </button>
         
         {user.role !== 'admin' && (

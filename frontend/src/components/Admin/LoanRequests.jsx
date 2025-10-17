@@ -70,7 +70,7 @@ const LoanRequests = () => {
         console.log('[ADMIN_LOANS] ✅ Prêts chargés:', loans.length);
         console.log('[ADMIN_LOANS] ✅ Paiements chargés:', payments.length);
         
-        // Transformer les données
+        // Transformer les données avec toutes les informations utilisateur
         const formattedRequests = loans.map(loan => {
           const loanPayments = payments.filter(payment => payment.loan_id === loan.id);
           const paidAmount = loanPayments.reduce((sum, payment) => sum + (payment.amount || 0), 0);
@@ -90,7 +90,24 @@ const LoanRequests = () => {
               lastName: loan.users?.last_name || 'Inconnu',
               email: loan.users?.email || 'email@inconnu.com',
               phone: loan.users?.phone_number || 'Non spécifié',
+              // Informations complètes de l'utilisateur
+              dateOfBirth: loan.users?.date_of_birth,
+              gender: loan.users?.gender,
+              address: loan.users?.address,
+              city: loan.users?.city,
+              university: loan.users?.university,
+              studentId: loan.users?.student_id,
+              temoinName: loan.users?.temoin_name,
+              temoinPhone: loan.users?.temoin_phone,
+              temoinQuartier: loan.users?.temoin_quartier,
+              identityCardUrl: loan.users?.identity_card_url,
+              studentCardUrl: loan.users?.student_card_url,
+              temoinIdentityCardUrl: loan.users?.temoin_identity_card_url,
+              profileImageUrl: loan.users?.profile_image_url,
+              status: loan.users?.status,
+              createdAt: loan.users?.created_at
             },
+            // Informations du prêt
             amount: loan.amount || 0,
             totalAmount: Math.round(totalAmount),
             paidAmount: Math.round(paidAmount),
@@ -102,9 +119,15 @@ const LoanRequests = () => {
             dueDate: dueDate.toISOString(),
             guarantee: loan.guarantee || 'Non spécifiée',
             employment_status: loan.employment_status || 'Non spécifié',
+            // Informations MoMo
             momoNumber: loan.momo_number || 'Non spécifié',
             momoNetwork: loan.momo_network || 'Non spécifié',
-            interest_rate: loan.interest_rate || 0
+            momoName: loan.momo_name || 'Non spécifié',
+            // Informations financières
+            interest_rate: loan.interest_rate || 0,
+            monthly_payment: loan.monthly_payment || 0,
+            approved_by: loan.approved_by,
+            approved_at: loan.approved_at
           };
         });
         
@@ -300,7 +323,8 @@ const LoanRequests = () => {
   }
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 pb-24">
+    <>
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 pb-24">
       {/* Header Moderne */}
       <div className="bg-white/80 backdrop-blur-lg shadow-lg border-b border-white/50 sticky top-0 z-30">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
@@ -566,116 +590,320 @@ const LoanRequests = () => {
           )}
         </div>
       </div>
+    </div>
 
-      {/* Modal de détails utilisateur */}
-      {selectedUser && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full my-8">
-            <div className="sticky top-0 bg-gradient-to-r from-blue-500 to-purple-600 text-white p-6 rounded-t-3xl z-10">
-                <div className="flex items-center justify-between">
+    {/* Modal de détails utilisateur - Design moderne et élégant */}
+    {selectedUser && (
+      <div className="fixed inset-0 bg-black/60 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-6xl w-full my-8 max-h-[95vh] overflow-hidden">
+            {/* Header moderne avec gradient */}
+            <div className="sticky top-0 bg-gradient-to-r from-indigo-600 via-purple-600 to-pink-600 text-white p-6 rounded-t-3xl z-10">
+              <div className="flex items-center justify-between">
                 <div className="flex items-center gap-4">
-                  <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center text-white font-bold text-2xl">
+                  <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center text-white font-bold text-2xl shadow-lg">
                     {selectedUser.user.firstName?.[0]}{selectedUser.user.lastName?.[0]}
                   </div>
                   <div>
                     <h3 className="text-2xl font-bold">{selectedUser.user.firstName} {selectedUser.user.lastName}</h3>
-                    <p className="text-blue-100">{selectedUser.loans.length} demande{selectedUser.loans.length > 1 ? 's' : ''} de prêt</p>
+                    <p className="text-indigo-100 flex items-center gap-2">
+                      <User size={16} />
+                      {selectedUser.loans.length} demande{selectedUser.loans.length > 1 ? 's' : ''} de prêt
+                    </p>
                   </div>
-                  </div>
-                  <button
+                </div>
+                <button
                   onClick={() => setSelectedUser(null)}
-                    className="p-2 hover:bg-white/20 rounded-full transition-colors"
-                  >
-                    <X size={24} />
-                  </button>
+                  className="p-3 hover:bg-white/20 rounded-2xl transition-all duration-200 hover:scale-105"
+                >
+                  <X size={24} />
+                </button>
+              </div>
+            </div>
+
+            {/* Contenu principal avec scroll */}
+            <div className="p-6 pb-32 space-y-8 max-h-[calc(95vh-200px)] overflow-y-auto">
+              
+              {/* Section Informations Personnelles */}
+              <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-2xl p-6 border border-blue-100">
+                <h4 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+                  <div className="p-2 bg-blue-100 rounded-xl">
+                    <User size={20} className="text-blue-600" />
+                  </div>
+                  Informations Personnelles
+                </h4>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {/* Informations de base */}
+                  <div className="space-y-4">
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Nom complet</label>
+                      <p className="text-lg font-semibold text-gray-900">{selectedUser.user.firstName} {selectedUser.user.lastName}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Email</label>
+                      <p className="text-gray-900">{selectedUser.user.email}</p>
+                    </div>
+                    <div>
+                      <label className="text-sm font-medium text-gray-600">Téléphone</label>
+                      <p className="text-gray-900">{selectedUser.user.phone}</p>
+                    </div>
+                    {selectedUser.user.dateOfBirth && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Date de naissance</label>
+                        <p className="text-gray-900">{new Date(selectedUser.user.dateOfBirth).toLocaleDateString('fr-FR')}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Informations académiques */}
+                  <div className="space-y-4">
+                    {selectedUser.user.university && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Université</label>
+                        <p className="text-gray-900">{selectedUser.user.university}</p>
+                      </div>
+                    )}
+                    {selectedUser.user.studentId && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Numéro étudiant</label>
+                        <p className="text-gray-900">{selectedUser.user.studentId}</p>
+                      </div>
+                    )}
+                    {selectedUser.user.address && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Adresse</label>
+                        <p className="text-gray-900">{selectedUser.user.address}</p>
+                      </div>
+                    )}
+                    {selectedUser.user.city && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Ville</label>
+                        <p className="text-gray-900">{selectedUser.user.city}</p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Informations de témoin */}
+                  <div className="space-y-4">
+                    {selectedUser.user.temoinName && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Témoin</label>
+                        <p className="text-gray-900">{selectedUser.user.temoinName}</p>
+                      </div>
+                    )}
+                    {selectedUser.user.temoinPhone && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Téléphone témoin</label>
+                        <p className="text-gray-900">{selectedUser.user.temoinPhone}</p>
+                      </div>
+                    )}
+                    {selectedUser.user.temoinQuartier && (
+                      <div>
+                        <label className="text-sm font-medium text-gray-600">Quartier témoin</label>
+                        <p className="text-gray-900">{selectedUser.user.temoinQuartier}</p>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
 
-                <div className="p-6 pb-32 space-y-6 max-h-[calc(90vh-200px)] overflow-y-auto">
-              {/* Infos contact */}
-              <div className="bg-gray-50 rounded-2xl p-4">
-                <h4 className="font-bold text-gray-900 mb-3 flex items-center gap-2">
-                  <User size={18} />
-                  Informations de contact
+              {/* Section Documents */}
+              <div className="bg-gradient-to-br from-green-50 to-emerald-50 rounded-2xl p-6 border border-green-100">
+                <h4 className="text-xl font-bold text-gray-900 mb-6 flex items-center gap-3">
+                  <div className="p-2 bg-green-100 rounded-xl">
+                    <FileText size={20} className="text-green-600" />
+                  </div>
+                  Documents Fournis
                 </h4>
-                <div className="grid grid-cols-2 gap-3 text-sm">
-                        <div>
-                    <p className="text-gray-600">Email</p>
-                    <p className="font-medium">{selectedUser.user.email}</p>
-                        </div>
-                        <div>
-                    <p className="text-gray-600">Téléphone</p>
-                    <p className="font-medium">{selectedUser.user.phone}</p>
-                      </div>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                  {selectedUser.user.identityCardUrl && (
+                    <div className="bg-white rounded-xl p-4 border border-green-200">
+                      <h5 className="font-semibold text-gray-900 mb-2">Carte d'identité</h5>
+                      <a 
+                        href={selectedUser.user.identityCardUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-green-600 hover:text-green-700 font-medium"
+                      >
+                        <Eye size={16} />
+                        Voir le document
+                      </a>
                     </div>
-                  </div>
+                  )}
+                  
+                  {selectedUser.user.studentCardUrl && (
+                    <div className="bg-white rounded-xl p-4 border border-green-200">
+                      <h5 className="font-semibold text-gray-900 mb-2">Carte étudiante</h5>
+                      <a 
+                        href={selectedUser.user.studentCardUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-green-600 hover:text-green-700 font-medium"
+                      >
+                        <Eye size={16} />
+                        Voir le document
+                      </a>
+                    </div>
+                  )}
+                  
+                  {selectedUser.user.temoinIdentityCardUrl && (
+                    <div className="bg-white rounded-xl p-4 border border-green-200">
+                      <h5 className="font-semibold text-gray-900 mb-2">Carte d'identité témoin</h5>
+                      <a 
+                        href={selectedUser.user.temoinIdentityCardUrl} 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="inline-flex items-center gap-2 text-green-600 hover:text-green-700 font-medium"
+                      >
+                        <Eye size={16} />
+                        Voir le document
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
 
-              {/* Liste des prêts */}
-                        <div>
-                <h4 className="font-bold text-gray-900 mb-4 flex items-center gap-2">
-                  <FileText size={18} />
-                  Historique des prêts
+              {/* Section Demandes de Prêt */}
+              <div className="space-y-6">
+                <h4 className="text-xl font-bold text-gray-900 flex items-center gap-3">
+                  <div className="p-2 bg-purple-100 rounded-xl">
+                    <CreditCard size={20} className="text-purple-600" />
+                  </div>
+                  Demandes de Prêt
                 </h4>
-                      <div className="space-y-3">
+                
+                <div className="space-y-6">
                   {selectedUser.loans.map((loan) => (
-                    <div key={loan.id} className="bg-gray-50 rounded-xl p-4 border-l-4 border-blue-500">
-                      <div className="flex items-start justify-between mb-3">
-                        <div>
-                          <p className="font-bold text-gray-900">{formatCurrency(loan.amount)}</p>
-                          <p className="text-sm text-gray-600">{loan.purpose}</p>
-                        </div>
-                        <span className={`inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-semibold ${
-                          loan.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
-                          loan.status === 'active' || loan.status === 'approved' ? 'bg-blue-100 text-blue-700' :
-                          loan.status === 'completed' ? 'bg-green-100 text-green-700' :
-                          'bg-red-100 text-red-700'
-                        }`}>
-                          {loan.status === 'pending' && <Clock size={14} />}
-                          {(loan.status === 'active' || loan.status === 'approved') && <Activity size={14} />}
-                          {loan.status === 'completed' && <CheckCircle size={14} />}
-                          {loan.status === 'rejected' && <XCircle size={14} />}
-                          {loan.status === 'pending' ? 'En attente' :
-                           loan.status === 'active' || loan.status === 'approved' ? 'En cours' :
-                           loan.status === 'completed' ? 'Remboursé' : 'Rejeté'}
-                        </span>
-                  </div>
-
-                      <div className="grid grid-cols-3 gap-3 text-xs mb-3">
-                        <div>
-                          <p className="text-gray-600">Durée</p>
-                          <p className="font-medium">{loan.duration} jours</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-600">Payé</p>
-                          <p className="font-medium text-green-600">{formatCurrency(loan.paidAmount)}</p>
-                        </div>
-                        <div>
-                          <p className="text-gray-600">Restant</p>
-                          <p className="font-medium text-orange-600">{formatCurrency(loan.remainingAmount)}</p>
+                    <div key={loan.id} className="bg-gradient-to-br from-gray-50 to-gray-100 rounded-2xl p-6 border border-gray-200 shadow-sm">
+                      
+                      {/* Header de la demande */}
+                      <div className="flex items-start justify-between mb-6">
+                        <div className="flex-1">
+                          <div className="flex items-center gap-4 mb-3">
+                            <div className="text-3xl font-bold text-gray-900">{formatCurrency(loan.amount)}</div>
+                            <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${
+                              loan.status === 'pending' ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' :
+                              loan.status === 'active' || loan.status === 'approved' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
+                              loan.status === 'completed' ? 'bg-green-100 text-green-700 border border-green-200' :
+                              'bg-red-100 text-red-700 border border-red-200'
+                            }`}>
+                              {loan.status === 'pending' && <Clock size={16} />}
+                              {(loan.status === 'active' || loan.status === 'approved') && <Activity size={16} />}
+                              {loan.status === 'completed' && <CheckCircle size={16} />}
+                              {loan.status === 'rejected' && <XCircle size={16} />}
+                              {loan.status === 'pending' ? 'En attente' :
+                               loan.status === 'active' || loan.status === 'approved' ? 'En cours' :
+                               loan.status === 'completed' ? 'Remboursé' : 'Rejeté'}
+                            </span>
+                          </div>
+                          <p className="text-gray-600 text-lg">{loan.purpose}</p>
                         </div>
                       </div>
 
+                      {/* Informations détaillées du prêt */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-6">
+                        <div className="bg-white rounded-xl p-4 border border-gray-200">
+                          <h5 className="font-semibold text-gray-900 mb-2">Durée</h5>
+                          <p className="text-2xl font-bold text-blue-600">{loan.duration} jours</p>
+                        </div>
+                        
+                        <div className="bg-white rounded-xl p-4 border border-gray-200">
+                          <h5 className="font-semibold text-gray-900 mb-2">Taux d'intérêt</h5>
+                          <p className="text-2xl font-bold text-purple-600">{loan.interest_rate}%</p>
+                        </div>
+                        
+                        <div className="bg-white rounded-xl p-4 border border-gray-200">
+                          <h5 className="font-semibold text-gray-900 mb-2">Montant total</h5>
+                          <p className="text-2xl font-bold text-green-600">{formatCurrency(loan.totalAmount)}</p>
+                        </div>
+                        
+                        <div className="bg-white rounded-xl p-4 border border-gray-200">
+                          <h5 className="font-semibold text-gray-900 mb-2">Payé</h5>
+                          <p className="text-2xl font-bold text-emerald-600">{formatCurrency(loan.paidAmount)}</p>
+                        </div>
+                      </div>
+
+                      {/* Informations MoMo */}
+                      {loan.momoNumber && loan.momoNumber !== 'Non spécifié' && (
+                        <div className="bg-blue-50 rounded-xl p-4 mb-6 border border-blue-200">
+                          <h5 className="font-semibold text-blue-900 mb-4 flex items-center gap-2">
+                            <CreditCard size={18} />
+                            Informations MoMo
+                          </h5>
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                            <div>
+                              <label className="text-sm font-medium text-blue-700">Numéro</label>
+                              <p className="text-lg font-bold text-blue-900">{loan.momoNumber}</p>
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium text-blue-700">Réseau</label>
+                              <p className="text-lg font-bold text-blue-900">{loan.momoNetwork}</p>
+                            </div>
+                            <div>
+                              <label className="text-sm font-medium text-blue-700">Nom sur le compte</label>
+                              <p className="text-lg font-bold text-blue-900">{loan.momoName}</p>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Garanties */}
+                      {loan.guarantee && loan.guarantee !== 'Non spécifiée' && (
+                        <div className="bg-orange-50 rounded-xl p-4 mb-6 border border-orange-200">
+                          <h5 className="font-semibold text-orange-900 mb-2 flex items-center gap-2">
+                            <Shield size={18} />
+                            Garanties
+                          </h5>
+                          <p className="text-orange-900">{loan.guarantee}</p>
+                        </div>
+                      )}
+
+                      {/* Dates importantes */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
+                        <div className="bg-white rounded-xl p-4 border border-gray-200">
+                          <h5 className="font-semibold text-gray-900 mb-2">Date de demande</h5>
+                          <p className="text-gray-600">{new Date(loan.requestDate).toLocaleDateString('fr-FR', { 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric',
+                            hour: '2-digit',
+                            minute: '2-digit'
+                          })}</p>
+                        </div>
+                        
+                        <div className="bg-white rounded-xl p-4 border border-gray-200">
+                          <h5 className="font-semibold text-gray-900 mb-2">Date d'échéance</h5>
+                          <p className="text-gray-600">{new Date(loan.dueDate).toLocaleDateString('fr-FR', { 
+                            year: 'numeric', 
+                            month: 'long', 
+                            day: 'numeric'
+                          })}</p>
+                        </div>
+                      </div>
+
+                      {/* Actions pour les demandes en attente */}
                       {loan.status === 'pending' && (
-                        <div className="flex gap-2 pt-3 border-t border-gray-200">
+                        <div className="flex gap-4 pt-6 border-t border-gray-200">
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               handleApprove(loan.id);
                             }}
-                            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm"
+                            className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold"
                           >
-                            <UserCheck size={16} />
-                            Approuver
+                            <UserCheck size={20} />
+                            Approuver la demande
                           </button>
                           <button
                             onClick={(e) => {
                               e.stopPropagation();
                               handleReject(loan.id);
                             }}
-                            className="flex-1 flex items-center justify-center gap-2 px-3 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors text-sm"
+                            className="flex-1 flex items-center justify-center gap-3 px-6 py-4 bg-gradient-to-r from-red-500 to-pink-600 hover:from-red-600 hover:to-pink-700 text-white rounded-xl transition-all duration-200 shadow-lg hover:shadow-xl transform hover:scale-105 font-semibold"
                           >
-                            <UserX size={16} />
-                            Refuser
+                            <UserX size={20} />
+                            Rejeter la demande
                           </button>
                         </div>
                       )}
@@ -684,10 +912,10 @@ const LoanRequests = () => {
                 </div>
               </div>
             </div>
-                </div>
-              </div>
-        )}
-    </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

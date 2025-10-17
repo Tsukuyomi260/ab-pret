@@ -7,7 +7,8 @@ import './utils/testPWA'; // Import des fonctions de test PWA
 import './utils/testNotificationPrompt'; // Import des utilitaires de test notifications
 import { Toaster } from 'react-hot-toast';
 import updateNotifier from './utils/updateNotifier';
-import { initCacheManagement } from './utils/clearCache'; // Gestion du cache
+import { initCacheManagement } from './utils/clearCache';
+import './utils/resetUserPrompts'; // Charger les utilitaires de reset des prompts // Gestion du cache
 import Layout from './components/Common/Layout';
 import PushNotificationPrompt from './components/UI/PushNotificationPrompt';
 import PWAInstallPrompt from './components/UI/PWAInstallPrompt';

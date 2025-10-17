@@ -1,10 +1,12 @@
-// Service Worker pour les mises à jour automatiques
-const CACHE_NAME = 'ab-campus-finance-v1';
+// Service Worker simple pour AB Campus Finance
+const CACHE_NAME = 'ab-campus-finance-v2.0.0';
 const urlsToCache = [
   '/',
   '/manifest.json',
   '/logo192.png',
-  '/logo512.png'
+  '/logo512.png',
+  '/static/js/bundle.js',
+  '/static/css/main.css'
 ];
 
 // Installation du service worker
@@ -21,14 +23,14 @@ self.addEventListener('install', (event) => {
         });
       })
       .then(() => {
-        console.log('[SW] Service worker installé avec succès');
+        console.log('[SW] Installation terminée');
         // Forcer l'activation immédiate
         return self.skipWaiting();
       })
   );
 });
 
-// Activation et nettoyage des anciens caches
+// Activation du service worker
 self.addEventListener('activate', (event) => {
   console.log('[SW] Activation du service worker...');
   event.waitUntil(
@@ -36,76 +38,109 @@ self.addEventListener('activate', (event) => {
       return Promise.all(
         cacheNames.map((cacheName) => {
           if (cacheName !== CACHE_NAME) {
+            console.log('[SW] Suppression de l\'ancien cache:', cacheName);
             return caches.delete(cacheName);
           }
         })
       );
     }).then(() => {
-      console.log('[SW] Service worker activé avec succès');
+      console.log('[SW] Activation terminée');
       // Prendre le contrôle immédiatement
       return self.clients.claim();
     })
   );
 });
 
-// Interception des requêtes réseau
+// Interception des requêtes
 self.addEventListener('fetch', (event) => {
+  // Ne pas intercepter les requêtes vers l'API backend
+  if (event.request.url.includes('/api/') || 
+      event.request.url.includes('supabase') ||
+      event.request.url.includes('fedapay')) {
+    return;
+  }
+
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
-        // Retourner la réponse en cache si elle existe
+        // Retourner la version en cache si disponible
         if (response) {
+          console.log('[SW] Ressource trouvée en cache:', event.request.url);
           return response;
         }
-        
+
         // Sinon, faire la requête réseau
-        return fetch(event.request);
-      }
-    )
+        console.log('[SW] Requête réseau:', event.request.url);
+        return fetch(event.request).catch(() => {
+          // En cas d'erreur réseau, retourner une page d'erreur si c'est une navigation
+          if (event.request.mode === 'navigate') {
+            return caches.match('/');
+          }
+        });
+      })
   );
 });
 
-// Écouter les messages de mise à jour
+// Gestion des messages
 self.addEventListener('message', (event) => {
+  console.log('[SW] Message reçu:', event.data);
+  
   if (event.data && event.data.type === 'SKIP_WAITING') {
     self.skipWaiting();
   }
+  
+  if (event.data && event.data.type === 'GET_VERSION') {
+    event.ports[0].postMessage({ version: CACHE_NAME });
+  }
 });
 
-// ===== NOTIFICATIONS PUSH =====
-
-// Écouter les événements push
-self.addEventListener("push", (event) => {
-  const data = event.data.json();
-  self.registration.showNotification(data.title, {
-    body: data.body,
-    icon: data.icon || "/logo192.png",
-    badge: data.badge || "/logo192.png",
-    vibrate: data.vibrate || [200, 50, 100],
-    data: data.data || {}
-  });
+// Gestion des notifications push
+self.addEventListener('push', (event) => {
+  console.log('[SW] Notification push reçue');
+  
+  if (event.data) {
+    const data = event.data.json();
+    console.log('[SW] Données de notification:', data);
+    
+    const options = {
+      body: data.body || 'Nouvelle notification',
+      icon: '/logo192.png',
+      badge: '/logo192.png',
+      tag: data.tag || 'ab-campus-finance',
+      data: data.data || {},
+      actions: data.actions || []
+    };
+    
+    event.waitUntil(
+      self.registration.showNotification(data.title || 'AB Campus Finance', options)
+    );
+  }
 });
 
-// Gérer les clics sur les notifications
-self.addEventListener("notificationclick", (event) => {
+// Gestion des clics sur les notifications
+self.addEventListener('notificationclick', (event) => {
+  console.log('[SW] Clic sur notification:', event.notification.tag);
+  
   event.notification.close();
   
-  // Récupérer l'URL depuis les données de la notification
-  const url = event.notification.data?.url || "/";
+  const urlToOpen = event.notification.data?.url || '/';
   
   event.waitUntil(
-    clients.matchAll({ type: 'window' }).then(clientList => {
-      // Si l'app est déjà ouverte, naviguer vers l'URL
-      for (const client of clientList) {
-        if (client.url.includes(self.location.origin) && 'focus' in client) {
-          client.navigate(url);
-          return client.focus();
+    clients.matchAll({ type: 'window', includeUncontrolled: true })
+      .then((clientList) => {
+        // Si une fenêtre est déjà ouverte, la focus
+        for (const client of clientList) {
+          if (client.url.includes(self.location.origin) && 'focus' in client) {
+            return client.focus();
+          }
         }
-      }
-      // Sinon, ouvrir une nouvelle fenêtre
-      if (clients.openWindow) {
-        return clients.openWindow(url);
-      }
-    })
+        
+        // Sinon, ouvrir une nouvelle fenêtre
+        if (clients.openWindow) {
+          return clients.openWindow(urlToOpen);
+        }
+      })
   );
 });
+
+console.log('[SW] Service Worker chargé');

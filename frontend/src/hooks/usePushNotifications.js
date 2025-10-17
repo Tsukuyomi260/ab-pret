@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { BACKEND_URL } from '../config/backend';
+import { registerServiceWorker } from '../utils/serviceWorkerConfig';
 
 // Utilitaire pour convertir la clé VAPID
 function urlBase64ToUint8Array(base64String) {
@@ -58,6 +59,14 @@ export const usePushNotifications = () => {
         return;
       }
 
+      // Vérifier si l'utilisateur a définitivement refusé les notifications
+      const hasDeclinedPrompt = localStorage.getItem('notification-prompt-declined');
+      if (hasDeclinedPrompt === 'true') {
+        console.log('[PUSH HOOK] L\'utilisateur a définitivement refusé les notifications - pas d\'affichage');
+        setHasAskedPermission(true);
+        return;
+      }
+
       try {
         const reg = await navigator.serviceWorker.ready;
         let existingSubscription = await reg.pushManager.getSubscription();
@@ -96,9 +105,15 @@ export const usePushNotifications = () => {
             }
           }
         } else {
-          // Pas d'abonnement - on peut afficher le prompt
-          console.log('[PUSH HOOK] Pas d\'abonnement - prompt peut s\'afficher');
-          setHasAskedPermission(true);
+          // Pas d'abonnement - vérifier si on peut afficher le prompt
+          const hasDeclinedPrompt = localStorage.getItem('notification-prompt-declined');
+          if (hasDeclinedPrompt === 'true') {
+            console.log('[PUSH HOOK] L\'utilisateur a refusé les notifications - pas d\'affichage');
+            setHasAskedPermission(true);
+          } else {
+            console.log('[PUSH HOOK] Pas d\'abonnement - prompt peut s\'afficher');
+            setHasAskedPermission(true);
+          }
         }
       } catch (error) {
         console.error('Erreur lors de la vérification de l\'abonnement:', error);
@@ -109,61 +124,55 @@ export const usePushNotifications = () => {
     checkAndRenewSubscription();
   }, [isSupported, vapidPublicKey, user]);
 
-  // Vérification périodique des abonnements (toutes les 7 jours au lieu de 24h)
+  // Vérification quotidienne de l'état des abonnements
   useEffect(() => {
-    if (!isSubscribed || !subscription) return;
-
-    const checkSubscriptionPeriodically = async () => {
-      console.log('[PUSH HOOK] Vérification périodique de l\'abonnement...');
+    const checkSubscriptionDaily = async () => {
+      console.log('[PUSH HOOK] Vérification quotidienne de l\'abonnement...');
       
       try {
         const reg = await navigator.serviceWorker.ready;
         const currentSubscription = await reg.pushManager.getSubscription();
         
+        // Vérifier si l'abonnement existe et est actif
         if (!currentSubscription) {
-          console.log('[PUSH HOOK] ⚠️ Abonnement perdu, renouvellement...');
-          const renewed = await renewSubscription(reg);
-          if (renewed) {
-            setSubscription(renewed);
-            console.log('[PUSH HOOK] ✅ Abonnement renouvelé automatiquement');
-          } else {
-            setIsSubscribed(false);
-            setSubscription(null);
-            console.log('[PUSH HOOK] ❌ Échec du renouvellement automatique');
-          }
-        } else {
-          // En production, ne pas valider l'abonnement avec des notifications de test
-          if (process.env.NODE_ENV === 'production') {
-            console.log('[PUSH HOOK] Mode production - validation silencieuse');
-            return;
-          }
+          console.log('[PUSH HOOK] ⚠️ Abonnement inactif ou perdu');
+          setIsSubscribed(false);
+          setSubscription(null);
           
-          // En développement seulement, vérifier si l'abonnement est encore valide
-          const isValid = await validateSubscription(currentSubscription);
-          if (!isValid) {
-            console.log('[PUSH HOOK] ⚠️ Abonnement invalide, renouvellement...');
-            const renewed = await renewSubscription(reg);
-            if (renewed) {
-              setSubscription(renewed);
-              console.log('[PUSH HOOK] ✅ Abonnement renouvelé automatiquement');
-            }
-          }
+          // Marquer que l'abonnement est inactif pour permettre l'affichage du prompt
+          localStorage.setItem('subscription-inactive', 'true');
+          localStorage.setItem('subscription-last-check', Date.now().toString());
+          
+          // Réinitialiser le flag de prompt pour permettre l'affichage
+          localStorage.removeItem('notification-prompt-seen');
+          console.log('[PUSH HOOK] Prompt de notification peut s\'afficher - abonnement inactif');
+        } else {
+          console.log('[PUSH HOOK] ✅ Abonnement actif');
+          setIsSubscribed(true);
+          setSubscription(currentSubscription);
+          
+          // Marquer que l'abonnement est actif
+          localStorage.setItem('subscription-active', 'true');
+          localStorage.setItem('subscription-last-check', Date.now().toString());
+          localStorage.removeItem('subscription-inactive');
         }
       } catch (error) {
-        console.error('[PUSH HOOK] Erreur vérification périodique:', error);
+        console.error('[PUSH HOOK] Erreur vérification quotidienne:', error);
+        // En cas d'erreur, considérer l'abonnement comme inactif
+        setIsSubscribed(false);
+        setSubscription(null);
+        localStorage.setItem('subscription-inactive', 'true');
       }
     };
 
-    // Vérifier immédiatement seulement en développement
-    if (process.env.NODE_ENV === 'development') {
-      checkSubscriptionPeriodically();
-    }
+    // Vérifier immédiatement au chargement
+    checkSubscriptionDaily();
 
-    // Puis vérifier toutes les 7 jours (au lieu de 24h)
-    const interval = setInterval(checkSubscriptionPeriodically, 7 * 24 * 60 * 60 * 1000);
+    // Puis vérifier quotidiennement (24h)
+    const interval = setInterval(checkSubscriptionDaily, 24 * 60 * 60 * 1000);
 
     return () => clearInterval(interval);
-  }, [isSubscribed, subscription]); // Retirer 'user' des dépendances pour éviter les re-déclenchements
+  }, [user]); // Déclencher quand l'utilisateur change
 
   // Valider un abonnement en testant l'envoi d'une notification
   const validateSubscription = async (subscription) => {
@@ -257,15 +266,13 @@ export const usePushNotifications = () => {
     }
 
     try {
-      // Enregistrer le service worker
+      // Enregistrer le service worker avec la configuration
       console.log('[PUSH HOOK] Enregistrement du service worker...');
-      const reg = await navigator.serviceWorker.register("/serviceWorker.js");
-      console.log('[PUSH HOOK] Service worker enregistré:', reg);
+      const reg = await registerServiceWorker();
       
-      // Attendre que le service worker soit actif
-      console.log('[PUSH HOOK] Attente de l\'activation du service worker...');
-      await navigator.serviceWorker.ready;
-      console.log('[PUSH HOOK] Service worker prêt !');
+      if (!reg) {
+        console.log('[PUSH HOOK] Service worker non disponible, continuation sans...');
+      }
 
       // Demander la permission
       console.log('[PUSH HOOK] Demande de permission...');

@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
+import RoleDebugger from './RoleDebugger';
 import { 
   Settings as SettingsIcon, 
   User, 
@@ -17,7 +18,8 @@ import {
   AlertCircle,
   CheckCircle,
   Smartphone,
-  Activity
+  Activity,
+  Bug
 } from 'lucide-react';
 
 const Settings = () => {
@@ -27,6 +29,7 @@ const Settings = () => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
+  const [showDebugPanel, setShowDebugPanel] = useState(false);
 
   // États pour les formulaires
   const [profileData, setProfileData] = useState({
@@ -393,7 +396,50 @@ const Settings = () => {
             </button>
           </div>
         </div>
+
+        {/* Section Outils de Développement */}
+        <div className="bg-white rounded-2xl shadow-lg border border-gray-100 overflow-hidden mb-6">
+          <div className="p-4 sm:p-6 bg-gradient-to-r from-orange-500 to-red-600 text-white">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-white/20 rounded-xl">
+                <Bug size={24} />
+              </div>
+              <div>
+                <h2 className="text-xl font-bold font-montserrat">Outils de développement</h2>
+                <p className="text-sm text-orange-100">Outils de debug et diagnostic</p>
+              </div>
+            </div>
+          </div>
+          
+          <div className="p-4 sm:p-6">
+            <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-4">
+              <div className="flex items-start gap-3">
+                <AlertCircle size={20} className="text-yellow-600 mt-0.5" />
+                <div>
+                  <h3 className="font-semibold text-yellow-800 mb-1">⚠️ Outils de Debug</h3>
+                  <p className="text-sm text-yellow-700">
+                    Ces outils sont destinés aux développeurs et administrateurs techniques. 
+                    Utilisez-les uniquement en cas de problème avec les rôles ou les notifications.
+                  </p>
+                </div>
+              </div>
+            </div>
+            
+            <button
+              onClick={() => setShowDebugPanel(!showDebugPanel)}
+              className="flex items-center justify-center gap-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-red-600 hover:from-orange-600 hover:to-red-700 text-white rounded-xl transition-all duration-200 shadow-md hover:shadow-lg"
+            >
+              <Bug size={18} />
+              <span className="font-medium">
+                {showDebugPanel ? 'Masquer le panneau de debug' : 'Afficher le panneau de debug'}
+              </span>
+            </button>
+          </div>
+        </div>
       </div>
+      
+      {/* Panneau de debug conditionnel */}
+      {showDebugPanel && <RoleDebugger />}
     </div>
   );
 };

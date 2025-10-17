@@ -11,21 +11,34 @@ const PushNotificationPrompt = () => {
   console.log('[PUSH PROMPT] Composant rendu');
 
   useEffect(() => {
-    // Vérifier si l'utilisateur a déjà vu le prompt ET s'il est déjà abonné
-    const hasSeenPrompt = localStorage.getItem('notification-prompt-seen');
-    if (hasSeenPrompt && isSubscribed) {
-      console.log('[PUSH PROMPT] L\'utilisateur a déjà vu le prompt et est abonné - pas d\'affichage');
+    // Vérifier si l'utilisateur a définitivement refusé les notifications
+    const hasDeclinedPrompt = localStorage.getItem('notification-prompt-declined');
+    if (hasDeclinedPrompt === 'true') {
+      console.log('[PUSH PROMPT] L\'utilisateur a définitivement refusé les notifications - pas d\'affichage');
       return;
     }
 
-    // Si l'utilisateur a déjà vu le prompt mais n'est pas abonné, 
-    // on peut le re-afficher après un délai (par exemple 3 jours)
-    if (hasSeenPrompt && !isSubscribed) {
+    // Vérifier si l'abonnement est actif
+    if (isSubscribed) {
+      console.log('[PUSH PROMPT] L\'utilisateur est déjà abonné - pas d\'affichage');
+      return;
+    }
+
+    // Vérifier si l'abonnement est marqué comme inactif
+    const subscriptionInactive = localStorage.getItem('subscription-inactive');
+    if (subscriptionInactive !== 'true') {
+      console.log('[PUSH PROMPT] L\'abonnement n\'est pas marqué comme inactif - pas d\'affichage');
+      return;
+    }
+
+    // Vérifier si l'utilisateur a déjà vu le prompt récemment (dans les dernières 24h)
+    const hasSeenPrompt = localStorage.getItem('notification-prompt-seen');
+    if (hasSeenPrompt === 'true') {
       const lastSeen = localStorage.getItem('notification-prompt-last-seen');
       if (lastSeen) {
-        const daysSinceLastSeen = (Date.now() - parseInt(lastSeen)) / (1000 * 60 * 60 * 24);
-        if (daysSinceLastSeen < 3) {
-          console.log('[PUSH PROMPT] L\'utilisateur a vu le prompt récemment (il y a', Math.round(daysSinceLastSeen), 'jours) - pas d\'affichage');
+        const hoursSinceLastSeen = (Date.now() - parseInt(lastSeen)) / (1000 * 60 * 60);
+        if (hoursSinceLastSeen < 24) {
+          console.log('[PUSH PROMPT] L\'utilisateur a vu le prompt récemment (il y a', Math.round(hoursSinceLastSeen), 'heures) - pas d\'affichage');
           return;
         }
       }
@@ -78,6 +91,9 @@ const PushNotificationPrompt = () => {
       
       if (success) {
         console.log('[PUSH PROMPT] Abonnement réussi, fermeture du prompt');
+        // Marquer l'abonnement comme actif
+        localStorage.setItem('subscription-active', 'true');
+        localStorage.removeItem('subscription-inactive');
         setShowPrompt(false);
       } else {
         console.log('[PUSH PROMPT] Échec de l\'abonnement, fermeture du prompt quand même');
@@ -95,10 +111,11 @@ const PushNotificationPrompt = () => {
   };
 
   const handleDecline = () => {
-    // Marquer que l'utilisateur a vu le prompt
+    // Marquer que l'utilisateur a refusé les notifications
     localStorage.setItem('notification-prompt-seen', 'true');
+    localStorage.setItem('notification-prompt-declined', 'true');
     localStorage.setItem('notification-prompt-last-seen', Date.now().toString());
-    console.log('[PUSH PROMPT] Prompt marqué comme vu (refus)');
+    console.log('[PUSH PROMPT] Prompt marqué comme refusé - ne plus afficher');
     setShowPrompt(false);
   };
 
