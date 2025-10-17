@@ -2951,6 +2951,166 @@ function scheduleReminders() {
   }, timeUntil11AM);
 }
 
+// Route pour notifier l'utilisateur de l'approbation de son prêt
+app.post('/api/notify-loan-approbation', async (req, res) => {
+  try {
+    const { userId, loanAmount, loanId } = req.body;
+    
+    if (!userId || !loanAmount || !loanId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'userId, loanAmount et loanId sont requis' 
+      });
+    }
+    
+    console.log('[LOAN_APPROVAL_NOTIFICATION] Prêt approuvé:', { userId, loanAmount, loanId });
+    
+    // Récupérer les informations de l'utilisateur
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id, first_name, last_name')
+      .eq('id', userId)
+      .single();
+
+    if (userError || !userData) {
+      console.error('[LOAN_APPROVAL_NOTIFICATION] ❌ Utilisateur non trouvé:', userError);
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Utilisateur non trouvé' 
+      });
+    }
+
+    const userName = userData.first_name || 'Utilisateur';
+    const amountFormatted = `${parseInt(loanAmount).toLocaleString()} FCFA`;
+    
+    const title = "🎉 Prêt approuvé !";
+    const body = `Félicitations ${userName} ! Votre demande de prêt de ${amountFormatted} a été approuvée. Vous pouvez maintenant effectuer votre premier remboursement.`;
+    
+    // Récupérer les abonnements de l'utilisateur
+    const { data: subscriptions } = await supabase
+      .from('push_subscriptions')
+      .select('subscription, user_id')
+      .eq('user_id', userId);
+    
+    console.log('[LOAN_APPROVAL_NOTIFICATION] Abonnements trouvés:', {
+      userId,
+      subscriptionsCount: subscriptions?.length || 0
+    });
+
+    if (subscriptions && subscriptions.length > 0) {
+      const payload = JSON.stringify({
+        title,
+        body,
+        icon: '/logo192.png',
+        badge: '/logo192.png',
+        data: {
+          url: '/client/remboursement',
+          loanId,
+          type: 'loan_approved'
+        }
+      });
+
+      const promises = subscriptions.map(async (sub) => {
+        try {
+          await webPush.sendNotification(sub.subscription, payload);
+          console.log('[LOAN_APPROVAL_NOTIFICATION] ✅ Notification envoyée à l\'utilisateur');
+        } catch (error) {
+          console.error('[LOAN_APPROVAL_NOTIFICATION] ❌ Erreur envoi notification:', error);
+        }
+      });
+
+      await Promise.all(promises);
+    } else {
+      console.log('[LOAN_APPROVAL_NOTIFICATION] ⚠️ Aucun abonnement trouvé pour l\'utilisateur');
+    }
+
+    res.json({ success: true, message: 'Notification d\'approbation envoyée' });
+  } catch (error) {
+    console.error('[LOAN_APPROVAL_NOTIFICATION] ❌ Erreur:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Route pour notifier l'utilisateur du refus de son prêt
+app.post('/api/notify-loan-refus', async (req, res) => {
+  try {
+    const { userId, loanAmount, loanId } = req.body;
+    
+    if (!userId || !loanAmount || !loanId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'userId, loanAmount et loanId sont requis' 
+      });
+    }
+    
+    console.log('[LOAN_REJECTION_NOTIFICATION] Prêt refusé:', { userId, loanAmount, loanId });
+    
+    // Récupérer les informations de l'utilisateur
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id, first_name, last_name')
+      .eq('id', userId)
+      .single();
+
+    if (userError || !userData) {
+      console.error('[LOAN_REJECTION_NOTIFICATION] ❌ Utilisateur non trouvé:', userError);
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Utilisateur non trouvé' 
+      });
+    }
+
+    const userName = userData.first_name || 'Utilisateur';
+    const amountFormatted = `${parseInt(loanAmount).toLocaleString()} FCFA`;
+    
+    const title = "Demande de prêt refusée";
+    const body = `Bonjour ${userName}, votre demande de prêt de ${amountFormatted} a été refusée. Contactez l'administration pour plus d'informations.`;
+    
+    // Récupérer les abonnements de l'utilisateur
+    const { data: subscriptions } = await supabase
+      .from('push_subscriptions')
+      .select('subscription, user_id')
+      .eq('user_id', userId);
+    
+    console.log('[LOAN_REJECTION_NOTIFICATION] Abonnements trouvés:', {
+      userId,
+      subscriptionsCount: subscriptions?.length || 0
+    });
+
+    if (subscriptions && subscriptions.length > 0) {
+      const payload = JSON.stringify({
+        title,
+        body,
+        icon: '/logo192.png',
+        badge: '/logo192.png',
+        data: {
+          url: '/client/dashboard',
+          loanId,
+          type: 'loan_rejected'
+        }
+      });
+
+      const promises = subscriptions.map(async (sub) => {
+        try {
+          await webPush.sendNotification(sub.subscription, payload);
+          console.log('[LOAN_REJECTION_NOTIFICATION] ✅ Notification envoyée à l\'utilisateur');
+        } catch (error) {
+          console.error('[LOAN_REJECTION_NOTIFICATION] ❌ Erreur envoi notification:', error);
+        }
+      });
+
+      await Promise.all(promises);
+    } else {
+      console.log('[LOAN_REJECTION_NOTIFICATION] ⚠️ Aucun abonnement trouvé pour l\'utilisateur');
+    }
+
+    res.json({ success: true, message: 'Notification de refus envoyée' });
+  } catch (error) {
+    console.error('[LOAN_REJECTION_NOTIFICATION] ❌ Erreur:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Démarrer le scheduler des rappels
 scheduleReminders();
 

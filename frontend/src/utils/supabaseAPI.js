@@ -753,29 +753,58 @@ export const updateLoanStatus = async (loanId, status, adminId = null) => {
 
     if (error) throw error;
 
-    // Si le prêt a été approuvé, envoyer une notification push
-    if (status === 'approved' && data) {
+    // Envoyer une notification selon le statut
+    if (data && (status === 'approved' || status === 'rejected')) {
       try {
-        console.log('[LOAN_APPROVAL] Envoi notification d\'approbation...');
+        const isApproved = status === 'approved';
+        const action = isApproved ? 'approbation' : 'refus';
+        console.log(`[LOAN_${action.toUpperCase()}] Envoi notification de ${action}...`);
         
-        const notificationResponse = await fetch(`${BACKEND_URL}/api/notify-loan-approval`, {
+        // Créer la notification dans la base de données
+        const { error: notificationError } = await supabase
+          .from('notifications')
+          .insert({
+            user_id: data.user_id,
+            title: isApproved ? 'Prêt approuvé ! 🎉' : 'Demande de prêt refusée',
+            message: isApproved 
+              ? `Votre demande de prêt de ${parseInt(data.amount).toLocaleString()} FCFA a été approuvée. Vous pouvez maintenant effectuer votre premier remboursement.`
+              : `Votre demande de prêt de ${parseInt(data.amount).toLocaleString()} FCFA a été refusée. Contactez l'administration pour plus d'informations.`,
+            type: 'loan_status',
+            data: {
+              loan_id: data.id,
+              loan_amount: data.amount,
+              status: isApproved ? 'approved' : 'rejected',
+              action: isApproved ? 'approved' : 'rejected'
+            },
+            read: false
+          });
+
+        if (notificationError) {
+          console.error(`[LOAN_${action.toUpperCase()}] Erreur création notification DB:`, notificationError);
+        } else {
+          console.log(`[LOAN_${action.toUpperCase()}] ✅ Notification créée dans la base de données`);
+        }
+
+        // Envoyer la notification push
+        const notificationResponse = await fetch(`${BACKEND_URL}/api/notify-loan-${action}`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             userId: data.user_id,
             loanAmount: data.amount,
-            loanId: data.id
+            loanId: data.id,
+            status: isApproved ? 'approved' : 'rejected'
           })
         });
 
         if (notificationResponse.ok) {
-          console.log('[LOAN_APPROVAL] ✅ Notification d\'approbation envoyée avec succès');
+          console.log(`[LOAN_${action.toUpperCase()}] ✅ Notification push envoyée avec succès`);
         } else {
-          console.error('[LOAN_APPROVAL] ❌ Erreur envoi notification:', await notificationResponse.text());
+          console.error(`[LOAN_${action.toUpperCase()}] ❌ Erreur envoi notification push:`, await notificationResponse.text());
         }
       } catch (notificationError) {
-        console.error('[LOAN_APPROVAL] ❌ Erreur lors de l\'envoi de la notification:', notificationError);
-        // Ne pas faire échouer l'approbation si la notification échoue
+        console.error(`[LOAN_NOTIFICATION] ❌ Erreur lors de l'envoi de la notification:`, notificationError);
+        // Ne pas faire échouer l'opération si la notification échoue
       }
     }
 
