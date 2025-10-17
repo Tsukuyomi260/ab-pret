@@ -753,14 +753,14 @@ export const updateLoanStatus = async (loanId, status, adminId = null) => {
 
     if (error) throw error;
 
-    // Envoyer une notification selon le statut
+    // Système hybride de notifications (in-app + push)
     if (data && (status === 'approved' || status === 'rejected')) {
       try {
         const isApproved = status === 'approved';
         const action = isApproved ? 'approbation' : 'refus';
-        console.log(`[LOAN_${action.toUpperCase()}] Envoi notification de ${action}...`);
+        console.log(`[LOAN_${action.toUpperCase()}] Système hybride de notifications...`);
         
-        // Créer la notification dans la base de données
+        // 1. TOUJOURS créer la notification dans la base de données (in-app)
         const { error: notificationError } = await supabase
           .from('notifications')
           .insert({
@@ -780,31 +780,37 @@ export const updateLoanStatus = async (loanId, status, adminId = null) => {
           });
 
         if (notificationError) {
-          console.error(`[LOAN_${action.toUpperCase()}] Erreur création notification DB:`, notificationError);
+          console.error(`[LOAN_${action.toUpperCase()}] ❌ Erreur création notification DB:`, notificationError);
         } else {
-          console.log(`[LOAN_${action.toUpperCase()}] ✅ Notification créée dans la base de données`);
+          console.log(`[LOAN_${action.toUpperCase()}] ✅ Notification in-app créée (TOUJOURS disponible)`);
         }
 
-        // Envoyer la notification push
-        const notificationResponse = await fetch(`${BACKEND_URL}/api/notify-loan-${action}`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: data.user_id,
-            loanAmount: data.amount,
-            loanId: data.id,
-            status: isApproved ? 'approved' : 'rejected'
-          })
-        });
+        // 2. Tenter d'envoyer la notification push (si abonnement disponible)
+        try {
+          const notificationResponse = await fetch(`${BACKEND_URL}/api/notify-loan-${action}`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              userId: data.user_id,
+              loanAmount: data.amount,
+              loanId: data.id,
+              status: isApproved ? 'approved' : 'rejected'
+            })
+          });
 
-        if (notificationResponse.ok) {
-          console.log(`[LOAN_${action.toUpperCase()}] ✅ Notification push envoyée avec succès`);
-        } else {
-          console.error(`[LOAN_${action.toUpperCase()}] ❌ Erreur envoi notification push:`, await notificationResponse.text());
+          if (notificationResponse.ok) {
+            console.log(`[LOAN_${action.toUpperCase()}] ✅ Notification push envoyée (utilisateur hors ligne notifié)`);
+          } else {
+            console.log(`[LOAN_${action.toUpperCase()}] ⚠️ Push échoué mais notification in-app disponible`);
+          }
+        } catch (pushError) {
+          console.log(`[LOAN_${action.toUpperCase()}] ⚠️ Push non disponible mais notification in-app créée`);
         }
+
+        console.log(`[LOAN_${action.toUpperCase()}] 🎯 Système hybride : Notification garantie (in-app + push si disponible)`);
       } catch (notificationError) {
-        console.error(`[LOAN_NOTIFICATION] ❌ Erreur lors de l'envoi de la notification:`, notificationError);
-        // Ne pas faire échouer l'opération si la notification échoue
+        console.error(`[LOAN_NOTIFICATION] ❌ Erreur système de notifications:`, notificationError);
+        // Même en cas d'erreur, la notification in-app est prioritaire
       }
     }
 

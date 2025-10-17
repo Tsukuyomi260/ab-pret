@@ -3031,6 +3031,50 @@ app.post('/api/notify-loan-approbation', async (req, res) => {
   }
 });
 
+// Route pour valider un abonnement push
+app.post('/api/validate-subscription', async (req, res) => {
+  try {
+    const { subscription, userId } = req.body;
+    
+    if (!subscription || !userId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'subscription et userId sont requis' 
+      });
+    }
+    
+    console.log('[VALIDATE_SUBSCRIPTION] Validation d\'abonnement:', { userId });
+    
+    // Vérifier si l'abonnement existe en base
+    const { data: existingSub, error: fetchError } = await supabase
+      .from('push_subscriptions')
+      .select('*')
+      .eq('user_id', userId)
+      .eq('subscription->>endpoint', subscription.endpoint)
+      .single();
+
+    if (fetchError || !existingSub) {
+      console.log('[VALIDATE_SUBSCRIPTION] ❌ Abonnement non trouvé en base');
+      return res.json({ valid: false, reason: 'not_found' });
+    }
+
+    // Vérifier si l'abonnement est récent (moins de 30 jours)
+    const subscriptionAge = Date.now() - new Date(existingSub.created_at).getTime();
+    const maxAge = 30 * 24 * 60 * 60 * 1000; // 30 jours
+
+    if (subscriptionAge > maxAge) {
+      console.log('[VALIDATE_SUBSCRIPTION] ⚠️ Abonnement ancien, renouvellement recommandé');
+      return res.json({ valid: false, reason: 'expired' });
+    }
+
+    console.log('[VALIDATE_SUBSCRIPTION] ✅ Abonnement valide');
+    res.json({ valid: true, age: Math.round(subscriptionAge / (24 * 60 * 60 * 1000)) });
+  } catch (error) {
+    console.error('[VALIDATE_SUBSCRIPTION] ❌ Erreur:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Route pour notifier l'utilisateur du refus de son prêt
 app.post('/api/notify-loan-refus', async (req, res) => {
   try {
