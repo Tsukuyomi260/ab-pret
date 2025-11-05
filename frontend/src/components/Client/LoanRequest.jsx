@@ -770,6 +770,7 @@ const LoanRequest = () => {
                     }`}
                   >
                     <option value="">Sélectionnez votre garantie</option>
+                    <option value="🪪 Carte d'identité / étudiante">🪪 Carte d'identité / étudiante</option>
                     <option value="📱 Téléphone portable">📱 Téléphone portable</option>
                     <option value="💻 Ordinateur portable">💻 Ordinateur portable</option>
                     <option value="🔥 Bouteille de gaz">🔥 Bouteille de gaz</option>

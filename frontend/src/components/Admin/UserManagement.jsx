@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useNotifications } from '../../context/NotificationContext';
-import { getAllUsers, updateUserStatus } from '../../utils/supabaseAPI';
+import { getAllUsers, updateUserStatus, deleteUserPermanently } from '../../utils/supabaseAPI';
 import { 
   ArrowLeft, 
   Search, 
@@ -24,7 +24,8 @@ import {
   FileImage,
   Home,
   CreditCard,
-  Filter
+  Filter,
+  Trash2
 } from 'lucide-react';
 
 const UserManagement = () => {
@@ -38,6 +39,8 @@ const UserManagement = () => {
   const [showDetailsModal, setShowDetailsModal] = useState(false);
   const [showImageModal, setShowImageModal] = useState(false);
   const [selectedImage, setSelectedImage] = useState({ url: '', title: '' });
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [deleting, setDeleting] = useState(false);
 
   useEffect(() => {
     loadUsers();
@@ -123,6 +126,34 @@ const UserManagement = () => {
       }
     } catch (error) {
       showError('Erreur lors du rejet');
+    }
+  };
+
+  const handleDeleteClick = () => {
+    setShowDeleteConfirm(true);
+  };
+
+  const handleDeleteConfirm = async () => {
+    if (!selectedUser) return;
+    
+    try {
+      setDeleting(true);
+      const result = await deleteUserPermanently(selectedUser.id);
+      
+      if (result.success) {
+        showSuccess(result.message || 'Utilisateur supprimé définitivement');
+        loadUsers();
+        setShowDeleteConfirm(false);
+        setShowDetailsModal(false);
+        setSelectedUser(null);
+      } else {
+        showError(result.error || 'Erreur lors de la suppression');
+      }
+    } catch (error) {
+      console.error('[ADMIN] Erreur suppression:', error);
+      showError('Erreur lors de la suppression');
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -588,17 +619,95 @@ const UserManagement = () => {
                 </>
               )}
               {selectedUser.status !== 'pending' && (
-                <button
-                  onClick={() => setShowDetailsModal(false)}
-                  className="flex-1 px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-medium transition-all duration-200"
-                >
-                  Fermer
-                </button>
+                <>
+                  <button
+                    onClick={() => setShowDetailsModal(false)}
+                    className="flex-1 px-6 py-3 bg-gray-600 hover:bg-gray-700 text-white rounded-xl font-medium transition-all duration-200"
+                  >
+                    Fermer
+                  </button>
+                  <button
+                    onClick={handleDeleteClick}
+                    className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-all duration-200"
+                  >
+                    <Trash2 size={20} />
+                    Supprimer définitivement
+                  </button>
+                </>
               )}
               </div>
             </div>
           </div>
         )}
+
+      {/* Modal de confirmation de suppression */}
+      {showDeleteConfirm && selectedUser && (
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-md w-full">
+            <div className="p-6">
+              <div className="flex items-center gap-4 mb-4">
+                <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center">
+                  <AlertTriangle className="text-red-600" size={24} />
+                </div>
+                <div>
+                  <h3 className="text-xl font-bold text-gray-900">Confirmer la suppression</h3>
+                  <p className="text-gray-600 text-sm">Cette action est irréversible</p>
+                </div>
+              </div>
+              
+              <div className="bg-red-50 border border-red-200 rounded-xl p-4 mb-6">
+                <p className="text-gray-800 font-medium mb-2">
+                  Vous êtes sur le point de supprimer définitivement :
+                </p>
+                <p className="text-lg font-bold text-red-900">
+                  {selectedUser.firstName} {selectedUser.lastName}
+                </p>
+                <p className="text-sm text-gray-600 mt-1">{selectedUser.email}</p>
+              </div>
+              
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 mb-6">
+                <p className="text-sm text-yellow-900">
+                  ⚠️ <strong>Toutes les données</strong> de cet utilisateur seront supprimées :
+                </p>
+                <ul className="list-disc list-inside text-sm text-yellow-800 mt-2 space-y-1">
+                  <li>Compte utilisateur</li>
+                  <li>Prêts et historique</li>
+                  <li>Paiements</li>
+                  <li>Plans d'épargne</li>
+                  <li>Notifications</li>
+                </ul>
+              </div>
+              
+              <div className="flex gap-4">
+                <button
+                  onClick={() => setShowDeleteConfirm(false)}
+                  disabled={deleting}
+                  className="flex-1 px-6 py-3 bg-gray-200 hover:bg-gray-300 text-gray-800 rounded-xl font-medium transition-all duration-200 disabled:opacity-50"
+                >
+                  Annuler
+                </button>
+                <button
+                  onClick={handleDeleteConfirm}
+                  disabled={deleting}
+                  className="flex-1 flex items-center justify-center gap-2 px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-xl font-medium transition-all duration-200 disabled:opacity-50"
+                >
+                  {deleting ? (
+                    <>
+                      <RefreshCw size={20} className="animate-spin" />
+                      Suppression...
+                    </>
+                  ) : (
+                    <>
+                      <Trash2 size={20} />
+                      Supprimer définitivement
+                    </>
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Image Modal */}
       {showImageModal && selectedImage.url && (

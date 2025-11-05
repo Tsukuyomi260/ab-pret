@@ -83,17 +83,22 @@ const Repayment = () => {
             loanStatus: activeLoan.status
           });
           
-          // Calculer la date d'échéance
-          const loanDate = new Date(activeLoan.created_at);
+          // Calculer la date d'échéance (le décompte commence à partir de la date d'approbation)
           const durationDays = activeLoan.duration || 30; // duration contient le nombre de jours
-          const dueDate = new Date(loanDate.getTime() + (durationDays * 24 * 60 * 60 * 1000));
+          let dueDate = null;
+          let nextPaymentDate = null;
           
-          // Calculer la date du prochain paiement
-          const now = new Date();
-          const daysSinceLoan = Math.floor((now - loanDate) / (1000 * 60 * 60 * 24));
-          const daysInMonth = 30;
-          const nextPaymentDay = daysSinceLoan + daysInMonth - (daysSinceLoan % daysInMonth);
-          const nextPaymentDate = new Date(loanDate.getTime() + (nextPaymentDay * 24 * 60 * 60 * 1000));
+          if (activeLoan.approved_at) {
+            const approvedDate = new Date(activeLoan.approved_at);
+            dueDate = new Date(approvedDate.getTime() + (durationDays * 24 * 60 * 60 * 1000));
+            
+            // Calculer la date du prochain paiement (basée sur la date d'approbation)
+            const now = new Date();
+            const daysSinceApproval = Math.floor((now - approvedDate) / (1000 * 60 * 60 * 24));
+            const daysInMonth = 30;
+            const nextPaymentDay = daysSinceApproval + daysInMonth - (daysSinceApproval % daysInMonth);
+            nextPaymentDate = new Date(approvedDate.getTime() + (nextPaymentDay * 24 * 60 * 60 * 1000));
+          }
 
           // Debug: Afficher les calculs du montant à rembourser
           console.log('[REPAYMENT] Calcul du montant à rembourser:', {
@@ -115,8 +120,8 @@ const Repayment = () => {
             remainingAmount: Math.round(remainingAmount),
             penaltyAmount: Math.round(penaltyAmount),
             totalAmountWithPenalty: Math.round(totalAmountWithPenalty),
-            dueDate: dueDate.toISOString().split('T')[0],
-            nextPaymentDate: nextPaymentDate.toISOString().split('T')[0],
+            dueDate: dueDate ? dueDate.toISOString().split('T')[0] : null,
+            nextPaymentDate: nextPaymentDate ? nextPaymentDate.toISOString().split('T')[0] : null,
             interest_rate: activeLoan.interest_rate || 0,
             duration: activeLoan.duration || 30,
             purpose: activeLoan.purpose || 'Non spécifié',
@@ -264,11 +269,11 @@ const Repayment = () => {
                       <p className="text-purple-900 font-medium text-sm">Date d'échéance</p>
                     </div>
                     <p className="text-lg font-bold text-purple-900">
-                      {new Date(currentLoan.dueDate).toLocaleDateString('fr-FR', { 
+                      {currentLoan.dueDate ? new Date(currentLoan.dueDate).toLocaleDateString('fr-FR', { 
                         day: 'numeric', 
                         month: 'long', 
                         year: 'numeric' 
-                      })}
+                      }) : 'Non défini'}
                     </p>
                     <p className="text-xs text-purple-700 mt-1">Durée: {currentLoan.duration} jours</p>
                   </div>

@@ -77,9 +77,10 @@ const LoanRequests = () => {
           const totalAmount = loan.amount ? loan.amount * (1 + (loan.interest_rate || 0) / 100) : 0;
           const remainingAmount = totalAmount - paidAmount;
           
-          const loanDate = new Date(loan.created_at || new Date());
+          // Le décompte commence à partir de la date d'approbation, pas de la demande
+          const startDate = loan.approved_at ? new Date(loan.approved_at) : null;
           const durationDays = loan.duration_months || 30;
-          const dueDate = new Date(loanDate.getTime() + (durationDays * 24 * 60 * 60 * 1000));
+          const dueDate = startDate ? new Date(startDate.getTime() + (durationDays * 24 * 60 * 60 * 1000)) : null;
           
           return {
             id: loan.id,
@@ -116,7 +117,7 @@ const LoanRequests = () => {
             purpose: loan.purpose || 'Non spécifié',
             status: loan.status || 'pending',
             requestDate: loan.created_at || new Date().toISOString(),
-            dueDate: dueDate.toISOString(),
+            dueDate: dueDate ? dueDate.toISOString() : null,
             guarantee: loan.guarantee || 'Non spécifiée',
             employment_status: loan.employment_status || 'Non spécifié',
             // Informations MoMo
@@ -185,22 +186,30 @@ const LoanRequests = () => {
 
   const handleReject = async (requestId) => {
     try {
+      console.log('[ADMIN_LOANS] ❌ Tentative de rejet du prêt:', requestId);
       const result = await updateLoanStatus(requestId, 'rejected');
       
       if (result.success) {
-      setLoanRequests(prev => 
+        console.log('[ADMIN_LOANS] ✅ Prêt rejeté avec succès');
+        setLoanRequests(prev => 
           prev.map(req => 
             req.id === requestId ? { ...req, status: 'rejected' } : req
           )
         );
-        showSuccess('Demande rejetée');
+        showSuccess('Demande rejetée avec succès');
         loadRequests();
       } else {
-        showError('Erreur lors du rejet');
+        console.error('[ADMIN_LOANS] ❌ Erreur rejet:', result.error);
+        // Afficher un message d'erreur plus détaillé
+        if (result.error?.includes('contrainte') || result.error?.includes('constraint')) {
+          showError('Erreur: La base de données doit être mise à jour. Veuillez contacter l\'administrateur.');
+        } else {
+          showError(result.error || 'Erreur lors du rejet de la demande');
+        }
       }
     } catch (error) {
-      console.error('[ADMIN_LOANS] Erreur rejet:', error);
-      showError('Erreur lors du rejet');
+      console.error('[ADMIN_LOANS] ❌ Erreur rejet:', error);
+      showError(error.message || 'Erreur lors du rejet');
     }
   };
 
@@ -874,11 +883,13 @@ const LoanRequests = () => {
                         
                         <div className="bg-white rounded-xl p-4 border border-gray-200">
                           <h5 className="font-semibold text-gray-900 mb-2">Date d'échéance</h5>
-                          <p className="text-gray-600">{new Date(loan.dueDate).toLocaleDateString('fr-FR', { 
-                            year: 'numeric', 
-                            month: 'long', 
-                            day: 'numeric'
-                          })}</p>
+                          <p className="text-gray-600">
+                            {loan.dueDate ? new Date(loan.dueDate).toLocaleDateString('fr-FR', { 
+                              year: 'numeric', 
+                              month: 'long', 
+                              day: 'numeric'
+                            }) : 'Non approuvé'}
+                          </p>
                         </div>
                       </div>
 

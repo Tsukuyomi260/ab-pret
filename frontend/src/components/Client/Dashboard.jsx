@@ -93,18 +93,21 @@ const ClientDashboard = () => {
               nextPayment = totalDue;
             }
 
-            const loanDate = new Date(activeLoan.created_at);
-            const durationDays = parseInt(activeLoan.duration_months || activeLoan.duration, 10) || 30;
-            
-            dueDate = new Date(loanDate);
-            dueDate.setDate(dueDate.getDate() + durationDays);
-            
-            const now = new Date();
-            now.setHours(0, 0, 0, 0);
-            dueDate.setHours(0, 0, 0, 0);
-            
-            const msRemaining = dueDate.getTime() - now.getTime();
-          daysUntilNextPayment = Math.floor(msRemaining / (1000 * 60 * 60 * 24));
+            // Le décompte commence à partir de la date d'approbation, pas de la demande
+            if (activeLoan.approved_at) {
+              const approvedDate = new Date(activeLoan.approved_at);
+              const durationDays = parseInt(activeLoan.duration_months || activeLoan.duration, 10) || 30;
+              
+              dueDate = new Date(approvedDate);
+              dueDate.setDate(dueDate.getDate() + durationDays);
+              
+              const now = new Date();
+              now.setHours(0, 0, 0, 0);
+              dueDate.setHours(0, 0, 0, 0);
+              
+              const msRemaining = dueDate.getTime() - now.getTime();
+              daysUntilNextPayment = Math.floor(msRemaining / (1000 * 60 * 60 * 24));
+            }
         }
 
         // Calculer le score de fidélité
@@ -115,9 +118,13 @@ const ClientDashboard = () => {
           completedPayments.forEach(p => {
             const loan = loanById.get(p.loan_id);
             if (!loan) return;
-            const created = new Date(loan.created_at || new Date());
+            
+            // Le décompte commence à partir de la date d'approbation, pas de la demande
+            const startDate = loan.approved_at ? new Date(loan.approved_at) : null;
+            if (!startDate) return; // Prêt non approuvé, on ignore
+            
             const durationDays = parseInt(loan.duration_months || loan.duration || 30, 10);
-            const loanDue = new Date(created.getTime() + durationDays * 24 * 60 * 60 * 1000);
+            const loanDue = new Date(startDate.getTime() + durationDays * 24 * 60 * 60 * 1000);
             loanDue.setHours(23, 59, 59, 999);
 
             const payDate = new Date(p.payment_date || p.created_at || new Date());

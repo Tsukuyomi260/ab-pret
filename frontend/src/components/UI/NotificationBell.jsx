@@ -4,14 +4,89 @@ import { Bell, X, CheckCircle, AlertCircle, Info, Clock, DollarSign, CreditCard,
 import { useNotifications } from '../../context/NotificationContext';
 import { useLoanCounters } from '../../hooks/useLoanCounters';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
+import { useAuth } from '../../context/AuthContext';
+import { getLoans } from '../../utils/supabaseAPI';
+import { formatCurrency } from '../../utils/helpers';
 
-const NotificationBell = ({ notifications = [], onNotificationClick, className = '', fixed = false }) => {
+const NotificationBell = ({ notifications: propNotifications, onNotificationClick, className = '', fixed = false }) => {
   const [isOpen, setIsOpen] = useState(false);
   const dropdownRef = useRef(null);
+  const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
+  const [pendingLoanRequests, setPendingLoanRequests] = useState([]);
   
-  const { unreadCount, markAllAsRead } = useNotifications();
+  // Appeler tous les hooks en premier (ordre important !)
+  const { user } = useAuth();
+  const { notifications: contextNotifications, unreadCount, markAllAsRead, refreshNotifications } = useNotifications();
   const { pendingRequests } = useLoanCounters(); // Utiliser le hook des compteurs
   const { isSupported, isSubscribed, subscribeUser, unsubscribeUser } = usePushNotifications();
+  
+  // Utiliser les notifications du contexte en priorité, sinon la prop
+  const baseNotifications = contextNotifications && contextNotifications.length > 0 ? contextNotifications : (propNotifications || []);
+  
+  // Combiner les notifications avec les demandes en attente pour l'admin
+  const allNotifications = [...baseNotifications];
+  
+  // Ajouter les demandes de prêts en attente comme notifications pour l'admin
+  if (user?.role === 'admin' && pendingLoanRequests.length > 0) {
+    pendingLoanRequests.forEach(loan => {
+      allNotifications.push({
+        id: `pending-loan-${loan.id}`,
+        title: 'Nouvelle demande de prêt',
+        message: `${loan.users?.first_name || 'Utilisateur'} ${loan.users?.last_name || ''} - ${formatCurrency(loan.amount || 0)}`,
+        type: 'warning',
+        priority: 'high',
+        read: false,
+        timestamp: loan.created_at,
+        data: { loanId: loan.id, userId: loan.user_id },
+        action: 'Voir la demande',
+        isPendingLoan: true
+      });
+    });
+  }
+  
+  // Trier par date (plus récentes en premier)
+  const notifications = allNotifications.sort((a, b) => {
+    const dateA = new Date(a.timestamp || 0);
+    const dateB = new Date(b.timestamp || 0);
+    return dateB - dateA;
+  });
+
+  // Charger les demandes en attente pour l'admin
+  useEffect(() => {
+    const loadPendingLoans = async () => {
+      if (user?.role === 'admin' && isOpen) {
+        try {
+          const result = await getLoans();
+          if (result.success) {
+            const pending = result.data.filter(loan => loan.status === 'pending');
+            setPendingLoanRequests(pending.slice(0, 10)); // Limiter à 10
+            console.log('[NOTIFICATION_BELL] Demandes en attente chargées:', pending.length);
+          }
+        } catch (error) {
+          console.error('[NOTIFICATION_BELL] Erreur chargement demandes:', error);
+        }
+      }
+    };
+    
+    loadPendingLoans();
+  }, [isOpen, user?.role]);
+
+  // Rafraîchir les notifications quand on ouvre le dropdown
+  useEffect(() => {
+    if (isOpen && user?.id) {
+      console.log('[NOTIFICATION_BELL] 🔔 Dropdown ouvert, rafraîchissement des notifications pour user:', user.id);
+      console.log('[NOTIFICATION_BELL] Notifications actuelles:', notifications.length);
+      setIsLoadingNotifications(true);
+      
+      refreshNotifications(user.id).then(() => {
+        setIsLoadingNotifications(false);
+        console.log('[NOTIFICATION_BELL] ✅ Notifications rafraîchies');
+      }).catch((error) => {
+        console.error('[NOTIFICATION_BELL] ❌ Erreur rafraîchissement:', error);
+        setIsLoadingNotifications(false);
+      });
+    }
+  }, [isOpen, user?.id]);
 
   useEffect(() => {
     const handleClickOutside = (event) => {
@@ -32,6 +107,16 @@ const NotificationBell = ({ notifications = [], onNotificationClick, className =
   };
 
   const handleNotificationClick = (notification) => {
+    // Si c'est une demande de prêt en attente, naviguer vers les demandes de prêts
+    if (notification.isPendingLoan && notification.data?.loanId) {
+      handleClose();
+      // Utiliser setTimeout pour permettre la fermeture du dropdown avant la navigation
+      setTimeout(() => {
+        window.location.href = '/admin/loan-requests';
+      }, 100);
+      return;
+    }
+    
     onNotificationClick?.(notification);
     handleClose();
   };
@@ -86,15 +171,15 @@ const NotificationBell = ({ notifications = [], onNotificationClick, className =
 
             {/* Contenu des notifications */}
             <div className="max-h-96 overflow-y-auto">
-              {notifications.length === 0 ? (
+              {isLoadingNotifications ? (
+                <div className="p-8 text-center text-gray-500">
+                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
+                  <p className="text-sm">Chargement des notifications...</p>
+                </div>
+              ) : notifications.length === 0 && pendingRequests === 0 ? (
                 <div className="p-8 text-center text-gray-500">
                   <Bell size={48} className="mx-auto mb-4 text-gray-300" />
                   <p className="text-sm">Aucune notification</p>
-                  {pendingRequests > 0 && (
-                    <p className="text-xs text-orange-600 mt-2">
-                      {pendingRequests} demande{pendingRequests > 1 ? 's' : ''} en attente de validation
-                    </p>
-                  )}
                 </div>
               ) : (
                 <div className="p-2">
@@ -103,7 +188,7 @@ const NotificationBell = ({ notifications = [], onNotificationClick, className =
                       key={notification.id}
                       onClick={() => handleNotificationClick(notification)}
                       className={`p-3 rounded-lg cursor-pointer transition-all duration-200 hover:bg-gray-50/80 ${
-                        !notification.read ? 'bg-blue-50/50 border-l-4 border-blue-400' : 'bg-white'
+                        !notification.read || notification.isPendingLoan ? 'bg-orange-50/50 border-l-4 border-orange-400' : 'bg-white'
                       }`}
                     >
                       <div className="flex items-start space-x-3">
@@ -112,6 +197,7 @@ const NotificationBell = ({ notifications = [], onNotificationClick, className =
                           {notification.type === 'error' && <AlertCircle size={16} className="text-red-500" />}
                           {notification.type === 'info' && <Info size={16} className="text-blue-500" />}
                           {notification.type === 'warning' && <Clock size={16} className="text-yellow-500" />}
+                          {notification.isPendingLoan && <Clock size={16} className="text-orange-500" />}
                         </div>
                         
                         <div className="flex-1 min-w-0">

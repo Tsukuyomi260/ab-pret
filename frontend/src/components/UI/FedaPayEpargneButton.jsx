@@ -1,4 +1,4 @@
-import React, { useRef, useEffect } from "react";
+import React, { useRef, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
@@ -6,6 +6,9 @@ const FedaPayEpargneButton = ({ planConfig }) => {
   const buttonRef = useRef(null);
   const navigate = useNavigate();
   const { user } = useAuth();
+  const [fedaPayLoaded, setFedaPayLoaded] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   // Fonction pour forcer le rafraîchissement de la page
   const forcePageRefresh = () => {
@@ -29,25 +32,114 @@ const FedaPayEpargneButton = ({ planConfig }) => {
   };
 
   useEffect(() => {
+    // Vérifier si FedaPay est déjà chargé
+    if (window.FedaPay) {
+      console.log("[FedaPay] ✅ Déjà chargé");
+      setFedaPayLoaded(true);
+      setIsLoading(false);
+      return;
+    }
+
+    // Vérifier si le script est déjà en cours de chargement
+    const existingScript = document.querySelector('script[src*="fedapay.com/checkout.js"]');
+    if (existingScript) {
+      console.log("[FedaPay] ⏳ Script déjà en cours de chargement, attente...");
+      const checkInterval = setInterval(() => {
+        if (window.FedaPay) {
+          console.log("[FedaPay] ✅ Script chargé (détection différée)");
+          setFedaPayLoaded(true);
+          setIsLoading(false);
+          clearInterval(checkInterval);
+        }
+      }, 100);
+
+      // Timeout après 10 secondes
+      setTimeout(() => {
+        clearInterval(checkInterval);
+        if (!window.FedaPay) {
+          console.error("[FedaPay] ❌ Timeout - Script non chargé après 10 secondes");
+          setError("Erreur de chargement de FedaPay. Veuillez actualiser la page.");
+          setIsLoading(false);
+        }
+      }, 10000);
+
+      return () => clearInterval(checkInterval);
+    }
+
+    // Charger le script
+    console.log("[FedaPay] 📥 Chargement du script...");
+    setIsLoading(true);
+    setError(null);
+
     const script = document.createElement("script");
     script.src = "https://cdn.fedapay.com/checkout.js?v=1.1.7";
     script.async = true;
 
     script.onload = () => {
-      console.log("[FedaPay] ✅ Script chargé");
+      console.log("[FedaPay] ✅ Script chargé avec succès");
+      
+      // Vérifier que window.FedaPay est disponible
+      if (window.FedaPay) {
+        setFedaPayLoaded(true);
+        setIsLoading(false);
+      } else {
+        // Attendre un peu plus si ce n'est pas immédiatement disponible
+        setTimeout(() => {
+          if (window.FedaPay) {
+            setFedaPayLoaded(true);
+            setIsLoading(false);
+          } else {
+            console.error("[FedaPay] ❌ Script chargé mais window.FedaPay non disponible");
+            setError("Erreur d'initialisation de FedaPay. Veuillez actualiser la page.");
+            setIsLoading(false);
+          }
+        }, 500);
+      }
     };
 
     script.onerror = () => {
-      console.error("[FedaPay] ❌ Erreur chargement script");
+      console.error("[FedaPay] ❌ Erreur lors du chargement du script");
+      setError("Impossible de charger FedaPay. Vérifiez votre connexion internet.");
+      setIsLoading(false);
     };
 
     document.body.appendChild(script);
-    return () => document.body.removeChild(script);
+
+    return () => {
+      // Ne pas supprimer le script si FedaPay est utilisé ailleurs
+      // Le script peut être utilisé par d'autres composants
+      if (script.parentNode) {
+        // Vérifier si d'autres composants utilisent FedaPay avant de supprimer
+        const otherScripts = document.querySelectorAll('script[src*="fedapay.com/checkout.js"]');
+        if (otherScripts.length === 1) {
+          // C'est le seul script, on peut le supprimer
+          // Mais attention, cela peut causer des problèmes si d'autres composants l'utilisent
+        }
+      }
+    };
   }, []);
 
   const startPayment = () => {
+    // Double vérification pour sécurité
+    if (!fedaPayLoaded) {
+      console.error("[FedaPay] ❌ FedaPay n'est pas chargé (fedaPayLoaded = false)");
+      alert("FedaPay est en cours de chargement. Veuillez patienter quelques secondes.");
+      return;
+    }
+
     if (!window.FedaPay) {
-      alert("FedaPay n'est pas encore chargé !");
+      console.error("[FedaPay] ❌ window.FedaPay n'est pas disponible");
+      alert("Erreur d'initialisation de FedaPay. Veuillez actualiser la page.");
+      return;
+    }
+
+    if (!user) {
+      alert("Vous devez être connecté pour effectuer un paiement.");
+      return;
+    }
+
+    if (!planConfig) {
+      alert("Configuration du plan manquante.");
       return;
     }
 
@@ -132,13 +224,45 @@ const FedaPayEpargneButton = ({ planConfig }) => {
     setTimeout(pollForPlan, 5000);
   };
 
+  // Affichage en fonction de l'état
+  if (error) {
+    return (
+      <div className="w-full p-4 bg-red-50 border border-red-200 rounded-xl">
+        <p className="text-red-600 text-sm font-medium mb-2">{error}</p>
+        <button
+          onClick={() => window.location.reload()}
+          className="w-full bg-red-500 hover:bg-red-600 text-white py-2 px-4 rounded-lg font-semibold transition-colors"
+        >
+          Actualiser la page
+        </button>
+      </div>
+    );
+  }
+
+  if (isLoading) {
+    return (
+      <button
+        disabled
+        className="w-full bg-gray-400 text-white py-4 rounded-xl font-semibold cursor-not-allowed flex items-center justify-center gap-2"
+      >
+        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+        Chargement de FedaPay...
+      </button>
+    );
+  }
+
   return (
     <button
       ref={buttonRef}
       onClick={startPayment}
-      className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white py-4 rounded-xl font-semibold"
+      disabled={!fedaPayLoaded}
+      className={`w-full py-4 rounded-xl font-semibold transition-all ${
+        fedaPayLoaded
+          ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 shadow-lg hover:shadow-xl'
+          : 'bg-gray-400 text-white cursor-not-allowed'
+      }`}
     >
-      Payer 1000 F
+      {fedaPayLoaded ? 'Payer 1000 F' : 'Chargement...'}
     </button>
   );
 };

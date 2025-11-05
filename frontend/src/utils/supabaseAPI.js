@@ -291,29 +291,56 @@ export const signInWithEmail = async (email, password) => {
 
     console.log('[SUPABASE] Authentification réussie pour:', authData.user.email);
 
-    // 2. Récupérer les informations complètes depuis la table users
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', authData.user.id)
-      .single();
+    // 2. Récupérer les informations complètes depuis la table users avec timeout
+    let userData = null;
+    let userError = null;
+    
+    try {
+      // Ajouter un timeout pour éviter le blocage
+      const dbQueryPromise = supabase
+        .from('users')
+        .select('*')
+        .eq('id', authData.user.id)
+        .single();
+      
+      const timeoutPromise = new Promise((_, reject) => 
+        setTimeout(() => reject(new Error('Timeout: récupération des données utilisateur')), 5000)
+      );
+      
+      const result = await Promise.race([dbQueryPromise, timeoutPromise]);
+      userData = result.data;
+      userError = result.error;
+      
+      if (userError) {
+        console.warn('[SUPABASE] Erreur récupération table users:', userError.message, userError.code);
+      }
+    } catch (error) {
+      console.warn('[SUPABASE] Erreur/timeout lors de la récupération utilisateur:', error.message);
+      userError = { message: error.message };
+    }
 
-    if (userError) {
-      console.warn('[SUPABASE] Utilisateur non trouvé dans la table users:', userError.message);
-      // Si l'utilisateur n'est pas dans la table users, utiliser les données auth
+    // 3. Si erreur ou timeout, utiliser les données auth (ne pas bloquer la connexion)
+    if (userError || !userData) {
+      console.log('[SUPABASE] Utilisation des données auth (RLS peut bloquer l\'accès à la table users)');
       const userWithRole = {
         ...authData.user,
-        role: authData.user.user_metadata?.role || 'client',
+        role: authData.user.user_metadata?.role || authData.user.app_metadata?.role || 'client',
         first_name: authData.user.user_metadata?.first_name || '',
-        last_name: authData.user.user_metadata?.last_name || ''
+        last_name: authData.user.user_metadata?.last_name || '',
+        status: 'approved' // Par défaut
       };
+      console.log('[SUPABASE] Utilisateur retourné (depuis auth):', {
+        id: userWithRole.id,
+        email: userWithRole.email,
+        role: userWithRole.role
+      });
       return { success: true, user: userWithRole };
     }
 
-    // 3. Fusionner les données auth et users
+    // 4. Fusionner les données auth et users
     const completeUser = {
       ...authData.user,
-      role: userData.role || authData.user.user_metadata?.role || 'client',
+      role: userData.role || authData.user.user_metadata?.role || authData.user.app_metadata?.role || 'client',
       first_name: userData.first_name || authData.user.user_metadata?.first_name || '',
       last_name: userData.last_name || authData.user.user_metadata?.last_name || '',
       phone_number: userData.phone_number || '',
@@ -616,6 +643,29 @@ export const updateUserStatus = async (userId, status) => {
   }
 };
 
+export const deleteUserPermanently = async (userId) => {
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/admin/delete-user/${userId}`, {
+      method: 'DELETE',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    const result = await response.json();
+
+    if (!response.ok) {
+      throw new Error(result.error || 'Erreur lors de la suppression');
+    }
+
+    console.log('[DELETE_USER] ✅ Utilisateur supprimé:', result.message);
+    return { success: true, message: result.message };
+  } catch (error) {
+    console.error('[DELETE_USER] ❌ Erreur:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
 // ===== PRÊTS =====
 
 export const createLoan = async (loanData) => {
@@ -732,7 +782,18 @@ export const getLoans = async (userId = null) => {
 
 export const updateLoanStatus = async (loanId, status, adminId = null) => {
   try {
-    const updateData = { status };
+    console.log('[UPDATE_LOAN_STATUS] 📝 Mise à jour du prêt:', { loanId, status, adminId });
+    
+    // Validation du statut
+    const validStatuses = ['pending', 'approved', 'active', 'completed', 'rejected'];
+    if (!validStatuses.includes(status)) {
+      throw new Error(`Statut invalide: ${status}. Statuts autorisés: ${validStatuses.join(', ')}`);
+    }
+
+    const updateData = { 
+      status,
+      updated_at: new Date().toISOString()
+    };
     
     if (status === 'approved') {
       // Quand un prêt est approuvé, il devient automatiquement actif
@@ -740,6 +801,8 @@ export const updateLoanStatus = async (loanId, status, adminId = null) => {
       updateData.approved_by = adminId;
       updateData.approved_at = new Date().toISOString();
     }
+
+    console.log('[UPDATE_LOAN_STATUS] 🔄 Données à mettre à jour:', updateData);
 
     const { data, error } = await supabase
       .from('loans')
@@ -751,7 +814,23 @@ export const updateLoanStatus = async (loanId, status, adminId = null) => {
       `)
       .single();
 
-    if (error) throw error;
+    if (error) {
+      console.error('[UPDATE_LOAN_STATUS] ❌ Erreur Supabase:', {
+        message: error.message,
+        details: error.details,
+        hint: error.hint,
+        code: error.code
+      });
+      
+      // Vérifier si c'est une erreur de contrainte
+      if (error.code === '23514' || error.message?.includes('check constraint')) {
+        throw new Error(`La base de données n'autorise pas le statut "${status}". Veuillez contacter l'administrateur pour mettre à jour la contrainte.`);
+      }
+      
+      throw error;
+    }
+
+    console.log('[UPDATE_LOAN_STATUS] ✅ Prêt mis à jour avec succès:', data);
 
     // Système hybride de notifications (in-app + push)
     if (data && (status === 'approved' || status === 'rejected')) {
@@ -816,8 +895,9 @@ export const updateLoanStatus = async (loanId, status, adminId = null) => {
 
     return { success: true, data };
   } catch (error) {
-    console.error('[SUPABASE] Erreur lors de la mise à jour du prêt:', error.message);
-    return { success: false, error: error.message };
+    console.error('[UPDATE_LOAN_STATUS] ❌ Erreur lors de la mise à jour du prêt:', error);
+    const errorMessage = error.message || 'Erreur lors de la mise à jour du statut du prêt';
+    return { success: false, error: errorMessage };
   }
 };
 

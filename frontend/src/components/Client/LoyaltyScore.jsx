@@ -112,9 +112,12 @@ const LoyaltyScore = () => {
             const loan = loanById.get(p.loan_id);
             if (!loan) return;
 
-            const loanCreatedAt = new Date(loan.created_at || new Date());
-          const durationDays = parseInt(loan.duration_months || loan.duration || 30, 10);
-            const dueDate = new Date(loanCreatedAt.getTime() + durationDays * 24 * 60 * 60 * 1000);
+            // Le décompte commence à partir de la date d'approbation, pas de la demande
+            const startDate = loan.approved_at ? new Date(loan.approved_at) : null;
+            if (!startDate) return; // Prêt non approuvé, on ignore
+            
+            const durationDays = parseInt(loan.duration_months || loan.duration || 30, 10);
+            const dueDate = new Date(startDate.getTime() + durationDays * 24 * 60 * 60 * 1000);
 
             const paymentDate = new Date(p.payment_date || p.created_at || new Date());
             const isOnTime = paymentDate.getTime() <= dueDate.getTime();

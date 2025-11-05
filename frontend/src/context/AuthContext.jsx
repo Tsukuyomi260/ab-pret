@@ -76,13 +76,21 @@ export const AuthProvider = ({ children }) => {
           let roleFromJwt = session.user?.user_metadata?.role || session.user?.app_metadata?.role || 'client';
           
           try {
-            const { data: dbUser, error: dbError } = await supabase
+            // Ajouter un timeout pour éviter le blocage
+            const dbQueryPromise = supabase
               .from('users')
               .select('role, first_name, last_name')
               .eq('id', session.user.id)
               .single();
             
-            if (!dbError && dbUser) {
+            const timeoutPromise = new Promise((_, reject) => 
+              setTimeout(() => reject(new Error('Timeout')), 3000)
+            );
+            
+            const result = await Promise.race([dbQueryPromise, timeoutPromise]);
+            
+            if (!result.error && result.data) {
+              const dbUser = result.data;
               console.log('[AUTH] Rôle récupéré depuis la DB:', dbUser.role);
               roleFromJwt = dbUser.role || roleFromJwt;
               
@@ -120,7 +128,7 @@ export const AuthProvider = ({ children }) => {
               localStorage.setItem('ab_user_cache_time', Date.now().toString());
             }
           } catch (dbError) {
-            console.error('[AUTH] Erreur récupération rôle DB:', dbError);
+            console.warn('[AUTH] Erreur/timeout récupération rôle DB:', dbError.message);
             const userData = { ...session.user, role: roleFromJwt };
             setUser(userData);
             
@@ -157,17 +165,25 @@ export const AuthProvider = ({ children }) => {
             console.log('[AUTH] Événement auth:', event, session?.user?.email);
             
             if (event === 'SIGNED_IN' && session) {
-              // Récupérer le rôle depuis la DB
+              // Récupérer le rôle depuis la DB avec timeout
               let roleFromJwt = session.user?.user_metadata?.role || session.user?.app_metadata?.role || 'client';
               
               try {
-                const { data: dbUser, error: dbError } = await supabase
+                // Ajouter un timeout pour éviter le blocage
+                const dbQueryPromise = supabase
                   .from('users')
                   .select('role, first_name, last_name')
                   .eq('id', session.user.id)
                   .single();
                 
-                if (!dbError && dbUser) {
+                const timeoutPromise = new Promise((_, reject) => 
+                  setTimeout(() => reject(new Error('Timeout')), 3000)
+                );
+                
+                const result = await Promise.race([dbQueryPromise, timeoutPromise]);
+                
+                if (!result.error && result.data) {
+                  const dbUser = result.data;
                   console.log('[AUTH] SIGNED_IN - Rôle DB:', dbUser.role);
                   roleFromJwt = dbUser.role || roleFromJwt;
                   
@@ -188,6 +204,8 @@ export const AuthProvider = ({ children }) => {
                     last_name: dbUser.last_name || ''
                   }));
                 } else {
+                  // Erreur ou pas de données, utiliser les métadonnées
+                  console.warn('[AUTH] Utilisation des métadonnées auth (RLS peut bloquer)');
                   const userData = { ...session.user, role: roleFromJwt };
                   setUser(userData);
                   
@@ -200,7 +218,8 @@ export const AuthProvider = ({ children }) => {
                   }));
                 }
               } catch (dbError) {
-                console.error('[AUTH] Erreur récupération rôle DB (SIGNED_IN):', dbError);
+                // Timeout ou autre erreur - utiliser les métadonnées auth
+                console.warn('[AUTH] Erreur/timeout récupération rôle DB (SIGNED_IN):', dbError.message);
                 const userData = { ...session.user, role: roleFromJwt };
                 setUser(userData);
                 

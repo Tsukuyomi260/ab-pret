@@ -2039,9 +2039,12 @@ async function checkAndNotifyLoyaltyAchievement(userId) {
       const loan = loanById.get(p.loan_id);
       if (!loan) return;
 
-      const loanCreatedAt = new Date(loan.created_at || new Date());
+      // Le décompte commence à partir de la date d'approbation, pas de la demande
+      const startDate = loan.approved_at ? new Date(loan.approved_at) : null;
+      if (!startDate) return; // Prêt non approuvé, on ignore
+      
       const durationDays = parseInt(loan.duration_months || loan.duration || 30, 10);
-      const dueDate = new Date(loanCreatedAt.getTime() + durationDays * 24 * 60 * 60 * 1000);
+      const dueDate = new Date(startDate.getTime() + durationDays * 24 * 60 * 60 * 1000);
 
       const paymentDate = new Date(p.payment_date || p.created_at || new Date());
       const isOnTime = paymentDate.getTime() <= dueDate.getTime();
@@ -2193,7 +2196,7 @@ async function sendLoanReminderNotifications() {
         // Calculer la date d'échéance à partir de la date d'approbation et de la durée
         const approvedDate = new Date(loan.approved_at);
         const dueDate = new Date(approvedDate);
-        dueDate.setMonth(dueDate.getMonth() + loan.duration);
+        dueDate.setDate(dueDate.getDate() + loan.duration);
         
         const daysRemaining = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
         
@@ -3152,6 +3155,114 @@ app.post('/api/notify-loan-refus', async (req, res) => {
   } catch (error) {
     console.error('[LOAN_REJECTION_NOTIFICATION] ❌ Erreur:', error);
     res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Route pour supprimer définitivement un utilisateur (admin seulement)
+app.delete('/api/admin/delete-user/:userId', async (req, res) => {
+  try {
+    const { userId } = req.params;
+    
+    if (!userId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'userId est requis' 
+      });
+    }
+    
+    console.log('[DELETE_USER] 🗑️ Suppression de l\'utilisateur:', userId);
+    
+    // 1. Vérifier que l'utilisateur existe
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('id, email, role, first_name, last_name')
+      .eq('id', userId)
+      .single();
+    
+    if (userError || !userData) {
+      console.error('[DELETE_USER] ❌ Utilisateur non trouvé:', userError);
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Utilisateur non trouvé' 
+      });
+    }
+    
+    // 2. Empêcher la suppression d'un admin (sécurité)
+    if (userData.role === 'admin') {
+      console.error('[DELETE_USER] ❌ Tentative de suppression d\'un admin');
+      return res.status(403).json({ 
+        success: false, 
+        error: 'Impossible de supprimer un compte administrateur' 
+      });
+    }
+    
+    console.log('[DELETE_USER] 👤 Utilisateur à supprimer:', {
+      id: userData.id,
+      name: `${userData.first_name} ${userData.last_name}`,
+      email: userData.email
+    });
+    
+    // 3. Supprimer les données liées dans public.users (CASCADE devrait gérer les relations)
+    // Mais on supprime explicitement pour être sûr
+    
+    // Supprimer les notifications
+    await supabase.from('notifications').delete().eq('user_id', userId);
+    
+    // Supprimer les abonnements push
+    await supabase.from('push_subscriptions').delete().eq('user_id', userId);
+    
+    // Supprimer les paiements
+    await supabase.from('payments').delete().eq('user_id', userId);
+    
+    // Supprimer les prêts
+    await supabase.from('loans').delete().eq('user_id', userId);
+    
+    // Supprimer les plans d'épargne
+    await supabase.from('savings_plans').delete().eq('user_id', userId);
+    
+    // Supprimer les demandes de retrait
+    await supabase.from('withdrawal_requests').delete().eq('user_id', userId);
+    
+    // 4. Supprimer de la table users
+    const { error: deleteUserError } = await supabase
+      .from('users')
+      .delete()
+      .eq('id', userId);
+    
+    if (deleteUserError) {
+      console.error('[DELETE_USER] ❌ Erreur suppression table users:', deleteUserError);
+      throw deleteUserError;
+    }
+    
+    // 5. Supprimer de auth.users (nécessite service role)
+    try {
+      const { error: deleteAuthError } = await supabase.auth.admin.deleteUser(userId);
+      
+      if (deleteAuthError) {
+        console.error('[DELETE_USER] ⚠️ Erreur suppression auth.users:', deleteAuthError);
+        // On continue même si ça échoue, car l'utilisateur est déjà supprimé de public.users
+        console.log('[DELETE_USER] ⚠️ Utilisateur supprimé de public.users mais erreur pour auth.users');
+      } else {
+        console.log('[DELETE_USER] ✅ Utilisateur supprimé de auth.users');
+      }
+    } catch (authError) {
+      console.error('[DELETE_USER] ⚠️ Erreur lors de la suppression auth:', authError.message);
+      // On continue, l'utilisateur est déjà supprimé de public.users
+    }
+    
+    console.log('[DELETE_USER] ✅ Utilisateur supprimé avec succès');
+    
+    res.json({ 
+      success: true, 
+      message: `Utilisateur ${userData.first_name} ${userData.last_name} supprimé définitivement` 
+    });
+    
+  } catch (error) {
+    console.error('[DELETE_USER] ❌ Erreur:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message || 'Erreur lors de la suppression de l\'utilisateur' 
+    });
   }
 });
 

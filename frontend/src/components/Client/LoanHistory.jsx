@@ -128,12 +128,14 @@ const LoanHistory = () => {
             // Calculer le montant total avec intérêts
             const totalAmount = loan.amount ? loan.amount * (1 + (loan.interest_rate || 0) / 100) : 0;
             
-            // Calculer la date d'échéance (si le prêt est approuvé)
+            // Calculer la date d'échéance (le décompte commence à partir de la date d'approbation)
             let dueDate = null;
             if (loan.status === 'active' || loan.status === 'completed') {
-              const loanDate = new Date(loan.created_at);
-              const durationMonths = loan.duration || 12;
-              dueDate = new Date(loanDate.getTime() + (durationMonths * 30 * 24 * 60 * 60 * 1000));
+              if (loan.approved_at) {
+                const approvedDate = new Date(loan.approved_at);
+                const durationDays = loan.duration || loan.duration_months || 30;
+                dueDate = new Date(approvedDate.getTime() + (durationDays * 24 * 60 * 60 * 1000));
+              }
             }
 
             return {
