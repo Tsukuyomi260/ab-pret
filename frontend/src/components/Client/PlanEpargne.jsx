@@ -34,6 +34,28 @@ const PlanEpargne = () => {
           return;
         }
 
+        // VÉRIFICATION CRUCIALE : Bloquer l'accès si le plan n'est pas personnalisé
+        const isPersonalized = result.plan.personalized_at && 
+                               result.plan.personalized_at !== null &&
+                               result.plan.plan_name && 
+                               result.plan.plan_name.trim() !== '' && 
+                               result.plan.plan_name.trim() !== 'Plan Épargne' &&
+                               result.plan.goal;
+        
+        console.log('[PLAN_EPARGNE] 🔍 Vérification personnalisation:', {
+          personalized_at: result.plan.personalized_at,
+          plan_name: result.plan.plan_name,
+          goal: result.plan.goal,
+          isPersonalized
+        });
+        
+        if (!isPersonalized) {
+          console.log('[PLAN_EPARGNE] ⚠️ Accès bloqué : Plan non personnalisé, redirection vers personnalisation');
+          // Rediriger immédiatement vers la page de personnalisation
+          navigate(`/ab-epargne/personalize/${result.plan.id}`, { replace: true });
+          return;
+        }
+
         setPlan(result.plan);
         
         // Calculer le pourcentage de progression

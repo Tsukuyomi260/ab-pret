@@ -69,9 +69,33 @@ const ABEpargne = () => {
         console.log('[AB_EPARGNE] 📡 Réponse API complète:', result);
 
         if (result.success && result.plan) {
-          console.log('[AB_EPARGNE] ✅ Plan actif trouvé, redirection vers la page de détail:', result.plan);
-          // Rediriger directement vers la page de détail du plan
-          navigate(`/ab-epargne/plan/${result.plan.id}`);
+          console.log('[AB_EPARGNE] ✅ Plan actif trouvé:', result.plan);
+          
+          // Vérifier si le plan est personnalisé (ÉTAPE CRUCIALE)
+          const isPersonalized = result.plan.personalized_at && 
+                                 result.plan.personalized_at !== null &&
+                                 result.plan.plan_name && 
+                                 result.plan.plan_name.trim() !== '' && 
+                                 result.plan.plan_name.trim() !== 'Plan Épargne' &&
+                                 result.plan.goal;
+          
+          console.log('[AB_EPARGNE] 🔍 Vérification personnalisation:', {
+            personalized_at: result.plan.personalized_at,
+            plan_name: result.plan.plan_name,
+            goal: result.plan.goal,
+            isPersonalized
+          });
+          
+          // FORCER la personnalisation si le plan n'est pas encore personnalisé
+          if (!isPersonalized) {
+            console.log('[AB_EPARGNE] ⚠️ Plan non personnalisé, redirection OBLIGATOIRE vers personnalisation');
+            navigate(`/ab-epargne/personalize/${result.plan.id}`, { replace: true });
+            return;
+          }
+          
+          // Si personnalisé, rediriger vers le dashboard du plan
+          console.log('[AB_EPARGNE] ✅ Plan personnalisé, redirection vers dashboard');
+          navigate(`/ab-epargne/plan/${result.plan.id}`, { replace: true });
           return;
         } else {
           console.log('[AB_EPARGNE] ℹ️ Aucun plan actif trouvé, affichage de la config');

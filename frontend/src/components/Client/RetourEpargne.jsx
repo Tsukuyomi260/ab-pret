@@ -52,23 +52,37 @@ const RetourEpargne = () => {
         console.log('[RETOUR_EPARGNE] 📡 Réponse API:', data);
 
         if (data.success && data.plan) {
-          console.log('[RETOUR_EPARGNE] ✅ Plan trouvé, redirection vers personnalisation');
+          console.log('[RETOUR_EPARGNE] ✅ Plan trouvé');
           setPlan(data.plan);
           setStatus('success');
           
-          // Vérifier si le plan est déjà personnalisé (a un nom ET une date de personnalisation)
-          const isPersonalized = data.plan.plan_name && 
+          // Vérifier si le plan est déjà personnalisé
+          // CRITÈRE PRINCIPAL : personalized_at doit être présent et non null
+          // Le plan_name doit être différent du nom par défaut "Plan Épargne"
+          const isPersonalized = data.plan.personalized_at && 
+                                 data.plan.personalized_at !== null &&
+                                 data.plan.plan_name && 
                                  data.plan.plan_name.trim() !== '' && 
-                                 data.plan.personalized_at;
+                                 data.plan.plan_name.trim() !== 'Plan Épargne' &&
+                                 data.plan.goal;
+          
+          console.log('[RETOUR_EPARGNE] 🔍 Vérification personnalisation:', {
+            personalized_at: data.plan.personalized_at,
+            plan_name: data.plan.plan_name,
+            goal: data.plan.goal,
+            isPersonalized
+          });
           
           // Redirection automatique vers personnalisation ou plan après 2 secondes
+          // FORCER la personnalisation si le plan n'est pas encore personnalisé
           setTimeout(() => {
             if (isPersonalized) {
               console.log('[RETOUR_EPARGNE] 🚀 Plan déjà personnalisé, redirection vers PlanEpargne...');
-              navigate(`/ab-epargne/plan/${data.plan.id}`);
+              navigate(`/ab-epargne/plan/${data.plan.id}`, { replace: true });
             } else {
-              console.log('[RETOUR_EPARGNE] 🚀 Plan nouvellement créé, redirection vers PersonalizePlan...');
-              navigate(`/ab-epargne/personalize/${data.plan.id}`);
+              console.log('[RETOUR_EPARGNE] 🚀 Plan non personnalisé, redirection OBLIGATOIRE vers PersonalizePlan...');
+              // Utiliser replace: true pour éviter que l'utilisateur puisse revenir en arrière
+              navigate(`/ab-epargne/personalize/${data.plan.id}`, { replace: true });
             }
           }, 2000);
         } else {

@@ -41,9 +41,31 @@ const PersonalizePlan = () => {
         const result = await response.json();
 
         if (result.success && result.plan) {
+          // Vérifier si le plan est déjà personnalisé
+          const isPersonalized = result.plan.personalized_at && 
+                                 result.plan.personalized_at !== null &&
+                                 result.plan.plan_name && 
+                                 result.plan.plan_name.trim() !== '' && 
+                                 result.plan.plan_name.trim() !== 'Plan Épargne' &&
+                                 result.plan.goal;
+          
+          console.log('[PERSONALIZE_PLAN] 🔍 Vérification personnalisation:', {
+            personalized_at: result.plan.personalized_at,
+            plan_name: result.plan.plan_name,
+            goal: result.plan.goal,
+            isPersonalized
+          });
+          
+          // Si le plan est déjà personnalisé, rediriger vers le dashboard
+          if (isPersonalized) {
+            console.log('[PERSONALIZE_PLAN] ⚠️ Plan déjà personnalisé, redirection vers dashboard');
+            navigate(`/ab-epargne/plan/${planId}`, { replace: true });
+            return;
+          }
+          
           setPlan(result.plan);
-          // Si le plan a déjà un nom, pré-remplir
-          if (result.plan.plan_name) {
+          // Si le plan a déjà un nom (mais pas encore personnalisé), pré-remplir
+          if (result.plan.plan_name && result.plan.plan_name.trim() !== 'Plan Épargne') {
             setPlanName(result.plan.plan_name);
             // Essayer de trouver le goal correspondant
             const goal = SAVINGS_GOALS.find(g => result.plan.plan_name.includes(g.label) || result.plan.goal === g.id);
@@ -51,15 +73,20 @@ const PersonalizePlan = () => {
               setSelectedGoal(goal.id);
             }
           }
+        } else {
+          console.error('[PERSONALIZE_PLAN] Plan non trouvé');
+          toast.error('Plan non trouvé');
+          navigate('/ab-epargne', { replace: true });
         }
       } catch (error) {
         console.error('[PERSONALIZE_PLAN] Erreur:', error);
         toast.error('Erreur de chargement du plan');
+        navigate('/ab-epargne', { replace: true });
       }
     };
 
     fetchPlan();
-  }, [planId, user]);
+  }, [planId, user, navigate]);
 
   const handleGoalSelect = (goalId) => {
     setSelectedGoal(goalId);
@@ -105,13 +132,14 @@ const PersonalizePlan = () => {
       const goalData = selectedGoal === 'custom' ? customGoal : SAVINGS_GOALS.find(g => g.id === selectedGoal)?.label;
 
       // Mettre à jour le plan dans Supabase
+      const personalizedAt = new Date().toISOString();
       const { error } = await supabase
         .from('savings_plans')
         .update({
           plan_name: planName.trim(),
           goal: selectedGoal === 'custom' ? 'custom' : selectedGoal,
           goal_label: goalData,
-          personalized_at: new Date().toISOString()
+          personalized_at: personalizedAt
         })
         .eq('id', planId);
 
@@ -121,11 +149,19 @@ const PersonalizePlan = () => {
         return;
       }
 
-      toast.success('Plan personnalisé avec succès !');
+      console.log('[PERSONALIZE_PLAN] ✅ Plan personnalisé avec succès:', {
+        planId,
+        plan_name: planName.trim(),
+        goal: selectedGoal === 'custom' ? 'custom' : selectedGoal,
+        goal_label: goalData,
+        personalized_at: personalizedAt
+      });
+
+      toast.success('Plan personnalisé avec succès ! 🎉');
       
-      // Redirection vers le tableau de bord du plan
+      // Redirection vers le tableau de bord du plan (utiliser replace pour éviter le retour)
       setTimeout(() => {
-        navigate(`/ab-epargne/plan/${planId}`);
+        navigate(`/ab-epargne/plan/${planId}`, { replace: true });
       }, 500);
     } catch (error) {
       console.error('[PERSONALIZE_PLAN] Erreur:', error);
