@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 // Animations supprimées pour améliorer les performances
-import { Bell, X, CheckCircle, AlertCircle, Info, Clock, DollarSign, CreditCard, FileText, Calendar, Wifi, WifiOff } from 'lucide-react';
+import { Bell, X, CheckCircle, AlertCircle, Info, Clock, DollarSign, CreditCard, FileText, Calendar, Wifi, WifiOff, CheckCheck, Trash2 } from 'lucide-react';
 import { useNotifications } from '../../context/NotificationContext';
 import { useLoanCounters } from '../../hooks/useLoanCounters';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
@@ -16,7 +16,7 @@ const NotificationBell = ({ notifications: propNotifications, onNotificationClic
   
   // Appeler tous les hooks en premier (ordre important !)
   const { user } = useAuth();
-  const { notifications: contextNotifications, unreadCount, markAllAsRead, refreshNotifications } = useNotifications();
+  const { notifications: contextNotifications, unreadCount, markAllAsRead, clearReadNotifications, refreshNotifications, showSuccess } = useNotifications();
   const { pendingRequests } = useLoanCounters(); // Utiliser le hook des compteurs
   const { isSupported, isSubscribed, subscribeUser, unsubscribeUser } = usePushNotifications();
   
@@ -50,6 +50,22 @@ const NotificationBell = ({ notifications: propNotifications, onNotificationClic
     const dateB = new Date(b.timestamp || 0);
     return dateB - dateA;
   });
+
+  // Calculer le nombre de vraies notifications non lues (excluant les demandes en attente)
+  const realUnreadCount = baseNotifications.filter(n => !n.read).length;
+  
+  // Calculer le nombre de notifications lues (excluant les demandes en attente)
+  const readCount = baseNotifications.filter(n => n.read).length;
+  
+  // Calculer le nombre total de notifications non lues (incluant les demandes en attente pour l'affichage)
+  const totalUnreadCount = notifications.filter(n => !n.read).length;
+  
+  // Nombre de demandes en attente (notifications dynamiques)
+  const pendingLoanNotificationsCount = notifications.filter(n => n.isPendingLoan).length;
+  
+  // Afficher les boutons s'il y a des notifications à gérer (réelles ou demandes en attente)
+  // Utiliser pendingRequests du hook qui est déjà disponible (compte les prêts en attente)
+  const hasNotificationsToManage = notifications.length > 0 || pendingRequests > 0;
 
   // Charger les demandes en attente pour l'admin
   useEffect(() => {
@@ -101,8 +117,39 @@ const NotificationBell = ({ notifications: propNotifications, onNotificationClic
 
   const handleClose = () => {
     setIsOpen(false);
-    if (unreadCount > 0) {
-      markAllAsRead();
+  };
+
+  // Marquer toutes les notifications comme lues
+  const handleMarkAllAsRead = async () => {
+    try {
+      // Marquer les notifications de la base de données
+      await markAllAsRead();
+      
+      // Les demandes en attente (pendingLoanRequests) ne peuvent pas être marquées comme lues
+      // car elles sont générées dynamiquement. On les laisse telles quelles.
+      
+      showSuccess('Toutes les notifications ont été marquées comme lues');
+      
+      // Rafraîchir les notifications
+      if (user?.id) {
+        await refreshNotifications(user.id);
+      }
+    } catch (error) {
+      console.error('[NOTIFICATION_BELL] Erreur lors du marquage:', error);
+    }
+  };
+
+  // Nettoyer les notifications lues
+  const handleClearReadNotifications = async () => {
+    try {
+      await clearReadNotifications(user?.id || null);
+      showSuccess('Notifications lues supprimées');
+      // Rafraîchir les notifications
+      if (user?.id) {
+        await refreshNotifications(user.id);
+      }
+    } catch (error) {
+      console.error('[NOTIFICATION_BELL] Erreur lors du nettoyage:', error);
     }
   };
 
@@ -152,21 +199,60 @@ const NotificationBell = ({ notifications: propNotifications, onNotificationClic
       {isOpen && (
         <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] sm:w-80 bg-white/95 backdrop-blur-sm rounded-xl shadow-2xl border border-gray-200/50 overflow-hidden">
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-gray-200/50 bg-gradient-to-r from-gray-50/50 to-white/50">
-              <div>
-                <h3 className="font-semibold text-gray-900">Notifications</h3>
-                {pendingRequests > 0 && (
-                  <p className="text-sm text-orange-600 font-medium">
-                    {pendingRequests} demande{pendingRequests > 1 ? 's' : ''} en attente
-                  </p>
-                )}
+            <div className="border-b border-gray-200/50 bg-gradient-to-r from-gray-50/50 to-white/50">
+              <div className="flex items-center justify-between p-4">
+                <div>
+                  <h3 className="font-semibold text-gray-900">Notifications</h3>
+                  {pendingRequests > 0 && (
+                    <p className="text-sm text-orange-600 font-medium">
+                      {pendingRequests} demande{pendingRequests > 1 ? 's' : ''} en attente
+                    </p>
+                  )}
+                </div>
+                <button
+                  onClick={handleClose}
+                  className="p-1 rounded-full hover:bg-gray-100 transition-colors duration-200"
+                  aria-label="Fermer"
+                >
+                  <X size={16} className="text-gray-500" />
+                </button>
               </div>
-              <button
-                onClick={handleClose}
-                className="p-1 rounded-full hover:bg-gray-100 transition-colors duration-200"
-              >
-                <X size={16} className="text-gray-500" />
-              </button>
+              
+              {/* Boutons d'action */}
+              {hasNotificationsToManage && (
+                <div className="flex gap-2 px-4 pb-3 border-t border-gray-200/50 pt-3 bg-gray-50/30">
+                  {(totalUnreadCount > 0 || pendingRequests > 0) && (
+                    <button
+                      onClick={handleMarkAllAsRead}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 active:bg-blue-200 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
+                      title={`Marquer ${totalUnreadCount || pendingRequests} notification${(totalUnreadCount || pendingRequests) > 1 ? 's' : ''} comme lue${(totalUnreadCount || pendingRequests) > 1 ? 's' : ''}`}
+                    >
+                      <CheckCheck size={14} className="flex-shrink-0" />
+                      <span>Tout marquer lu</span>
+                      {(totalUnreadCount || pendingRequests) > 0 && (
+                        <span className="ml-1 px-1.5 py-0.5 bg-blue-200 text-blue-800 rounded-full text-[10px] font-bold">
+                          {totalUnreadCount || pendingRequests}
+                        </span>
+                      )}
+                    </button>
+                  )}
+                  {readCount > 0 && (
+                    <button
+                      onClick={handleClearReadNotifications}
+                      className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-semibold text-red-700 bg-red-50 hover:bg-red-100 active:bg-red-200 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
+                      title={`Supprimer ${readCount} notification${readCount > 1 ? 's' : ''} lue${readCount > 1 ? 's' : ''}`}
+                    >
+                      <Trash2 size={14} className="flex-shrink-0" />
+                      <span>Nettoyer</span>
+                      {readCount > 0 && (
+                        <span className="ml-1 px-1.5 py-0.5 bg-red-200 text-red-800 rounded-full text-[10px] font-bold">
+                          {readCount}
+                        </span>
+                      )}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
 
             {/* Contenu des notifications */}

@@ -279,6 +279,42 @@ export const NotificationProvider = ({ children }) => {
     }
   };
 
+  // Supprimer uniquement les notifications lues
+  const clearReadNotifications = async (userId = null) => {
+    try {
+      // Si Supabase n'est pas configuré, supprimer seulement en local
+      if (!supabase) {
+        setNotifications(prev => prev.filter(notif => !notif.read));
+        return;
+      }
+
+      // Construire la requête
+      let query = supabase
+        .from('notifications')
+        .delete()
+        .eq('read', true);
+
+      // Filtrer par utilisateur si spécifié
+      if (userId) {
+        query = query.eq('user_id', userId);
+      }
+
+      const { error } = await query;
+
+      if (error) {
+        console.error('[NOTIFICATIONS] Erreur lors de la suppression des notifications lues:', error);
+        return;
+      }
+
+      // Supprimer de l'état local
+      setNotifications(prev => prev.filter(notif => !notif.read));
+      
+      console.log('[NOTIFICATIONS] Notifications lues supprimées avec succès');
+    } catch (error) {
+      console.error('[NOTIFICATIONS] Erreur lors de la suppression des notifications lues:', error);
+    }
+  };
+
   // Rafraîchir les notifications depuis la base de données
   const refreshNotifications = useCallback(async (userId = null) => {
     await loadRealNotifications(userId);
@@ -329,6 +365,7 @@ export const NotificationProvider = ({ children }) => {
     markAllAsRead,
     removeNotification,
     clearAllNotifications,
+    clearReadNotifications,
     refreshNotifications,
     // Toast functions
     showToast,
