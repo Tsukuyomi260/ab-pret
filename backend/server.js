@@ -1846,6 +1846,9 @@ app.get('/api/savings/plan-status', async (req, res) => {
         current_balance,
         total_deposited,
         interest_rate,
+        goal,
+        goal_label,
+        personalized_at,
         created_at,
         updated_at
       `);
