@@ -130,42 +130,72 @@ const PersonalizePlan = () => {
       setLoading(true);
 
       const goalData = selectedGoal === 'custom' ? customGoal : SAVINGS_GOALS.find(g => g.id === selectedGoal)?.label;
+      const goalId = selectedGoal === 'custom' ? 'custom' : selectedGoal;
 
-      // Mettre à jour le plan dans Supabase
-      const personalizedAt = new Date().toISOString();
-      const { error } = await supabase
-        .from('savings_plans')
-        .update({
-          plan_name: planName.trim(),
-          goal: selectedGoal === 'custom' ? 'custom' : selectedGoal,
-          goal_label: goalData,
-          personalized_at: personalizedAt
-        })
-        .eq('id', planId);
-
-      if (error) {
-        console.error('[PERSONALIZE_PLAN] Erreur mise à jour:', error);
-        toast.error('Erreur lors de la sauvegarde');
-        return;
-      }
-
-      console.log('[PERSONALIZE_PLAN] ✅ Plan personnalisé avec succès:', {
+      console.log('[PERSONALIZE_PLAN] 📝 Envoi de la personnalisation au backend...', {
         planId,
-        plan_name: planName.trim(),
-        goal: selectedGoal === 'custom' ? 'custom' : selectedGoal,
-        goal_label: goalData,
-        personalized_at: personalizedAt
+        planName: planName.trim(),
+        goal: goalId,
+        goalLabel: goalData
       });
 
-      toast.success('Plan personnalisé avec succès ! 🎉');
+      // Utiliser l'API backend au lieu de Supabase directement (plus rapide et fiable)
+      const backendUrl = BACKEND_URL;
       
-      // Redirection vers le tableau de bord du plan (utiliser replace pour éviter le retour)
-      setTimeout(() => {
-        navigate(`/ab-epargne/plan/${planId}`, { replace: true });
-      }, 500);
+      // Créer un AbortController pour timeout (30 secondes max)
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 secondes timeout
+      
+      try {
+        const response = await fetch(`${backendUrl}/api/savings/personalize-plan`, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            planId: planId,
+            planName: planName.trim(),
+            goal: goalId,
+            goalLabel: goalData
+          }),
+          signal: controller.signal
+        });
+
+        clearTimeout(timeoutId);
+
+        const result = await response.json();
+
+        if (!response.ok || !result.success) {
+          console.error('[PERSONALIZE_PLAN] ❌ Erreur API:', result);
+          toast.error(result.error || 'Erreur lors de la sauvegarde');
+          return;
+        }
+
+        console.log('[PERSONALIZE_PLAN] ✅ Plan personnalisé avec succès:', result.plan);
+
+        toast.success('Plan personnalisé avec succès ! 🎉');
+        
+        // Redirection vers le tableau de bord du plan (utiliser replace pour éviter le retour)
+        setTimeout(() => {
+          navigate(`/ab-epargne/plan/${planId}`, { replace: true });
+        }, 500);
+      } catch (fetchError) {
+        clearTimeout(timeoutId);
+        
+        if (fetchError.name === 'AbortError') {
+          console.error('[PERSONALIZE_PLAN] ❌ Timeout: La requête a pris trop de temps');
+          toast.error('La requête a pris trop de temps. Veuillez vérifier votre connexion et réessayer.');
+        } else if (fetchError instanceof TypeError && fetchError.message.includes('fetch')) {
+          console.error('[PERSONALIZE_PLAN] ❌ Erreur réseau:', fetchError);
+          toast.error('Erreur de connexion au serveur. Vérifiez votre connexion internet.');
+        } else {
+          console.error('[PERSONALIZE_PLAN] ❌ Erreur:', fetchError);
+          toast.error('Erreur lors de la personnalisation. Veuillez réessayer.');
+        }
+      }
     } catch (error) {
-      console.error('[PERSONALIZE_PLAN] Erreur:', error);
-      toast.error('Erreur lors de la personnalisation');
+      console.error('[PERSONALIZE_PLAN] ❌ Erreur inattendue:', error);
+      toast.error('Une erreur inattendue est survenue. Veuillez réessayer.');
     } finally {
       setLoading(false);
     }

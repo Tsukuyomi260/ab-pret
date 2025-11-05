@@ -1815,6 +1815,68 @@ app.get('/api/savings/deposit-status', async (req, res) => {
 });
 
 // Route pour vérifier le statut d'un plan d'épargne
+// Route pour personnaliser un plan d'épargne
+app.post('/api/savings/personalize-plan', async (req, res) => {
+  try {
+    const { planId, planName, goal, goalLabel } = req.body;
+
+    if (!planId || !planName || !goal) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'planId, planName et goal sont requis' 
+      });
+    }
+
+    console.log('[PERSONALIZE_PLAN] 📝 Personnalisation du plan:', { planId, planName, goal, goalLabel });
+
+    const { supabase } = require('./utils/supabaseClient-server');
+    
+    const personalizedAt = new Date().toISOString();
+    
+    // Mettre à jour le plan
+    const { data: updatedPlan, error: updateError } = await supabase
+      .from('savings_plans')
+      .update({
+        plan_name: planName.trim(),
+        goal: goal,
+        goal_label: goalLabel || null,
+        personalized_at: personalizedAt,
+        updated_at: personalizedAt
+      })
+      .eq('id', planId)
+      .select()
+      .single();
+
+    if (updateError) {
+      console.error('[PERSONALIZE_PLAN] ❌ Erreur mise à jour:', updateError);
+      return res.status(500).json({ 
+        success: false, 
+        error: updateError.message || 'Erreur lors de la personnalisation' 
+      });
+    }
+
+    console.log('[PERSONALIZE_PLAN] ✅ Plan personnalisé avec succès:', {
+      planId: updatedPlan.id,
+      plan_name: updatedPlan.plan_name,
+      goal: updatedPlan.goal,
+      personalized_at: updatedPlan.personalized_at
+    });
+
+    return res.json({ 
+      success: true, 
+      plan: updatedPlan,
+      message: 'Plan personnalisé avec succès'
+    });
+    
+  } catch (error) {
+    console.error('[PERSONALIZE_PLAN] ❌ Erreur:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: error.message || 'Erreur serveur lors de la personnalisation' 
+    });
+  }
+});
+
 app.get('/api/savings/plan-status', async (req, res) => {
   try {
     const reference = req.query.reference || req.query.id;
