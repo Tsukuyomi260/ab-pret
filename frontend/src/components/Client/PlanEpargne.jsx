@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { BACKEND_URL } from '../../config/backend';
 import { useAuth } from '../../context/AuthContext';
-import { ChevronLeft, Plus, Minus, Wallet, Calendar, Target, TrendingUp } from 'lucide-react';
+import { ChevronLeft, Plus, Minus, Wallet, Calendar, Target, TrendingUp, Sparkles, CheckCircle2 } from 'lucide-react';
 import FedaPayDepotButton from '../UI/FedaPayDepotButton';
 import WithdrawalRequestModal from '../UI/WithdrawalRequestModal';
 import toast from 'react-hot-toast';
@@ -15,6 +15,8 @@ const PlanEpargne = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [showWithdrawalModal, setShowWithdrawalModal] = useState(false);
+  const [showCelebration, setShowCelebration] = useState(false);
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     const fetchPlan = async () => {
@@ -33,6 +35,18 @@ const PlanEpargne = () => {
         }
 
         setPlan(result.plan);
+        
+        // Calculer le pourcentage de progression
+        const currentBalance = result.plan.current_balance || 0;
+        const targetAmount = result.plan.total_amount_target || result.plan.target_amount || 1;
+        const percentage = Math.min((currentBalance / targetAmount) * 100, 100);
+        setProgress(percentage);
+        
+        // Déclencher l'animation de célébration si 100%
+        if (percentage >= 100 && !showCelebration) {
+          setShowCelebration(true);
+          setTimeout(() => setShowCelebration(false), 5000);
+        }
       } catch (error) {
         console.error('[PLAN_EPARGNE] ❌ Erreur:', error);
         setError('Erreur de chargement du plan');
@@ -45,6 +59,61 @@ const PlanEpargne = () => {
       fetchPlan();
     }
   }, [user, id]);
+
+  // Composant pour le cercle de progression
+  const CircularProgress = ({ percentage, size = 200 }) => {
+    const radius = (size - 20) / 2;
+    const circumference = 2 * Math.PI * radius;
+    const offset = circumference - (percentage / 100) * circumference;
+    
+    // Couleur en fonction du pourcentage
+    const getColor = () => {
+      if (percentage >= 100) return '#10b981'; // Vert
+      if (percentage >= 75) return '#3b82f6'; // Bleu
+      if (percentage >= 50) return '#f59e0b'; // Orange
+      return '#ef4444'; // Rouge
+    };
+
+    return (
+      <div className="relative" style={{ width: size, height: size }}>
+        <svg
+          className="transform -rotate-90"
+          width={size}
+          height={size}
+        >
+          {/* Cercle de fond */}
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke="#e5e7eb"
+            strokeWidth="12"
+            fill="none"
+          />
+          {/* Cercle de progression */}
+          <circle
+            cx={size / 2}
+            cy={size / 2}
+            r={radius}
+            stroke={getColor()}
+            strokeWidth="12"
+            fill="none"
+            strokeDasharray={circumference}
+            strokeDashoffset={offset}
+            strokeLinecap="round"
+            className="transition-all duration-1000 ease-out"
+          />
+        </svg>
+        {/* Texte au centre */}
+        <div className="absolute inset-0 flex flex-col items-center justify-center">
+          <span className="text-4xl font-bold" style={{ color: getColor() }}>
+            {Math.round(percentage)}%
+          </span>
+          <span className="text-xs text-gray-500 mt-1">complété</span>
+        </div>
+      </div>
+    );
+  };
 
   if (loading) {
     return (
@@ -125,13 +194,9 @@ const PlanEpargne = () => {
   const isEligibleForWithdrawal = () => {
     if (!plan) return false;
     
-    // Conditions :
-    // 1. Plan actif
-    // 2. Objectif atteint (current_balance >= target_amount)
-    // 3. Pas de retard (is_overdue = false)
-    // 4. Pas déjà en attente de retrait
     const isActive = plan.status === 'active';
-    const isCompleted = plan.current_balance >= plan.target_amount;
+    const targetAmount = plan.total_amount_target || plan.target_amount || 0;
+    const isCompleted = plan.current_balance >= targetAmount;
     const noDelay = !plan.is_overdue;
     const notPendingWithdrawal = plan.status !== 'withdrawal_pending';
     
@@ -144,10 +209,13 @@ const PlanEpargne = () => {
         toast.info('Votre demande de retrait est en cours de traitement');
       } else if (plan.is_overdue) {
         toast.error('Vous ne pouvez pas effectuer de retrait car vous avez des retards de dépôt');
-      } else if (plan.current_balance < plan.target_amount) {
-        toast.error('Vous devez atteindre votre objectif d\'épargne avant de pouvoir retirer');
       } else {
-        toast.error('Retrait non disponible pour ce plan');
+        const targetAmount = plan.total_amount_target || plan.target_amount || 0;
+        if (plan.current_balance < targetAmount) {
+          toast.error('Vous devez atteindre votre objectif d\'épargne avant de pouvoir retirer');
+        } else {
+          toast.error('Retrait non disponible pour ce plan');
+        }
       }
       return;
     }
@@ -158,137 +226,143 @@ const PlanEpargne = () => {
   const handleWithdrawalSuccess = (message) => {
     toast.success(message);
     setShowWithdrawalModal(false);
-    // Recharger le plan
     setTimeout(() => {
       window.location.reload();
     }, 1500);
   };
 
+  // Nom du plan (personnalisé ou par défaut)
+  const planName = plan.plan_name || 'Mon Plan d\'Épargne';
+  const targetAmount = plan.total_amount_target || plan.target_amount || 0;
+  const currentBalance = plan.current_balance || 0;
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-      {/* Header */}
-      <div className="flex items-center justify-between mb-8 pt-4">
-        <div className="flex items-center">
-          <button onClick={() => navigate('/ab-epargne')} className="flex items-center">
-            <ChevronLeft className="w-6 h-6 text-gray-600" />
+    <div className="min-h-screen bg-gray-50 sm:bg-gray-100">
+      {/* Navigation Bar */}
+      <div className="bg-gray-100 sm:bg-white rounded-b-2xl sm:rounded-none">
+        <div className="flex items-center justify-between px-4 py-4 sm:px-6 sm:py-4">
+          <button 
+            onClick={() => navigate('/ab-epargne')} 
+            className="w-10 h-10 rounded-full bg-white sm:bg-gray-50 flex items-center justify-center shadow-sm hover:bg-gray-50 transition-colors"
+          >
+            <ChevronLeft className="w-5 h-5 text-gray-700" />
           </button>
-          <h1 className="text-xl font-semibold text-gray-800 ml-4">Mon Plan d'Épargne</h1>
+          <h1 className="text-base sm:text-lg font-semibold text-gray-900">{planName}</h1>
+          <div className="w-10"></div>
         </div>
       </div>
 
-      {/* Balance Card */}
-      <div className="bg-gradient-to-r from-blue-500 to-indigo-600 rounded-2xl p-6 mb-6 text-white shadow-xl">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <p className="text-blue-100 text-sm">Solde disponible</p>
-            <p className="text-3xl font-bold">{(plan.current_balance || 0).toLocaleString()} F</p>
-          </div>
-          <div className="w-12 h-12 bg-white bg-opacity-20 rounded-full flex items-center justify-center">
-            <Wallet className="w-6 h-6" />
+      {/* Main Content */}
+      <div className="px-4 sm:px-6 pb-6">
+        {/* Solde actuel - Style moneroo */}
+        <div className="text-center mb-6 mt-6">
+          <p className="text-sm text-gray-500 mb-1">Solde actuel</p>
+          <p className="text-4xl sm:text-5xl font-bold text-blue-600">{currentBalance.toLocaleString()} F CFA</p>
+        </div>
+
+        {/* Boutons d'action - En haut, bien visibles */}
+        <div className="grid grid-cols-2 gap-3 mb-6">
+          <FedaPayDepotButton plan={plan} />
+          <button 
+            onClick={handleWithdrawalClick}
+            disabled={!isEligibleForWithdrawal()}
+            className={`py-4 rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center ${
+              isEligibleForWithdrawal()
+                ? 'bg-orange-600 hover:bg-orange-700 text-white'
+                : 'bg-gray-300 text-gray-500 cursor-not-allowed'
+            }`}
+          >
+            <Minus className="w-5 h-5 mr-2" />
+            Retrait
+          </button>
+        </div>
+
+        {/* Cercle de progression - Style moderne */}
+        <div className="bg-white rounded-t-3xl sm:rounded-2xl shadow-lg p-6 sm:p-8 mb-6 flex flex-col items-center">
+          <CircularProgress percentage={progress} size={180} />
+          {progress >= 100 && (
+            <div className="mt-4 flex items-center gap-2 text-green-600">
+              <CheckCircle2 className="w-5 h-5" />
+              <span className="font-semibold">Objectif atteint ! 🎉</span>
+            </div>
+          )}
+        </div>
+
+        {/* Informations détaillées - Style moneroo */}
+        <div className="bg-white rounded-2xl sm:rounded-2xl shadow-lg p-6 sm:p-8 mb-6">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Détails du plan</h3>
+          <div className="space-y-3">
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-sm text-gray-600">Montant total prévu</span>
+              <span className="text-sm font-semibold text-gray-900">{targetAmount.toLocaleString()} F</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-sm text-gray-600">Montant déjà épargné</span>
+              <span className="text-sm font-semibold text-blue-600">{currentBalance.toLocaleString()} F</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-sm text-gray-600">Prochain dépôt à effectuer</span>
+              <span className="text-sm font-semibold text-gray-900">{plan.fixed_amount?.toLocaleString()} F</span>
+            </div>
+            <div className="flex justify-between items-center py-2 border-b border-gray-100">
+              <span className="text-sm text-gray-600">Date du dernier dépôt</span>
+              <span className="text-sm font-medium text-gray-700">{formatDate(plan.last_deposit_date || plan.start_date)}</span>
+            </div>
+            <div className="flex justify-between items-center py-2">
+              <span className="text-sm text-gray-600">Statut du plan</span>
+              <span className={`px-3 py-1 rounded-full text-xs font-semibold ${
+                plan.status === 'active' ? 'bg-green-100 text-green-700' :
+                plan.status === 'completed' ? 'bg-blue-100 text-blue-700' :
+                plan.status === 'interrupted' ? 'bg-red-100 text-red-700' :
+                'bg-gray-100 text-gray-700'
+              }`}>
+                {plan.status === 'active' ? 'En cours' :
+                 plan.status === 'completed' ? 'Réussi' :
+                 plan.status === 'interrupted' ? 'Interrompu' :
+                 plan.status}
+              </span>
+            </div>
           </div>
         </div>
-        
-        <div className="flex justify-between text-sm text-blue-100">
-          <span>Plan actif depuis {formatDate(plan.start_date)}</span>
-          <span>Prochain dépôt : {formatDate(plan.next_deposit_date)}</span>
+
+        {/* Détails supplémentaires */}
+        <div className="bg-white rounded-2xl shadow-lg p-6 sm:p-8">
+          <h3 className="text-lg font-semibold text-gray-900 mb-4">Détails du plan</h3>
+          <div className="space-y-3 text-sm">
+            <div className="flex justify-between">
+              <span className="text-gray-600">Fréquence</span>
+              <span className="font-medium">Tous les {plan.frequency_days} jours</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Durée totale</span>
+              <span className="font-medium">{plan.duration_months} mois</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Taux d'intérêt</span>
+              <span className="font-medium text-green-600">{plan.interest_rate || 5}% par mois</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Dépôts effectués</span>
+              <span className="font-medium">{plan.completed_deposits || 0} / {plan.total_deposits_required || 0}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-gray-600">Prochain dépôt</span>
+              <span className="font-medium text-blue-600">{formatDate(plan.next_deposit_date)}</span>
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Quick Stats */}
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div className="bg-white rounded-xl p-4 shadow-md">
-          <p className="text-gray-600 text-sm">Dépôt prévu</p>
-          <p className="text-lg font-bold text-gray-800">{plan.fixed_amount?.toLocaleString()} F</p>
-        </div>
-        <div className="bg-white rounded-xl p-4 shadow-md">
-          <p className="text-gray-600 text-sm">Durée restante</p>
-          <p className="text-lg font-bold text-gray-800">{getDaysRemaining()} jours</p>
-        </div>
-      </div>
-
-      {/* Action Buttons */}
-      <div className="space-y-4">
-        <FedaPayDepotButton plan={plan} />
-        
-        <button 
-          onClick={handleWithdrawalClick}
-          disabled={!isEligibleForWithdrawal()}
-          className={`w-full py-4 rounded-xl font-semibold shadow-lg flex items-center justify-center transition-all duration-200 ${
-            isEligibleForWithdrawal()
-              ? 'bg-gradient-to-r from-orange-500 to-orange-600 hover:from-orange-600 hover:to-orange-700 text-white cursor-pointer'
-              : 'bg-gray-300 text-gray-500 cursor-not-allowed'
-          }`}
-        >
-          <Minus className="w-5 h-5 mr-2" />
-          {plan.status === 'withdrawal_pending' ? 'Retrait en cours...' : 'Effectuer un Retrait'}
-        </button>
-        
-        {!isEligibleForWithdrawal() && plan.current_balance < plan.target_amount && (
-          <p className="text-xs text-center text-gray-600">
-            Atteignez votre objectif de {plan.target_amount?.toLocaleString()} F pour pouvoir retirer
-          </p>
-        )}
-      </div>
-
-      {/* Plan Details */}
-      <div className="bg-white rounded-xl p-6 mt-6 shadow-md">
-        <h3 className="font-semibold text-gray-800 mb-4">Détails du plan</h3>
-        <div className="space-y-3 text-sm">
-          <div className="flex justify-between">
-            <span className="text-gray-600">Montant par dépôt</span>
-            <span className="font-medium">{plan.fixed_amount?.toLocaleString()} F</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">Fréquence</span>
-            <span className="font-medium">Tous les {plan.frequency_days} jours</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">Durée totale</span>
-            <span className="font-medium">{plan.duration_months} mois</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">Taux d'intérêt</span>
-            <span className="font-medium text-green-600">{plan.interest_rate || 5}% par mois</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">Dépôts effectués</span>
-            <span className="font-medium">{plan.completed_deposits || 0}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">Progression</span>
-            <span className="font-medium text-blue-600">{plan.completion_percentage || 0}%</span>
-          </div>
-          <div className="border-t pt-3 flex justify-between">
-            <span className="text-gray-600">Objectif d'épargne</span>
-            <span className="font-semibold text-blue-600">
-              {plan.total_amount_target?.toLocaleString()} F
-            </span>
+      {/* Animation de célébration */}
+      {showCelebration && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center pointer-events-none">
+          <div className="text-center">
+            <div className="text-6xl mb-4 animate-bounce">🎉</div>
+            <h2 className="text-3xl font-bold text-blue-600 mb-2">Félicitations !</h2>
+            <p className="text-xl text-gray-700">Objectif atteint ! 🎊</p>
           </div>
         </div>
-      </div>
-
-      {/* Additional Info */}
-      <div className="bg-white rounded-xl p-6 mt-4 shadow-md">
-        <h3 className="font-semibold text-gray-800 mb-4">Informations importantes</h3>
-        <div className="space-y-3 text-sm">
-          <div className="flex justify-between">
-            <span className="text-gray-600">Date de début</span>
-            <span className="font-medium">{formatDate(plan.start_date)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">Date de fin prévue</span>
-            <span className="font-medium">{formatDate(plan.end_date)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">Prochain dépôt</span>
-            <span className="font-medium text-blue-600">{formatDate(plan.next_deposit_date)}</span>
-          </div>
-          <div className="flex justify-between">
-            <span className="text-gray-600">Total déposé</span>
-            <span className="font-medium">{(plan.total_deposited || 0).toLocaleString()} F</span>
-          </div>
-        </div>
-      </div>
+      )}
 
       {/* Modal de demande de retrait */}
       {showWithdrawalModal && (

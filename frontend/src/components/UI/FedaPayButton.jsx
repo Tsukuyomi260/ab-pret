@@ -82,7 +82,7 @@ const FedaPayButton = ({
       });
 
       window.FedaPay.init(buttonRef.current, {
-        public_key: 'pk_live_u0sqkP5Irt1BvqvnU5gh4FOC',
+        public_key: process.env.REACT_APP_FEDAPAY_PUBLIC_KEY || 'pk_live_u0sqkP5Irt1BvqvnU5gh4FOC',
         transaction: {
           amount: parseInt(amount, 10) || 1000,
           description: `Remboursement prêt - ${effectiveEmail} - ${derivedFirst} ${derivedLast}`,

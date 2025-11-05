@@ -52,14 +52,24 @@ const RetourEpargne = () => {
         console.log('[RETOUR_EPARGNE] 📡 Réponse API:', data);
 
         if (data.success && data.plan) {
-          console.log('[RETOUR_EPARGNE] ✅ Plan trouvé, redirection vers:', `/ab-epargne/plan/${data.plan.id}`);
+          console.log('[RETOUR_EPARGNE] ✅ Plan trouvé, redirection vers personnalisation');
           setPlan(data.plan);
           setStatus('success');
           
-          // Redirection automatique vers le plan après 2 secondes
+          // Vérifier si le plan est déjà personnalisé (a un nom ET une date de personnalisation)
+          const isPersonalized = data.plan.plan_name && 
+                                 data.plan.plan_name.trim() !== '' && 
+                                 data.plan.personalized_at;
+          
+          // Redirection automatique vers personnalisation ou plan après 2 secondes
           setTimeout(() => {
-            console.log('[RETOUR_EPARGNE] 🚀 Redirection vers PlanEpargne...');
-            navigate(`/ab-epargne/plan/${data.plan.id}`);
+            if (isPersonalized) {
+              console.log('[RETOUR_EPARGNE] 🚀 Plan déjà personnalisé, redirection vers PlanEpargne...');
+              navigate(`/ab-epargne/plan/${data.plan.id}`);
+            } else {
+              console.log('[RETOUR_EPARGNE] 🚀 Plan nouvellement créé, redirection vers PersonalizePlan...');
+              navigate(`/ab-epargne/personalize/${data.plan.id}`);
+            }
           }, 2000);
         } else {
           const newCount = pollingCount + 1;

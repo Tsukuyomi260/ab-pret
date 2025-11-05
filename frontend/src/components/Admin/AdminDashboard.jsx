@@ -77,7 +77,9 @@ const AdminDashboard = () => {
       if (loansResult.success) {
         const loans = loansResult.data || [];
         totalLoans = loans.length;
-        totalAmount = loans.reduce((sum, loan) => sum + (loan.amount || 0), 0);
+        // Ne compter que les prêts validés/approuvés (active ou approved)
+        const approvedLoans = loans.filter(l => l.status === 'active' || l.status === 'approved' || l.status === 'completed');
+        totalAmount = approvedLoans.reduce((sum, loan) => sum + (loan.amount || 0), 0);
         pendingRequests = loans.filter(l => l.status === 'pending').length;
         activeLoans = loans.filter(l => l.status === 'active' || l.status === 'approved').length;
         completedLoans = loans.filter(l => l.status === 'completed').length;
@@ -318,7 +320,7 @@ const AdminDashboard = () => {
                       </div>
                     </div>
             <p className="text-lg sm:text-xl font-bold text-gray-900">{formatCurrency(stats.totalAmount)}</p>
-            <p className="text-xs sm:text-sm text-gray-600 mt-1">Prêts total</p>
+            <p className="text-xs sm:text-sm text-gray-600 mt-1">Prêts validés</p>
                   </div>
 
           {/* En attente */}

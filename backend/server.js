@@ -274,7 +274,7 @@ app.post('/api/send-notification-all', async (req, res) => {
 // Route pour envoyer une notification de dépôt d'épargne
 app.post('/api/notify-savings-deposit', async (req, res) => {
   try {
-    const { clientName, amount, userId } = req.body;
+    const { clientName, amount, userId, planId } = req.body;
 
     if (!clientName || !amount || !userId) {
       return res.status(400).json({ 
@@ -283,10 +283,35 @@ app.post('/api/notify-savings-deposit', async (req, res) => {
       });
     }
 
-    const title = "AB Campus Finance - Dépôt d'épargne confirmé";
+    const title = "Dépôt d'épargne confirmé 💰";
     const body = `Bonjour ${clientName}, votre compte épargne a été crédité de ${amount}. Keep Going !`;
 
-    // Récupérer les abonnements de l'utilisateur spécifique
+    // 1. CRÉER LA NOTIFICATION DANS LA BASE DE DONNÉES (TOUJOURS)
+    try {
+      const { error: notifError } = await supabase
+        .from('notifications')
+        .insert({
+          user_id: userId,
+          title: title,
+          message: body,
+          type: 'savings_deposit',
+          data: {
+            amount: amount,
+            plan_id: planId || null
+          },
+          read: false
+        });
+
+      if (notifError) {
+        console.error('[NOTIFY_DEPOSIT] ❌ Erreur création notification DB:', notifError);
+      } else {
+        console.log('[NOTIFY_DEPOSIT] ✅ Notification in-app créée dans la DB');
+      }
+    } catch (dbError) {
+      console.error('[NOTIFY_DEPOSIT] ❌ Erreur création notification:', dbError);
+    }
+
+    // 2. ENVOYER LA NOTIFICATION PUSH (si abonnement disponible)
     const { data: subscriptions, error } = await supabase
       .from('push_subscriptions')
       .select('subscription')
@@ -294,12 +319,21 @@ app.post('/api/notify-savings-deposit', async (req, res) => {
 
     if (error) {
       console.error('[PUSH] Erreur lors de la récupération des abonnements:', error);
-      return res.status(500).json({ success: false, error: 'Erreur base de données' });
+      // On retourne quand même un succès car la notification DB est créée
+      return res.json({ 
+        success: true, 
+        message: 'Notification créée dans la base de données',
+        push: false
+      });
     }
 
     if (!subscriptions || subscriptions.length === 0) {
       console.log(`[PUSH] Aucun abonnement trouvé pour l'utilisateur ${userId}`);
-      return res.json({ success: true, message: 'Utilisateur non abonné aux notifications' });
+      return res.json({ 
+        success: true, 
+        message: 'Notification créée dans la base de données (utilisateur non abonné aux push)',
+        push: false
+      });
     }
 
     let successCount = 0;
@@ -312,12 +346,13 @@ app.post('/api/notify-savings-deposit', async (req, res) => {
           title,
           body,
           data: {
-            url: '/',
+            url: '/ab-epargne',
             icon: '/logo192.png',
             badge: '/logo192.png',
             type: 'savings_deposit',
             amount: amount,
-            clientName: clientName
+            clientName: clientName,
+            plan_id: planId || null
           },
           vibrate: [200, 50, 100]
         }));
@@ -329,20 +364,13 @@ app.post('/api/notify-savings-deposit', async (req, res) => {
       }
     }
 
-    if (successCount > 0) {
-      res.json({ 
-        success: true, 
-        message: `Notification envoyée à ${successCount} appareil(s) de l'utilisateur`,
-        sent: successCount,
-        errors: errorCount
-      });
-    } else {
-      res.status(500).json({ 
-        success: false, 
-        error: 'Aucune notification envoyée',
-        errors: errorCount
-      });
-    }
+    res.json({ 
+      success: true, 
+      message: `Notification créée (DB) et envoyée à ${successCount} appareil(s)`,
+      sent: successCount,
+      errors: errorCount,
+      push: successCount > 0
+    });
   } catch (error) {
     console.error('[PUSH] Erreur lors de l\'envoi de la notification de dépôt:', error);
     res.status(500).json({ 
@@ -742,7 +770,25 @@ app.get('/api/debug/status', (req, res) => {
 // Configuration FedaPay
 const FEDAPAY_CONFIG = {
   secretKey: process.env.FEDAPAY_SECRET_KEY,
-  baseUrl: process.env.FEDAPAY_BASE_URL || 'https://api.fedapay.com',
+  publicKey: process.env.FEDAPAY_PUBLIC_KEY,
+  baseUrl: (() => {
+    let url = process.env.FEDAPAY_BASE_URL;
+    // Si l'URL contient /transactions/ID, extraire seulement la base
+    if (url && url.includes('/transactions')) {
+      url = url.split('/transactions')[0];
+    }
+    // Si pas d'URL définie, utiliser les valeurs par défaut
+    if (!url) {
+      url = process.env.FEDAPAY_ENVIRONMENT === 'sandbox' 
+        ? 'https://sandbox-api.fedapay.com/v1' 
+        : 'https://api.fedapay.com/v1';
+    } else if (!url.endsWith('/v1')) {
+      // S'assurer que l'URL se termine par /v1
+      url = `${url.replace(/\/+$/, '')}/v1`;
+    }
+    return url;
+  })(),
+  environment: process.env.FEDAPAY_ENVIRONMENT || 'live',
   currency: process.env.FEDAPAY_CURRENCY || 'XOF',
   country: process.env.FEDAPAY_COUNTRY || 'BJ'
 };
@@ -785,7 +831,9 @@ function verifyFedaPaySignature(rawBody, receivedSignature, secretKey) {
 
 console.log('[FEDAPAY_SERVER] Configuration chargée:', {
   secretKey: FEDAPAY_CONFIG.secretKey ? `${FEDAPAY_CONFIG.secretKey.substring(0, 10)}...` : 'NON CONFIGURÉE',
+  publicKey: FEDAPAY_CONFIG.publicKey ? `${FEDAPAY_CONFIG.publicKey.substring(0, 10)}...` : 'NON CONFIGURÉE',
   baseUrl: FEDAPAY_CONFIG.baseUrl,
+  environment: FEDAPAY_CONFIG.environment,
   currency: FEDAPAY_CONFIG.currency,
   country: FEDAPAY_CONFIG.country
 });
@@ -852,10 +900,18 @@ app.post('/api/fedapay/create-transaction', async (req, res) => {
       });
     }
 
-    // Configuration FedaPay pour la production
-    const fedapayBaseUrl = process.env.FEDAPAY_ENVIRONMENT === 'live' 
-      ? 'https://api.fedapay.com/v1' 
-      : 'https://api-sandbox.fedapay.com/v1';
+    // Configuration FedaPay depuis les variables d'environnement
+    // Si baseUrl contient déjà /v1, on ne l'ajoute pas
+    let fedapayBaseUrl;
+    if (FEDAPAY_CONFIG.baseUrl) {
+      fedapayBaseUrl = FEDAPAY_CONFIG.baseUrl.endsWith('/v1') 
+        ? FEDAPAY_CONFIG.baseUrl 
+        : `${FEDAPAY_CONFIG.baseUrl}/v1`;
+    } else {
+      fedapayBaseUrl = process.env.FEDAPAY_ENVIRONMENT === 'live' 
+        ? 'https://api.fedapay.com/v1' 
+        : 'https://sandbox-api.fedapay.com/v1';
+    }
 
     // Créer la transaction FedaPay via API directe
     const transactionResponse = await fetch(`${fedapayBaseUrl}/transactions`, {
@@ -898,7 +954,7 @@ app.post('/api/fedapay/create-transaction', async (req, res) => {
       success: true,
       url: transaction.redirect_url,
       transaction_id: transaction.id,
-      public_key: process.env.FEDAPAY_PUBLIC_KEY
+      public_key: FEDAPAY_CONFIG.publicKey || process.env.FEDAPAY_PUBLIC_KEY
     });
 
   } catch (error) {
@@ -1091,9 +1147,8 @@ app.post('/api/fedapay/webhook', async (req, res) => {
 
           console.log('[FEDAPAY_WEBHOOK] ✅ Prêt mis à jour:', updatedLoan);
 
-          // Notifier l'admin du remboursement
+          // 1. NOTIFIER LE CLIENT (TOUJOURS créer dans la DB)
           try {
-            // Récupérer les infos du client
             const { data: clientData } = await supabase
               .from('users')
               .select('first_name, last_name')
@@ -1102,7 +1157,27 @@ app.post('/api/fedapay/webhook', async (req, res) => {
             
             if (clientData) {
               const clientName = `${clientData.first_name} ${clientData.last_name}`;
+              const amountFormatted = `${parseInt(transaction.amount).toLocaleString()} FCFA`;
               
+              // Créer la notification pour le client dans la DB
+              await supabase
+                .from('notifications')
+                .insert({
+                  user_id: userId,
+                  title: 'Remboursement confirmé ✅',
+                  message: `Votre remboursement de ${amountFormatted} pour le prêt #${loanId.substring(0, 8)}... a été confirmé. Merci pour votre confiance !`,
+                  type: 'loan_repayment',
+                  data: {
+                    loan_id: loanId,
+                    amount: transaction.amount,
+                    status: 'completed'
+                  },
+                  read: false
+                });
+              
+              console.log('[FEDAPAY_WEBHOOK] ✅ Notification client créée dans la DB');
+              
+              // 2. Notifier l'admin du remboursement
               console.log('[FEDAPAY_WEBHOOK] 📢 Envoi notification admin remboursement');
               
               const notifResponse = await fetch(`${process.env.BACKEND_URL || 'http://localhost:5000'}/api/notify-admin-repayment`, {
@@ -1123,7 +1198,7 @@ app.post('/api/fedapay/webhook', async (req, res) => {
               }
             }
           } catch (notifError) {
-            console.error('[FEDAPAY_WEBHOOK] ❌ Erreur lors de la notification admin:', notifError);
+            console.error('[FEDAPAY_WEBHOOK] ❌ Erreur lors de la notification:', notifError);
             // Ne pas faire échouer le webhook si la notification échoue
           }
 
@@ -1271,6 +1346,40 @@ app.post('/api/fedapay/webhook', async (req, res) => {
             status: plan.status,
             total_amount_target: plan.total_amount_target
           });
+
+          // Créer une notification pour le client
+          try {
+            const { data: userData } = await supabase
+              .from('users')
+              .select('first_name, last_name')
+              .eq('id', userId)
+              .single();
+
+            if (userData) {
+              const clientName = `${userData.first_name} ${userData.last_name}`;
+              const targetAmount = `${parseInt(totalAmountTarget).toLocaleString()} FCFA`;
+              
+              await supabase
+                .from('notifications')
+                .insert({
+                  user_id: userId,
+                  title: 'Plan d\'épargne créé avec succès 🎉',
+                  message: `Bonjour ${clientName}, votre plan d'épargne a été créé avec succès ! Objectif : ${targetAmount} sur ${durationMonths} mois.`,
+                  type: 'savings_plan_created',
+                  data: {
+                    plan_id: plan.id,
+                    total_amount_target: totalAmountTarget,
+                    duration_months: durationMonths,
+                    fixed_amount: fixedAmount
+                  },
+                  read: false
+                });
+              
+              console.log('[FEDAPAY_WEBHOOK] ✅ Notification de création de plan créée dans la DB');
+            }
+          } catch (notifError) {
+            console.error('[FEDAPAY_WEBHOOK] ❌ Erreur création notification plan:', notifError);
+          }
           
         } catch (error) {
           console.error('[FEDAPAY_WEBHOOK] ❌ Erreur lors de la création du plan d\'épargne:', error);
@@ -1388,7 +1497,8 @@ app.post('/api/fedapay/webhook', async (req, res) => {
                 body: JSON.stringify({
                   clientName,
                   amount: amountFormatted,
-                  userId
+                  userId,
+                  planId: planId
                 })
               });
               
@@ -1452,8 +1562,23 @@ app.post('/api/create-savings-deposit', async (req, res) => {
     console.log('[SAVINGS_DEPOSIT] 🔑 Clé secrète FedaPay:', process.env.FEDAPAY_SECRET_KEY ? 'Configurée' : 'MANQUANTE');
     console.log('[SAVINGS_DEPOSIT] 🚀 Création transaction dépôt:', { user_id, plan_id, amount });
 
-    // Appel à FedaPay API (LIVE)
-    const response = await fetch("https://api.fedapay.com/v1/transactions", {
+    // Appel à FedaPay API (utilise la variable d'environnement)
+    // Extraire la base URL (sans /transactions/ID)
+    let baseUrl = FEDAPAY_CONFIG.baseUrl || '';
+    if (baseUrl.includes('/transactions')) {
+      baseUrl = baseUrl.split('/transactions')[0];
+    }
+    // S'assurer que la base URL se termine par /v1
+    if (!baseUrl.endsWith('/v1')) {
+      baseUrl = baseUrl.endsWith('/v1') ? baseUrl : `${baseUrl.replace(/\/+$/, '')}/v1`;
+    }
+    const fedapayApiUrl = baseUrl 
+      ? `${baseUrl}/transactions`
+      : (process.env.FEDAPAY_ENVIRONMENT === 'live' 
+          ? 'https://api.fedapay.com/v1/transactions' 
+          : 'https://sandbox-api.fedapay.com/v1/transactions');
+    
+    const response = await fetch(fedapayApiUrl, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${process.env.FEDAPAY_SECRET_KEY}`,
@@ -1512,8 +1637,23 @@ app.post('/api/create-loan-repayment', async (req, res) => {
       });
     }
 
-    // Appel à FedaPay API (LIVE)
-    const response = await fetch("https://api.fedapay.com/v1/transactions", {
+    // Appel à FedaPay API (utilise la variable d'environnement)
+    // Extraire la base URL (sans /transactions/ID)
+    let baseUrl = FEDAPAY_CONFIG.baseUrl || '';
+    if (baseUrl.includes('/transactions')) {
+      baseUrl = baseUrl.split('/transactions')[0];
+    }
+    // S'assurer que la base URL se termine par /v1
+    if (!baseUrl.endsWith('/v1')) {
+      baseUrl = baseUrl.endsWith('/v1') ? baseUrl : `${baseUrl.replace(/\/+$/, '')}/v1`;
+    }
+    const fedapayApiUrl = baseUrl 
+      ? `${baseUrl}/transactions`
+      : (process.env.FEDAPAY_ENVIRONMENT === 'live' 
+          ? 'https://api.fedapay.com/v1/transactions' 
+          : 'https://sandbox-api.fedapay.com/v1/transactions');
+    
+    const response = await fetch(fedapayApiUrl, {
       method: "POST",
       headers: {
         "Authorization": `Bearer ${process.env.FEDAPAY_SECRET_KEY}`,
@@ -1751,9 +1891,20 @@ app.get('/api/fedapay/transaction/:id', async (req, res) => {
       });
     }
 
-    const fedapayBaseUrl = process.env.FEDAPAY_ENVIRONMENT === 'live' 
-      ? 'https://api.fedapay.com/v1' 
-      : 'https://api-sandbox.fedapay.com/v1';
+    // Extraire la base URL (sans /transactions/ID)
+    let baseUrl = FEDAPAY_CONFIG.baseUrl || '';
+    if (baseUrl.includes('/transactions')) {
+      baseUrl = baseUrl.split('/transactions')[0];
+    }
+    // S'assurer que la base URL se termine par /v1
+    if (baseUrl && !baseUrl.endsWith('/v1')) {
+      baseUrl = `${baseUrl.replace(/\/+$/, '')}/v1`;
+    }
+    const fedapayBaseUrl = baseUrl 
+      ? baseUrl
+      : (process.env.FEDAPAY_ENVIRONMENT === 'live' 
+          ? 'https://api.fedapay.com/v1' 
+          : 'https://sandbox-api.fedapay.com/v1');
 
     const response = await fetch(`${fedapayBaseUrl}/transactions/${id}`, {
       headers: {
@@ -1787,7 +1938,22 @@ app.get('/api/fedapay/transaction/:id', async (req, res) => {
 // Route de test FedaPay
 app.get('/api/fedapay/test', async (req, res) => {
   try {
-    const response = await fetch('https://api-sandbox.fedapay.com/v1/currencies', {
+    // Extraire la base URL (sans /transactions/ID)
+    let baseUrl = FEDAPAY_CONFIG.baseUrl || '';
+    if (baseUrl.includes('/transactions')) {
+      baseUrl = baseUrl.split('/transactions')[0];
+    }
+    // S'assurer que la base URL se termine par /v1
+    if (baseUrl && !baseUrl.endsWith('/v1')) {
+      baseUrl = `${baseUrl.replace(/\/+$/, '')}/v1`;
+    }
+    const fedapayTestUrl = baseUrl 
+      ? `${baseUrl}/currencies`
+      : (process.env.FEDAPAY_ENVIRONMENT === 'live' 
+          ? 'https://api.fedapay.com/v1/currencies' 
+          : 'https://sandbox-api.fedapay.com/v1/currencies');
+    
+    const response = await fetch(fedapayTestUrl, {
       headers: {
         'Authorization': `Bearer ${process.env.FEDAPAY_SECRET_KEY}`,
         'Content-Type': 'application/json'
@@ -2407,10 +2573,32 @@ app.post('/api/notify-admin-new-loan', async (req, res) => {
     const adminName = adminData.first_name || 'Admin';
     const amountFormatted = `${parseInt(loanAmount).toLocaleString()} FCFA`;
     
-    const title = "AB Campus Finance - Nouvelle demande de prêt";
-    const body = `Hello ${adminName}, vous avez reçu une nouvelle demande de prêt de ${amountFormatted} de ${clientName}. Cliquer ici pour l'afficher.`;
+    const title = "Nouvelle demande de prêt 📋";
+    const body = `${clientName} a soumis une nouvelle demande de prêt de ${amountFormatted}.`;
     
-    // Récupérer les abonnements de l'admin
+    // 1. CRÉER LA NOTIFICATION DANS LA BASE DE DONNÉES (TOUJOURS)
+    try {
+      await supabase
+        .from('notifications')
+        .insert({
+          user_id: adminData.id,
+          title: title,
+          message: body,
+          type: 'loan_request',
+          data: {
+            loan_id: loanId,
+            client_name: clientName,
+            amount: loanAmount
+          },
+          read: false
+        });
+      
+      console.log('[ADMIN_NOTIFICATION] ✅ Notification admin créée dans la DB');
+    } catch (dbError) {
+      console.error('[ADMIN_NOTIFICATION] ❌ Erreur création notification DB:', dbError);
+    }
+    
+    // 2. ENVOYER LA NOTIFICATION PUSH (si abonnement disponible)
     const { data: subscriptions } = await supabase
       .from('push_subscriptions')
       .select('subscription, user_id')
@@ -2426,7 +2614,8 @@ app.post('/api/notify-admin-new-loan', async (req, res) => {
       console.log(`[ADMIN_NOTIFICATION] Admin ${adminName} non abonné aux notifications`);
       return res.json({ 
         success: true, 
-        message: 'Nouvelle demande reçue mais admin non abonné aux notifications' 
+        message: 'Notification créée dans la DB (admin non abonné aux push)',
+        push: false
       });
     }
     
@@ -2517,10 +2706,33 @@ app.post('/api/notify-admin-repayment', async (req, res) => {
     const adminName = adminData.first_name || 'Admin';
     const amountFormatted = `${parseInt(amount).toLocaleString()} FCFA`;
     
-    const title = "AB Campus Finance - Remboursement reçu";
-    const body = `Hello ${adminName}, ${clientName} vient d'effectuer un remboursement de ${amountFormatted}. Prêt #${loanId} complété.`;
+    const title = "Remboursement reçu ✅";
+    const body = `${clientName} vient d'effectuer un remboursement de ${amountFormatted}. Prêt #${loanId.substring(0, 8)}... complété.`;
     
-    // Récupérer les abonnements de l'admin
+    // 1. CRÉER LA NOTIFICATION DANS LA BASE DE DONNÉES (TOUJOURS)
+    try {
+      await supabase
+        .from('notifications')
+        .insert({
+          user_id: adminData.id,
+          title: title,
+          message: body,
+          type: 'loan_repayment',
+          data: {
+            loan_id: loanId,
+            client_name: clientName,
+            amount: amount,
+            user_id: userId
+          },
+          read: false
+        });
+      
+      console.log('[ADMIN_NOTIFICATION_REPAYMENT] ✅ Notification admin créée dans la DB');
+    } catch (dbError) {
+      console.error('[ADMIN_NOTIFICATION_REPAYMENT] ❌ Erreur création notification DB:', dbError);
+    }
+    
+    // 2. ENVOYER LA NOTIFICATION PUSH (si abonnement disponible)
     const { data: subscriptions } = await supabase
       .from('push_subscriptions')
       .select('subscription, user_id')
@@ -2535,7 +2747,8 @@ app.post('/api/notify-admin-repayment', async (req, res) => {
       console.log(`[ADMIN_NOTIFICATION_REPAYMENT] Admin ${adminName} non abonné aux notifications`);
       return res.json({ 
         success: true, 
-        message: 'Remboursement enregistré mais admin non abonné aux notifications' 
+        message: 'Notification créée dans la DB (admin non abonné aux push)',
+        push: false
       });
     }
     

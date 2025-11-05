@@ -395,7 +395,7 @@ const UserManagement = () => {
       {/* Details Modal */}
         {showDetailsModal && selectedUser && (
         <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full my-8">
+          <div className="bg-white rounded-3xl shadow-2xl max-w-4xl w-full my-8 flex flex-col max-h-[90vh]">
             {/* Modal Header */}
             <div className="sticky top-0 bg-gradient-to-r from-secondary-800 to-secondary-900 p-6 flex items-center justify-between z-10">
               <div className="flex items-center gap-4">
@@ -418,7 +418,7 @@ const UserManagement = () => {
             </div>
 
             {/* Modal Content */}
-            <div className="p-6 pb-32 overflow-y-auto max-h-[calc(90vh-200px)] space-y-6">
+            <div className="p-6 pb-4 overflow-y-auto flex-1 space-y-6">
               {/* Contact Info */}
                   <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-6 border border-blue-200">
                     <h3 className="text-lg font-semibold text-blue-900 font-montserrat mb-4 flex items-center">
@@ -599,7 +599,7 @@ const UserManagement = () => {
                   </div>
 
             {/* Modal Footer */}
-            <div className="p-6 bg-gray-50 border-t border-gray-200 flex gap-4">
+            <div className="p-6 pt-4 pb-6 bg-gray-50 border-t border-gray-200 flex gap-4" style={{ paddingBottom: 'max(1.5rem, env(safe-area-inset-bottom))' }}>
               {selectedUser.status === 'pending' && (
                 <>
                   <button

@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from "react";
+import { Plus } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
 import { BACKEND_URL } from "../../config/backend";
 
@@ -86,19 +87,17 @@ const FedaPayDepotButton = ({ plan, onSuccess }) => {
         ref={buttonRef}
         onClick={startPayment}
         disabled={loading}
-        className="w-full bg-gradient-to-r from-green-500 to-green-600 text-white py-4 rounded-xl font-semibold shadow-lg flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
+        className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-lg font-semibold text-sm shadow-md hover:shadow-lg transition-all duration-200 flex items-center justify-center disabled:opacity-50 disabled:cursor-not-allowed"
       >
         {loading ? (
           <>
             <div className="w-5 h-5 border-2 border-white border-t-transparent rounded-full animate-spin mr-2" />
-            Traitement...
+            ...
           </>
         ) : (
           <>
-            <svg className="w-5 h-5 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-            </svg>
-            Effectuer un Dépôt
+            <Plus className="w-5 h-5 mr-2" />
+            Dépôt
           </>
         )}
       </button>

@@ -149,7 +149,7 @@ const FedaPayEpargneButton = ({ planConfig }) => {
     startPollingForPlan();
 
     window.FedaPay.init(buttonRef.current, {
-      public_key: "pk_live_u0sqkP5Irt1BvqvnU5gh4FOC",
+      public_key: process.env.REACT_APP_FEDAPAY_PUBLIC_KEY || "pk_live_u0sqkP5Irt1BvqvnU5gh4FOC",
       transaction: {
         amount: 1000, // frais de création fixe
         description: `Création plan épargne - ${user?.email}`,
@@ -243,7 +243,7 @@ const FedaPayEpargneButton = ({ planConfig }) => {
     return (
       <button
         disabled
-        className="w-full bg-gray-400 text-white py-4 rounded-xl font-semibold cursor-not-allowed flex items-center justify-center gap-2"
+        className="w-full bg-gray-400 text-white py-3 rounded-lg font-semibold text-base cursor-not-allowed flex items-center justify-center gap-2"
       >
         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
         Chargement de FedaPay...
@@ -256,9 +256,9 @@ const FedaPayEpargneButton = ({ planConfig }) => {
       ref={buttonRef}
       onClick={startPayment}
       disabled={!fedaPayLoaded}
-      className={`w-full py-4 rounded-xl font-semibold transition-all ${
+      className={`w-full py-3 rounded-lg font-semibold text-base transition-all ${
         fedaPayLoaded
-          ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white hover:from-blue-600 hover:to-indigo-700 shadow-lg hover:shadow-xl'
+          ? 'bg-blue-600 hover:bg-blue-700 text-white shadow-md hover:shadow-lg'
           : 'bg-gray-400 text-white cursor-not-allowed'
       }`}
     >

@@ -88,40 +88,45 @@ const ABEpargne = () => {
 
 
   const ConfigPage = () => (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 p-4">
-            {/* Header */}
-      <div className="flex items-center mb-8 pt-4">
-        <button onClick={handleBackToHome} className="flex items-center">
-          <ChevronLeft className="w-6 h-6 text-gray-600" />
-        </button>
-        <h1 className="text-xl font-semibold text-gray-800 ml-4">Configuration du Plan</h1>
-            </div>
+    <div className="min-h-screen bg-gray-50 sm:bg-gray-100">
+      {/* Navigation Bar - Style moneroo */}
+      <div className="bg-gray-100 sm:bg-white rounded-b-2xl sm:rounded-none mb-4 sm:mb-6">
+        <div className="flex items-center justify-between px-4 py-4 sm:px-6 sm:py-4">
+          <button 
+            onClick={handleBackToHome} 
+            className="w-10 h-10 rounded-full bg-white sm:bg-gray-50 flex items-center justify-center shadow-sm hover:bg-gray-50 transition-colors"
+          >
+            <ChevronLeft className="w-5 h-5 text-gray-700" />
+          </button>
+          <h1 className="text-base sm:text-lg font-semibold text-gray-900">Configuration du Plan</h1>
+          <div className="w-10"></div> {/* Spacer pour centrer le titre */}
+        </div>
+      </div>
 
-      {/* Main Content */}
-      <div className="bg-white rounded-2xl shadow-lg p-6 mx-auto max-w-md">
-            <div className="text-center mb-8">
-          <div className="w-16 h-16 bg-gradient-to-r from-blue-500 to-indigo-600 rounded-full flex items-center justify-center mx-auto mb-4">
-            <Wallet className="w-8 h-8 text-white" />
-                    </div>
-          <h2 className="text-2xl font-bold text-gray-800 mb-2">AB Épargne</h2>
-          <p className="text-gray-600">Configurez votre plan d'épargne</p>
-            </div>
+      {/* Total Amount Section - Style moneroo */}
+      <div className="text-center mb-6 sm:mb-8 px-4">
+        <p className="text-sm text-gray-500 mb-2">Total amount</p>
+        <p className="text-4xl sm:text-5xl font-bold text-blue-600">1 000 F CFA</p>
+      </div>
 
-              {/* Montant */}
+      {/* Main Content Card - Style moneroo */}
+      <div className="bg-white rounded-t-3xl sm:rounded-2xl shadow-lg sm:shadow-xl p-6 sm:p-8 mx-auto max-w-md sm:max-w-lg">
+
+        {/* Montant à déposer */}
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-3">
-            Montant à déposer (minimum 500 F)
-                </label>
-          <div className="flex items-center bg-gray-50 rounded-xl p-4">
+          <label className="block text-sm font-medium text-gray-900 mb-2">
+            Montant à déposer <span className="text-red-500">*</span>
+          </label>
+          <div className="flex items-center bg-gray-50 rounded-xl p-4 border border-blue-200">
             <button 
               onClick={() => setPlanConfig({...planConfig, montant: Math.max(500, planConfig.montant - 100)})}
-              className="w-10 h-10 bg-white rounded-full shadow flex items-center justify-center"
+              className="w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center hover:bg-gray-50 transition-colors"
             >
               <Minus className="w-4 h-4 text-gray-600" />
             </button>
             <div className="flex-1 text-center">
-                <input
-                  type="number"
+              <input
+                type="number"
                 min="500"
                 step="100"
                 value={planConfig.montant}
@@ -130,130 +135,146 @@ const ABEpargne = () => {
                   setPlanConfig({...planConfig, montant: Math.max(500, value)});
                 }}
                 onFocus={(e) => {
-                  e.target.select(); // Sélectionne tout le texte au focus
+                  e.target.select();
                 }}
                 onClick={(e) => {
-                  e.target.select(); // Sélectionne tout le texte au clic
+                  e.target.select();
                 }}
-                className="w-full text-2xl font-bold text-gray-800 text-center bg-transparent border-none outline-none focus:outline-none cursor-pointer"
+                className="w-full text-xl font-semibold text-gray-900 text-center bg-transparent border-none outline-none focus:outline-none cursor-pointer"
                 style={{ width: `${Math.max(planConfig.montant.toString().length + 2, 6)}ch` }}
                 placeholder="500"
               />
               <span className="text-gray-600 ml-1">F</span>
-                  </div>
+            </div>
             <button 
               onClick={() => setPlanConfig({...planConfig, montant: planConfig.montant + 100})}
-              className="w-10 h-10 bg-white rounded-full shadow flex items-center justify-center"
+              className="w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center hover:bg-gray-50 transition-colors"
             >
               <Plus className="w-4 h-4 text-gray-600" />
             </button>
-                    </div>
-              </div>
+          </div>
+          <p className="text-xs text-gray-500 mt-1">Minimum 500 F</p>
+        </div>
 
         {/* Fréquence */}
         <div className="mb-6">
-          <label className="block text-sm font-medium text-gray-700 mb-3">
-            Fréquence de dépôt
-                </label>
+          <label className="block text-sm font-medium text-gray-900 mb-2">
+            Fréquence de dépôt <span className="text-red-500">*</span>
+          </label>
           <div className="flex gap-3">
-                  <button
+            <button
               onClick={() => setPlanConfig({...planConfig, frequence: '5'})}
-              className={`flex-1 py-3 px-4 rounded-xl font-medium ${
+              className={`flex-1 py-3 px-4 rounded-lg font-medium text-sm transition-all ${
                 planConfig.frequence === '5' 
-                  ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md' 
-                  : 'bg-gray-50 text-gray-700'
+                  ? 'bg-blue-600 text-white shadow-md' 
+                  : 'bg-gray-50 text-gray-700 border border-gray-200 hover:border-blue-300'
               }`}
             >
               Tous les 5 jours
-                  </button>
-                  <button
+            </button>
+            <button
               onClick={() => setPlanConfig({...planConfig, frequence: '10'})}
-              className={`flex-1 py-3 px-4 rounded-xl font-medium ${
+              className={`flex-1 py-3 px-4 rounded-lg font-medium text-sm transition-all ${
                 planConfig.frequence === '10' 
-                  ? 'bg-gradient-to-r from-blue-500 to-indigo-600 text-white shadow-md' 
-                  : 'bg-gray-50 text-gray-700'
+                  ? 'bg-blue-600 text-white shadow-md' 
+                  : 'bg-gray-50 text-gray-700 border border-gray-200 hover:border-blue-300'
               }`}
             >
               Tous les 10 jours
-                  </button>
-                </div>
-              </div>
+            </button>
+          </div>
+        </div>
 
         {/* Nombre de mois */}
-        <div className="mb-8">
-          <label className="block text-sm font-medium text-gray-700 mb-3">
-            Durée (mois)
-                </label>
-          <div className="flex items-center bg-gray-50 rounded-xl p-4">
-                    <button
+        <div className="mb-6">
+          <label className="block text-sm font-medium text-gray-900 mb-2">
+            Durée (mois) <span className="text-red-500">*</span>
+          </label>
+          <div className="flex items-center bg-gray-50 rounded-xl p-4 border border-blue-200">
+            <button
               onClick={() => setPlanConfig({...planConfig, nombreMois: Math.max(1, planConfig.nombreMois - 1)})}
-              className="w-10 h-10 bg-white rounded-full shadow flex items-center justify-center"
+              className="w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center hover:bg-gray-50 transition-colors"
             >
               <Minus className="w-4 h-4 text-gray-600" />
-                    </button>
+            </button>
             <div className="flex-1 text-center">
-              <span className="text-2xl font-bold text-gray-800">{planConfig.nombreMois}</span>
+              <span className="text-xl font-semibold text-gray-900">{planConfig.nombreMois}</span>
               <span className="text-gray-600 ml-1">mois</span>
-                </div>
+            </div>
             <button 
               onClick={() => setPlanConfig({...planConfig, nombreMois: planConfig.nombreMois + 1})}
-              className="w-10 h-10 bg-white rounded-full shadow flex items-center justify-center"
+              className="w-10 h-10 bg-white rounded-full shadow-sm flex items-center justify-center hover:bg-gray-50 transition-colors"
             >
               <Plus className="w-4 h-4 text-gray-600" />
-                  </button>
-                </div>
-              </div>
+            </button>
+          </div>
+        </div>
 
         {/* Résumé */}
-        <div className="bg-gradient-to-r from-blue-50 to-indigo-50 rounded-xl p-4 mb-6">
-          <h3 className="font-semibold text-gray-800 mb-2">Résumé de votre plan</h3>
-          <div className="text-sm text-gray-600 space-y-1">
+        <div className="bg-gray-50 rounded-xl p-4 mb-6 border border-gray-200">
+          <h3 className="font-semibold text-gray-900 mb-3 text-sm">Résumé de votre plan</h3>
+          <div className="text-xs text-gray-600 space-y-2">
             <p>• Dépôt : {planConfig.montant.toLocaleString()} F tous les {planConfig.frequence} jours</p>
             <p>• Durée : {planConfig.nombreMois} mois</p>
             <p>• Taux d'intérêts : 5% par mois</p>
             <p>• Total déposé : {(planConfig.montant * (30 / parseInt(planConfig.frequence)) * planConfig.nombreMois).toLocaleString()} F</p>
             <p>• Intérêts estimés : {Math.round(planConfig.montant * (30 / parseInt(planConfig.frequence)) * planConfig.nombreMois * 0.05 * planConfig.nombreMois).toLocaleString()} F</p>
-            <p className="font-semibold text-blue-600">• Total avec intérêts : {Math.round(planConfig.montant * (30 / parseInt(planConfig.frequence)) * planConfig.nombreMois * (1 + 0.05 * planConfig.nombreMois)).toLocaleString()} F</p>
-              </div>
-            </div>
+            <p className="font-semibold text-blue-600 pt-2 border-t border-gray-200">• Total avec intérêts : {Math.round(planConfig.montant * (30 / parseInt(planConfig.frequence)) * planConfig.nombreMois * (1 + 0.05 * planConfig.nombreMois)).toLocaleString()} F</p>
+          </div>
+        </div>
 
+        {/* Pay Now Button - Style moneroo */}
         <button
           onClick={handleConfigSubmit}
-          className="w-full bg-gradient-to-r from-blue-500 to-indigo-600 text-white py-4 rounded-xl font-semibold shadow-lg hover:shadow-xl transition-all"
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-lg font-semibold text-base shadow-md hover:shadow-lg transition-all duration-200 mb-6"
         >
-          Continuer
+          Pay now
         </button>
-          </div>
 
-      {/* Payment Modal */}
+        {/* Footer - Style moneroo */}
+        <div className="text-center pt-4 border-t border-gray-200">
+          <p className="text-xs text-gray-500 mb-2">Powered by</p>
+          <div className="flex items-center justify-center gap-2 mb-2">
+            <div className="w-6 h-6 bg-gradient-to-r from-blue-600 to-indigo-600 rounded flex items-center justify-center">
+              <Wallet className="w-4 h-4 text-white" />
+            </div>
+            <span className="text-sm font-semibold text-blue-600">AB Campus Finance</span>
+          </div>
+          <p className="text-xs text-gray-400 mt-2">
+            Offer your customers a tailor-made payment experience
+          </p>
+        </div>
+      </div>
+
+      {/* Payment Modal - Style moneroo */}
       {showPayment && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl p-6 max-w-sm w-full">
+          <div className="bg-white rounded-2xl sm:rounded-3xl p-6 max-w-sm w-full shadow-2xl">
             <div className="text-center mb-6">
-              <CreditCard className="w-12 h-12 text-blue-500 mx-auto mb-3" />
-              <h3 className="text-lg font-semibold text-gray-800 mb-2">Paiement requis</h3>
+              <CreditCard className="w-12 h-12 text-blue-600 mx-auto mb-3" />
+              <h3 className="text-lg font-semibold text-gray-900 mb-2">Paiement requis</h3>
               <p className="text-gray-600 text-sm">Frais de création du plan d'épargne</p>
             </div>
 
-            <div className="bg-gray-50 rounded-xl p-4 mb-6 text-center">
-              <span className="text-2xl font-bold text-gray-800">1 000 F</span>
-                    </div>
+            <div className="bg-gray-50 rounded-xl p-4 mb-6 text-center border border-gray-200">
+              <span className="text-2xl font-bold text-gray-900">1 000 F</span>
+            </div>
                     
             <div className="flex gap-3">
               <button
                 onClick={() => setShowPayment(false)}
-                className="flex-1 py-3 text-gray-600 font-medium"
+                className="flex-1 py-3 text-gray-600 font-medium hover:text-gray-800 transition-colors"
               >
                 Annuler
               </button>
               <div className="flex-1">
                 <FedaPayEpargneButton planConfig={planConfig} />
-                        </div>
-                    </div>
-                  </div>
-            </div>
-      )}
               </div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
   );
 
   const DashboardPage = () => (

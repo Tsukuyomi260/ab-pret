@@ -1,10 +1,13 @@
 // Service FedaPay pour les remboursements de prêts
 // Configuration FedaPay
 const FEDAPAY_CONFIG = {
-  // Remplacez par vos vraies clés FedaPay
-  publicKey: process.env.REACT_APP_FEDAPAY_PUBLIC_KEY || 'pk_test_xxxxxxxxxxxxxxxxxfgxxxxxxxxxxxx',
-  secretKey: process.env.REACT_APP_FEDAPAY_SECRET_KEY || 'sk_test_xxxxxxxxxxxxxxxxxgfxxxxxxxxxxxx',
-  baseUrl: process.env.REACT_APP_FEDAPAY_BASE_URL || 'https://api.fedapay.com/v1',
+  // Configuration depuis les variables d'environnement
+  publicKey: process.env.REACT_APP_FEDAPAY_PUBLIC_KEY || 'pk_live_u0sqkP5Irt1BvqvnU5gh4FOC',
+  secretKey: process.env.REACT_APP_FEDAPAY_SECRET_KEY || '', // Ne pas utiliser en frontend (sécurité)
+  baseUrl: process.env.REACT_APP_FEDAPAY_BASE_URL || (process.env.REACT_APP_FEDAPAY_ENVIRONMENT === 'live' 
+    ? 'https://api.fedapay.com/v1' 
+    : 'https://sandbox-api.fedapay.com/v1'),
+  environment: process.env.REACT_APP_FEDAPAY_ENVIRONMENT || 'live',
   currency: 'XOF', // Franc CFA
   country: 'BJ' // Bénin
 };

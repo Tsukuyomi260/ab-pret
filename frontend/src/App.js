@@ -42,6 +42,7 @@ import ABLogement from './components/Client/ABLogement';
 import ABEpargne from './components/Client/ABEpargne';
 import RetourEpargne from './components/Client/RetourEpargne';
 import PlanEpargne from './components/Client/PlanEpargne';
+import PersonalizePlan from './components/Client/PersonalizePlan';
 import DepotRetour from './components/Client/DepotRetour';
 import RemboursementRetour from './components/Client/RemboursementRetour';
 import TestPlanEpargne from './components/Client/TestPlanEpargne';
@@ -360,6 +361,14 @@ const AppContent = () => {
             <ProtectedRoute>
               <Layout>
                 <RetourEpargne />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          
+          <Route path="/ab-epargne/personalize/:planId" element={
+            <ProtectedRoute>
+              <Layout>
+                <PersonalizePlan />
               </Layout>
             </ProtectedRoute>
           } />
