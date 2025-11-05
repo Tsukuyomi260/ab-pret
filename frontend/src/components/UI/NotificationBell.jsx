@@ -13,6 +13,7 @@ const NotificationBell = ({ notifications: propNotifications, onNotificationClic
   const dropdownRef = useRef(null);
   const [isLoadingNotifications, setIsLoadingNotifications] = useState(false);
   const [pendingLoanRequests, setPendingLoanRequests] = useState([]);
+  const [dismissedPendingLoans, setDismissedPendingLoans] = useState(new Set());
   
   // Appeler tous les hooks en premier (ordre important !)
   const { user } = useAuth();
@@ -23,24 +24,31 @@ const NotificationBell = ({ notifications: propNotifications, onNotificationClic
   // Utiliser les notifications du contexte en priorité, sinon la prop
   const baseNotifications = contextNotifications && contextNotifications.length > 0 ? contextNotifications : (propNotifications || []);
   
-  // Combiner les notifications avec les demandes en attente pour l'admin
-  const allNotifications = [...baseNotifications];
+  // Filtrer les notifications non lues pour l'affichage (les notifications lues ne sont pas affichées)
+  const unreadNotifications = baseNotifications.filter(n => !n.read);
+  
+  // Combiner les notifications non lues avec les demandes en attente pour l'admin
+  const allNotifications = [...unreadNotifications];
   
   // Ajouter les demandes de prêts en attente comme notifications pour l'admin
+  // (sauf celles qui ont été marquées comme "dismissed")
   if (user?.role === 'admin' && pendingLoanRequests.length > 0) {
     pendingLoanRequests.forEach(loan => {
-      allNotifications.push({
-        id: `pending-loan-${loan.id}`,
-        title: 'Nouvelle demande de prêt',
-        message: `${loan.users?.first_name || 'Utilisateur'} ${loan.users?.last_name || ''} - ${formatCurrency(loan.amount || 0)}`,
-        type: 'warning',
-        priority: 'high',
-        read: false,
-        timestamp: loan.created_at,
-        data: { loanId: loan.id, userId: loan.user_id },
-        action: 'Voir la demande',
-        isPendingLoan: true
-      });
+      // Ne pas ajouter si cette demande a été "dismissed"
+      if (!dismissedPendingLoans.has(loan.id)) {
+        allNotifications.push({
+          id: `pending-loan-${loan.id}`,
+          title: 'Nouvelle demande de prêt',
+          message: `${loan.users?.first_name || 'Utilisateur'} ${loan.users?.last_name || ''} - ${formatCurrency(loan.amount || 0)}`,
+          type: 'warning',
+          priority: 'high',
+          read: false,
+          timestamp: loan.created_at,
+          data: { loanId: loan.id, userId: loan.user_id },
+          action: 'Voir la demande',
+          isPendingLoan: true
+        });
+      }
     });
   }
   
@@ -60,12 +68,13 @@ const NotificationBell = ({ notifications: propNotifications, onNotificationClic
   // Calculer le nombre total de notifications non lues (incluant les demandes en attente pour l'affichage)
   const totalUnreadCount = notifications.filter(n => !n.read).length;
   
-  // Nombre de demandes en attente (notifications dynamiques)
+  // Nombre de demandes en attente (notifications dynamiques) non dismissed
+  const activePendingLoanCount = pendingLoanRequests.filter(loan => !dismissedPendingLoans.has(loan.id)).length;
   const pendingLoanNotificationsCount = notifications.filter(n => n.isPendingLoan).length;
   
   // Afficher les boutons s'il y a des notifications à gérer (réelles ou demandes en attente)
-  // Utiliser pendingRequests du hook qui est déjà disponible (compte les prêts en attente)
-  const hasNotificationsToManage = notifications.length > 0 || pendingRequests > 0;
+  // Utiliser activePendingLoanCount au lieu de pendingRequests pour exclure les dismissed
+  const hasNotificationsToManage = notifications.length > 0 || activePendingLoanCount > 0;
 
   // Charger les demandes en attente pour l'admin
   useEffect(() => {
@@ -122,20 +131,38 @@ const NotificationBell = ({ notifications: propNotifications, onNotificationClic
   // Marquer toutes les notifications comme lues
   const handleMarkAllAsRead = async () => {
     try {
+      console.log('[NOTIFICATION_BELL] 🟦 Marquage de toutes les notifications comme lues...');
+      console.log('[NOTIFICATION_BELL] Notifications avant:', baseNotifications.length, 'non lues:', realUnreadCount);
+      
       // Marquer les notifications de la base de données
       await markAllAsRead();
       
-      // Les demandes en attente (pendingLoanRequests) ne peuvent pas être marquées comme lues
-      // car elles sont générées dynamiquement. On les laisse telles quelles.
+      // Marquer toutes les demandes en attente comme "dismissed" pour cette session
+      // Elles disparaîtront de la vue immédiatement
+      if (pendingLoanRequests.length > 0) {
+        const newDismissed = new Set(dismissedPendingLoans);
+        pendingLoanRequests.forEach(loan => {
+          newDismissed.add(loan.id);
+        });
+        setDismissedPendingLoans(newDismissed);
+        console.log('[NOTIFICATION_BELL] Demandes en attente marquées comme dismissed:', newDismissed.size);
+      }
+      
+      // Rafraîchir les notifications IMMÉDIATEMENT pour mettre à jour l'affichage
+      if (user?.id) {
+        console.log('[NOTIFICATION_BELL] 🔄 Rafraîchissement des notifications...');
+        await refreshNotifications(user.id);
+        console.log('[NOTIFICATION_BELL] ✅ Notifications rafraîchies');
+      }
       
       showSuccess('Toutes les notifications ont été marquées comme lues');
       
-      // Rafraîchir les notifications
-      if (user?.id) {
-        await refreshNotifications(user.id);
-      }
+      // Le compteur se mettra à jour automatiquement via le contexte
+      // car le contexte recalcule unreadCount à chaque changement de notifications
+      // Les notifications lues disparaîtront automatiquement car on filtre avec unreadNotifications
     } catch (error) {
-      console.error('[NOTIFICATION_BELL] Erreur lors du marquage:', error);
+      console.error('[NOTIFICATION_BELL] ❌ Erreur lors du marquage:', error);
+      showSuccess('Erreur lors du marquage des notifications');
     }
   };
 
@@ -177,8 +204,9 @@ const NotificationBell = ({ notifications: propNotifications, onNotificationClic
     }
   };
 
-  // Déterminer le nombre total à afficher (notifications + demandes en attente pour admin)
-  const totalCount = unreadCount + pendingRequests;
+  // Déterminer le nombre total à afficher (notifications non lues + demandes en attente actives pour admin)
+  // Utiliser realUnreadCount pour les notifications réelles et activePendingLoanCount pour les demandes en attente non dismissed
+  const totalCount = realUnreadCount + activePendingLoanCount;
 
   return (
     <div className={`relative ${fixed ? 'fixed top-24 right-4 z-[9999] sm:top-4' : 'z-[9999]'} ${className}`} ref={dropdownRef}>
@@ -221,17 +249,17 @@ const NotificationBell = ({ notifications: propNotifications, onNotificationClic
               {/* Boutons d'action */}
               {hasNotificationsToManage && (
                 <div className="flex gap-2 px-4 pb-3 border-t border-gray-200/50 pt-3 bg-gray-50/30">
-                  {(totalUnreadCount > 0 || pendingRequests > 0) && (
+                  {(totalUnreadCount > 0 || activePendingLoanCount > 0) && (
                     <button
                       onClick={handleMarkAllAsRead}
                       className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2.5 text-xs font-semibold text-blue-700 bg-blue-50 hover:bg-blue-100 active:bg-blue-200 rounded-lg transition-all duration-200 shadow-sm hover:shadow-md"
-                      title={`Marquer ${totalUnreadCount || pendingRequests} notification${(totalUnreadCount || pendingRequests) > 1 ? 's' : ''} comme lue${(totalUnreadCount || pendingRequests) > 1 ? 's' : ''}`}
+                      title={`Marquer ${totalUnreadCount || activePendingLoanCount} notification${(totalUnreadCount || activePendingLoanCount) > 1 ? 's' : ''} comme lue${(totalUnreadCount || activePendingLoanCount) > 1 ? 's' : ''}`}
                     >
                       <CheckCheck size={14} className="flex-shrink-0" />
                       <span>Tout marquer lu</span>
-                      {(totalUnreadCount || pendingRequests) > 0 && (
+                      {(totalUnreadCount || activePendingLoanCount) > 0 && (
                         <span className="ml-1 px-1.5 py-0.5 bg-blue-200 text-blue-800 rounded-full text-[10px] font-bold">
-                          {totalUnreadCount || pendingRequests}
+                          {totalUnreadCount || activePendingLoanCount}
                         </span>
                       )}
                     </button>
@@ -262,7 +290,7 @@ const NotificationBell = ({ notifications: propNotifications, onNotificationClic
                   <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary-600 mx-auto mb-4"></div>
                   <p className="text-sm">Chargement des notifications...</p>
                 </div>
-              ) : notifications.length === 0 && pendingRequests === 0 ? (
+              ) : notifications.length === 0 && activePendingLoanCount === 0 ? (
                 <div className="p-8 text-center text-gray-500">
                   <Bell size={48} className="mx-auto mb-4 text-gray-300" />
                   <p className="text-sm">Aucune notification</p>
