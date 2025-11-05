@@ -6,7 +6,8 @@ import { testAllConnections } from './utils/supabaseAPI';
 import './utils/testPWA'; // Import des fonctions de test PWA
 import './utils/testNotificationPrompt'; // Import des utilitaires de test notifications
 import { Toaster } from 'react-hot-toast';
-import updateNotifier from './utils/updateNotifier';
+import { useAppUpdate } from './hooks/useAppUpdate';
+import UpdatePrompt from './components/UI/UpdatePrompt';
 import { initCacheManagement } from './utils/clearCache';
 import './utils/resetUserPrompts'; // Charger les utilitaires de reset des prompts // Gestion du cache
 import Layout from './components/Common/Layout';
@@ -53,29 +54,6 @@ import TestFedaPay from './components/TestFedaPay';
 import './styles/globals.css';
 
 // Composant de notification de mise à jour
-const UpdateNotification = ({ onUpdate }) => {
-  return (
-    <div className="fixed bottom-4 right-4 bg-blue-600 text-white p-4 rounded-lg shadow-lg z-50 max-w-sm">
-      <div className="flex items-center space-x-3">
-        <div className="flex-shrink-0">
-          <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 10V3L4 14h7v7l9-11h-7z" />
-          </svg>
-        </div>
-        <div className="flex-1">
-          <p className="text-sm font-medium">Nouvelle version disponible</p>
-          <p className="text-xs opacity-90">Cliquez pour mettre à jour</p>
-        </div>
-        <button
-          onClick={onUpdate}
-          className="flex-shrink-0 bg-white text-blue-600 px-3 py-1 rounded text-sm font-medium hover:bg-blue-50 transition-colors"
-        >
-          Mettre à jour
-        </button>
-      </div>
-    </div>
-  );
-};
 
 // Composant de configuration pour Supabase manquant
 const ConfigurationPage = () => {
@@ -196,23 +174,15 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
 
 // Composant principal de l'application
 const AppContent = () => {
-  const [showUpdateNotification, setShowUpdateNotification] = useState(false);
-
-  useEffect(() => {
-    // Démarrer la vérification des mises à jour
-    updateNotifier.startChecking(() => {
-      setShowUpdateNotification(true);
-    });
-
-    // Nettoyer à la fermeture
-    return () => {
-      updateNotifier.stopChecking();
-    };
-  }, []);
-
-  const handleUpdate = () => {
-    updateNotifier.applyUpdate();
-  };
+  const {
+    updateAvailable,
+    isChecking,
+    currentVersion,
+    newVersion,
+    checkVersion,
+    applyUpdate,
+    ignoreUpdate
+  } = useAppUpdate();
 
   return (
     <>
@@ -441,10 +411,14 @@ const AppContent = () => {
         </Routes>
       </Router>
 
-      {/* Notification de mise à jour */}
-      {showUpdateNotification && (
-        <UpdateNotification onUpdate={handleUpdate} />
-      )}
+      {/* Prompt de mise à jour élégant */}
+      <UpdatePrompt
+        updateAvailable={updateAvailable}
+        newVersion={newVersion}
+        currentVersion={currentVersion}
+        onUpdate={applyUpdate}
+        onIgnore={ignoreUpdate}
+      />
     </>
   );
 };
