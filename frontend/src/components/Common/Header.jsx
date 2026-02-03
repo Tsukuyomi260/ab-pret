@@ -15,11 +15,13 @@ const Header = () => {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [notificationCount, setNotificationCount] = useState(0);
 
-  // Charger les notifications pour l'utilisateur connecté
+  // Charger les notifications après le premier affichage (ne pas bloquer la page)
   useEffect(() => {
-    if (user?.id) {
+    if (!user?.id) return;
+    const id = setTimeout(() => {
       refreshNotifications(user.id);
-    }
+    }, 300);
+    return () => clearTimeout(id);
   }, [user?.id, refreshNotifications]);
 
   // Vérifier les nouvelles notifications pour l'admin
@@ -114,37 +116,23 @@ const Header = () => {
             />
           </div>
 
-          {/* Navigation desktop */}
-          <nav className="hidden lg:flex items-center space-x-6">
-            <a href="/dashboard" className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-colors duration-200">
-              Accueil
-            </a>
-            {user?.role === 'admin' ? (
-              <>
-                <a href="/admin/loan-requests" className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-colors duration-200">
-                  Demandes de prêt
-                </a>
-                <a href="/admin/user-management" className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-colors duration-200">
-                  Gestion utilisateur
-                </a>
-                <a href="/admin/analytics" className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-colors duration-200">
-                  Analytiques
-                </a>
-              </>
-            ) : (
-              <>
-                <a href="/loan-request" className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-colors duration-200">
-                  Demander un prêt
-                </a>
-                <a href="/loan-history" className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-colors duration-200">
-                  Historique
-                </a>
-                <a href="/repayment" className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-colors duration-200">
-                  Remboursement
-                </a>
-              </>
-            )}
-          </nav>
+          {/* Navigation desktop : masquée pour l'admin (accès via tableau de bord et barre du bas) */}
+          {user?.role !== 'admin' && (
+            <nav className="hidden lg:flex items-center space-x-6">
+              <a href="/dashboard" className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-colors duration-200">
+                Accueil
+              </a>
+              <a href="/loan-request" className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-colors duration-200">
+                Demander un prêt
+              </a>
+              <a href="/loan-history" className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-colors duration-200">
+                Historique
+              </a>
+              <a href="/repayment" className="text-neutral-600 hover:text-secondary-900 font-montserrat transition-colors duration-200">
+                Remboursement
+              </a>
+            </nav>
+          )}
 
           {/* Actions utilisateur desktop */}
           <div className="hidden lg:flex items-center space-x-4">

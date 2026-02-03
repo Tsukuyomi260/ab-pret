@@ -19,19 +19,23 @@ export const usePushNotifications = () => {
   const [vapidPublicKey, setVapidPublicKey] = useState(null);
   const [hasAskedPermission, setHasAskedPermission] = useState(false);
 
-  // Récupérer la clé publique VAPID depuis le backend
+  // Récupérer la clé publique VAPID après le premier affichage (ne pas bloquer le chargement)
   useEffect(() => {
-    const fetchVapidKey = async () => {
-      try {
-        const response = await fetch(`${BACKEND_URL}/api/push/vapid-public-key`);
-        const data = await response.json();
-        setVapidPublicKey(data.publicKey);
-      } catch (error) {
-        console.error('Erreur lors de la récupération de la clé VAPID:', error);
-      }
-    };
-
-    fetchVapidKey();
+    const id = setTimeout(() => {
+      const fetchVapidKey = async () => {
+        try {
+          const response = await fetch(`${BACKEND_URL}/api/push/vapid-public-key`);
+          const data = await response.json();
+          setVapidPublicKey(data.publicKey);
+        } catch (error) {
+          if (process.env.NODE_ENV === 'development') {
+            console.error('Erreur lors de la récupération de la clé VAPID:', error);
+          }
+        }
+      };
+      fetchVapidKey();
+    }, 800);
+    return () => clearTimeout(id);
   }, []);
 
   // Vérifier le support des notifications push et demander l'autorisation automatiquement
@@ -44,25 +48,16 @@ export const usePushNotifications = () => {
     checkSupport();
   }, []);
 
-  // Vérifier l'état d'abonnement au chargement et renouveler si nécessaire
+  // Vérifier l'état d'abonnement après que VAPID soit dispo (ne pas bloquer l'affichage)
   useEffect(() => {
     const checkAndRenewSubscription = async () => {
-      console.log('[PUSH HOOK] Vérification et renouvellement de l\'abonnement...', {
-        isSupported,
-        vapidPublicKey: !!vapidPublicKey,
-        user: !!user
-      });
-
       if (!isSupported || !vapidPublicKey) {
-        console.log('[PUSH HOOK] Notifications non supportées ou clé VAPID manquante');
         setHasAskedPermission(true);
         return;
       }
 
-      // Vérifier si l'utilisateur a définitivement refusé les notifications
       const hasDeclinedPrompt = localStorage.getItem('notification-prompt-declined');
       if (hasDeclinedPrompt === 'true') {
-        console.log('[PUSH HOOK] L\'utilisateur a définitivement refusé les notifications - pas d\'affichage');
         setHasAskedPermission(true);
         return;
       }
@@ -71,52 +66,32 @@ export const usePushNotifications = () => {
         const reg = await navigator.serviceWorker.ready;
         let existingSubscription = await reg.pushManager.getSubscription();
         
-        console.log('[PUSH HOOK] Subscription existante:', !!existingSubscription);
-        
         if (existingSubscription) {
-          // En production, considérer l'abonnement comme valide sans test
           if (process.env.NODE_ENV === 'production') {
-            console.log('[PUSH HOOK] Mode production - abonnement considéré comme valide');
             setSubscription(existingSubscription);
             setIsSubscribed(true);
             setHasAskedPermission(true);
           } else {
-            // En développement, vérifier si l'abonnement est encore valide
             const isValid = await validateSubscription(existingSubscription);
-            
             if (isValid) {
-              console.log('[PUSH HOOK] ✅ Abonnement valide');
               setSubscription(existingSubscription);
               setIsSubscribed(true);
               setHasAskedPermission(true);
             } else {
-              console.log('[PUSH HOOK] ⚠️ Abonnement expiré, renouvellement...');
-              // Renouveler l'abonnement
               const renewed = await renewSubscription(reg);
               if (renewed) {
-                console.log('[PUSH HOOK] ✅ Abonnement renouvelé avec succès');
                 setSubscription(renewed);
                 setIsSubscribed(true);
                 setHasAskedPermission(true);
               } else {
-                console.log('[PUSH HOOK] ❌ Échec du renouvellement');
                 setHasAskedPermission(true);
               }
             }
           }
         } else {
-          // Pas d'abonnement - vérifier si on peut afficher le prompt
-          const hasDeclinedPrompt = localStorage.getItem('notification-prompt-declined');
-          if (hasDeclinedPrompt === 'true') {
-            console.log('[PUSH HOOK] L\'utilisateur a refusé les notifications - pas d\'affichage');
-            setHasAskedPermission(true);
-          } else {
-            console.log('[PUSH HOOK] Pas d\'abonnement - prompt peut s\'afficher');
-            setHasAskedPermission(true);
-          }
+          setHasAskedPermission(true);
         }
       } catch (error) {
-        console.error('Erreur lors de la vérification de l\'abonnement:', error);
         setHasAskedPermission(true);
       }
     };
@@ -124,17 +99,17 @@ export const usePushNotifications = () => {
     checkAndRenewSubscription();
   }, [isSupported, vapidPublicKey, user]);
 
-  // Vérification intelligente et renouvellement automatique des abonnements
+  // Vérification intelligente et renouvellement automatique (différée, sans bloquer l'affichage)
   useEffect(() => {
+    if (!user?.id || !vapidPublicKey) return;
+    let intervalId;
+    const id = setTimeout(() => {
     const checkAndRenewSubscription = async () => {
-      console.log('[PUSH HOOK] Vérification intelligente de l\'abonnement...');
-      
       try {
         const reg = await navigator.serviceWorker.ready;
         const currentSubscription = await reg.pushManager.getSubscription();
         
         if (!currentSubscription) {
-          console.log('[PUSH HOOK] ⚠️ Aucun abonnement trouvé');
           setIsSubscribed(false);
           setSubscription(null);
           localStorage.setItem('subscription-inactive', 'true');
@@ -142,51 +117,42 @@ export const usePushNotifications = () => {
           return;
         }
 
-        // Vérifier la validité de l'abonnement
         const isValid = await validateSubscriptionToken(currentSubscription);
         
         if (!isValid) {
-          console.log('[PUSH HOOK] ⚠️ Token d\'abonnement expiré ou invalide');
-          
-          // Tenter de renouveler l'abonnement automatiquement
           const renewed = await renewSubscriptionSilently(reg);
-          
           if (renewed) {
-            console.log('[PUSH HOOK] ✅ Abonnement renouvelé automatiquement');
             setIsSubscribed(true);
             setSubscription(renewed);
             localStorage.setItem('subscription-active', 'true');
             localStorage.removeItem('subscription-inactive');
           } else {
-            console.log('[PUSH HOOK] ❌ Échec du renouvellement automatique');
             setIsSubscribed(false);
             setSubscription(null);
             localStorage.setItem('subscription-inactive', 'true');
             localStorage.removeItem('notification-prompt-seen');
           }
         } else {
-          console.log('[PUSH HOOK] ✅ Abonnement valide et actif');
           setIsSubscribed(true);
           setSubscription(currentSubscription);
           localStorage.setItem('subscription-active', 'true');
           localStorage.removeItem('subscription-inactive');
         }
       } catch (error) {
-        console.error('[PUSH HOOK] Erreur vérification abonnement:', error);
         setIsSubscribed(false);
         setSubscription(null);
         localStorage.setItem('subscription-inactive', 'true');
       }
     };
 
-    // Vérifier immédiatement au chargement
     checkAndRenewSubscription();
-
-    // Vérifier toutes les 6 heures pour une meilleure réactivité
-    const interval = setInterval(checkAndRenewSubscription, 6 * 60 * 60 * 1000);
-
-    return () => clearInterval(interval);
-  }, [user]);
+    intervalId = setInterval(checkAndRenewSubscription, 6 * 60 * 60 * 1000);
+    }, 1500);
+    return () => {
+      clearTimeout(id);
+      if (intervalId) clearInterval(intervalId);
+    };
+  }, [user?.id, vapidPublicKey]);
 
   // Valider un token d'abonnement de manière intelligente
   const validateSubscriptionToken = async (subscription) => {

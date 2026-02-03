@@ -34,7 +34,7 @@ const LoanRequests = () => {
   const navigate = useNavigate();
   const { showSuccess, showError } = useNotifications();
   const [loanRequests, setLoanRequests] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -225,7 +225,9 @@ const LoanRequests = () => {
           activeLoans: 0,
           completedLoans: 0,
           totalBorrowed: 0,
-          totalPaid: 0
+          totalPaid: 0,
+          activeLoanAmount: 0,
+          activeLoanInterest: 0
         }
       };
     }
@@ -234,7 +236,11 @@ const LoanRequests = () => {
     
     // Calculer les stats de l'utilisateur
     if (loan.status === 'pending') acc[userId].stats.newRequests++;
-    if (loan.status === 'active' || loan.status === 'approved') acc[userId].stats.activeLoans++;
+    if (loan.status === 'active' || loan.status === 'approved') {
+      acc[userId].stats.activeLoans++;
+      acc[userId].stats.activeLoanAmount += loan.amount || 0;
+      acc[userId].stats.activeLoanInterest += Math.round((loan.amount || 0) * ((loan.interest_rate || 0) / 100));
+    }
     if (loan.status === 'completed') acc[userId].stats.completedLoans++;
     acc[userId].stats.totalBorrowed += loan.amount;
     acc[userId].stats.totalPaid += loan.paidAmount;
@@ -299,17 +305,6 @@ const LoanRequests = () => {
     return null;
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Chargement des demandes...</p>
-        </div>
-      </div>
-    );
-  }
-
   if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center p-4">
@@ -360,8 +355,14 @@ const LoanRequests = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {loading && (
+          <div className="flex items-center justify-center gap-2 py-2 mb-4 text-gray-500 text-sm">
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent" />
+            <span>Chargement des demandes...</span>
+          </div>
+        )}
         {/* Stats Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+        <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 transition-opacity duration-200 ${loading ? 'opacity-75' : ''}`}>
           {/* Nouvelles demandes */}
           <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 group">
             <div className="flex items-start justify-between mb-4">
@@ -578,13 +579,18 @@ const LoanRequests = () => {
                       </div>
                           </div>
 
-                    {/* Footer */}
-                    <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 pt-4 border-t border-gray-100">
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 sm:gap-4 text-xs sm:text-sm text-gray-600">
+                    {/* Footer : totaux + prêt en cours + intérêt à rembourser */}
+                    <div className="flex flex-col gap-3 pt-4 border-t border-gray-100">
+                      <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-sm text-gray-600">
                         <span className="truncate">Total emprunté: <span className="font-bold text-gray-900">{formatCurrency(profile.stats.totalBorrowed)}</span></span>
                         <span className="truncate">Total payé: <span className="font-bold text-green-600">{formatCurrency(profile.stats.totalPaid)}</span></span>
-                          </div>
-                      
+                        {profile.stats.activeLoans > 0 && (
+                          <>
+                            <span className="truncate">Prêt en cours: <span className="font-bold text-blue-700">{formatCurrency(profile.stats.activeLoanAmount)}</span></span>
+                            <span className="truncate">Intérêt à rembourser: <span className="font-bold text-orange-600">{formatCurrency(profile.stats.activeLoanInterest)}</span></span>
+                          </>
+                        )}
+                      </div>
                       <button
                         className="flex items-center justify-center gap-2 px-3 sm:px-4 py-2 bg-gradient-to-r from-blue-500 to-purple-600 hover:from-blue-600 hover:to-purple-700 text-white rounded-xl transition-all duration-200 shadow-md hover:shadow-lg w-full sm:w-auto"
                       >

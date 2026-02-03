@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, Suspense, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
@@ -53,6 +53,8 @@ import TestOTP from './components/TestOTP';
 import TestHealth from './components/TestHealth';
 import TestFedaPay from './components/TestFedaPay';
 import './styles/globals.css';
+
+const AdminDetailedStatistics = lazy(() => import('./components/Admin/AdminDetailedStatistics'));
 
 // Composant de notification de mise à jour
 
@@ -251,7 +253,19 @@ const AppContent = () => {
               </Layout>
             </ProtectedRoute>
           } />
-          
+          <Route path="/admin/analytics/detailed" element={
+            <ProtectedRoute adminOnly>
+              <Layout>
+                <Suspense fallback={
+                  <div className="min-h-screen flex items-center justify-center bg-green-50">
+                    <div className="animate-spin rounded-full h-10 w-10 border-2 border-green-500 border-t-transparent" />
+                  </div>
+                }>
+                  <AdminDetailedStatistics />
+                </Suspense>
+              </Layout>
+            </ProtectedRoute>
+          } />
           <Route path="/admin/settings" element={
             <ProtectedRoute adminOnly>
               <Layout>

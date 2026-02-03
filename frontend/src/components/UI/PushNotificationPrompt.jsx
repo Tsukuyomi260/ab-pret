@@ -8,71 +8,26 @@ const PushNotificationPrompt = () => {
   const [isProcessing, setIsProcessing] = useState(false);
   const { isSupported, isSubscribed, hasAskedPermission, subscribeUser } = usePushNotifications();
 
-  console.log('[PUSH PROMPT] Composant rendu');
-
   useEffect(() => {
-    // Vérifier si l'utilisateur a définitivement refusé les notifications
     const hasDeclinedPrompt = localStorage.getItem('notification-prompt-declined');
-    if (hasDeclinedPrompt === 'true') {
-      console.log('[PUSH PROMPT] L\'utilisateur a définitivement refusé les notifications - pas d\'affichage');
-      return;
-    }
+    if (hasDeclinedPrompt === 'true') return;
+    if (isSubscribed) return;
 
-    // Vérifier si l'abonnement est actif
-    if (isSubscribed) {
-      console.log('[PUSH PROMPT] L\'utilisateur est déjà abonné - pas d\'affichage');
-      return;
-    }
-
-    // Vérifier si l'abonnement est marqué comme inactif
     const subscriptionInactive = localStorage.getItem('subscription-inactive');
-    if (subscriptionInactive !== 'true') {
-      console.log('[PUSH PROMPT] L\'abonnement n\'est pas marqué comme inactif - pas d\'affichage');
-      return;
-    }
+    if (subscriptionInactive !== 'true') return;
 
-    // Vérifier si l'utilisateur a déjà vu le prompt récemment (dans les dernières 24h)
     const hasSeenPrompt = localStorage.getItem('notification-prompt-seen');
     if (hasSeenPrompt === 'true') {
       const lastSeen = localStorage.getItem('notification-prompt-last-seen');
       if (lastSeen) {
         const hoursSinceLastSeen = (Date.now() - parseInt(lastSeen)) / (1000 * 60 * 60);
-        if (hoursSinceLastSeen < 24) {
-          console.log('[PUSH PROMPT] L\'utilisateur a vu le prompt récemment (il y a', Math.round(hoursSinceLastSeen), 'heures) - pas d\'affichage');
-          return;
-        }
+        if (hoursSinceLastSeen < 24) return;
       }
     }
 
-    // Debug: afficher les états
-    console.log('[PUSH PROMPT] États:', {
-      isSupported,
-      hasAskedPermission,
-      isSubscribed,
-      permission: Notification.permission
-    });
-
-    // Afficher le prompt si :
-    // - Les notifications sont supportées
-    // - On a vérifié l'état d'abonnement
-    // - L'utilisateur n'est pas abonné
-    // - La permission n'a pas été refusée
     if (isSupported && hasAskedPermission && !isSubscribed && Notification.permission !== 'denied') {
-      console.log('[PUSH PROMPT] ✅ Affichage du prompt dans 3 secondes...');
-      // Attendre 3 secondes pour que l'app se charge bien
-      const timer = setTimeout(() => {
-        console.log('[PUSH PROMPT] 🎯 Affichage du prompt maintenant !');
-        setShowPrompt(true);
-      }, 3000);
-
+      const timer = setTimeout(() => setShowPrompt(true), 3000);
       return () => clearTimeout(timer);
-    } else {
-      console.log('[PUSH PROMPT] Conditions non remplies pour afficher le prompt:', {
-        isSupported,
-        hasAskedPermission,
-        isSubscribed,
-        permission: Notification.permission
-      });
     }
   }, [isSupported, hasAskedPermission, isSubscribed]);
 

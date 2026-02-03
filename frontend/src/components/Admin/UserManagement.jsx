@@ -32,7 +32,7 @@ const UserManagement = () => {
   const navigate = useNavigate();
   const { showSuccess, showError } = useNotifications();
   const [users, setUsers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedUser, setSelectedUser] = useState(null);
@@ -201,17 +201,6 @@ const UserManagement = () => {
     rejected: users.filter(u => u.status === 'rejected').length
   };
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-purple-500 border-t-transparent mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Chargement des utilisateurs...</p>
-        </div>
-      </div>
-    );
-  }
-
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-yellow-50 to-slate-100 pb-24">
       {/* Header */}
@@ -248,7 +237,13 @@ const UserManagement = () => {
 
       {/* Stats Cards */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-8">
+        {loading && (
+          <div className="flex items-center justify-center gap-2 py-2 mb-4 text-gray-500 text-sm">
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-purple-500 border-t-transparent" />
+            <span>Chargement des utilisateurs...</span>
+          </div>
+        )}
+        <div className={`grid grid-cols-2 md:grid-cols-4 gap-4 mb-8 transition-opacity duration-200 ${loading ? 'opacity-75' : ''}`}>
           <div className="bg-white rounded-2xl p-6 shadow-lg border border-gray-100">
             <div className="flex items-center gap-3 mb-2">
               <div className="p-3 bg-secondary-100 rounded-xl">

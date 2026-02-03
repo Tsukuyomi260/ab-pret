@@ -5,6 +5,7 @@ import { useNotifications } from '../../context/NotificationContext';
 import { useAuth } from '../../context/AuthContext';
 import Card from '../UI/Card';
 import Button from '../UI/Button';
+import { ListSkeleton } from '../UI/Skeleton';
 import NotificationBell from '../UI/NotificationBell';
 import { getLoans, getPayments } from '../../utils/supabaseAPI';
 import { 
@@ -36,7 +37,7 @@ const LoanHistory = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loans, setLoans] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [stats, setStats] = useState({
@@ -263,14 +264,6 @@ const LoanHistory = () => {
     link.click();
     document.body.removeChild(link);
   };
-
-  if (loading) {
-    return (
-      <div className="flex items-center justify-center py-12">
-        <div className="animate-spin rounded-full h-32 w-32 border-b-2 border-primary-600"></div>
-      </div>
-    );
-  }
 
   return (
     <div className="bg-gradient-to-br from-primary-50 via-accent-50 to-secondary-50">
@@ -721,7 +714,9 @@ const LoanHistory = () => {
         <div
         >
           <Card className="bg-white/90 backdrop-blur-sm border-white/20">
-            {filteredLoans.length > 0 ? (
+            {loading ? (
+              <ListSkeleton rows={6} />
+            ) : filteredLoans.length > 0 ? (
               <div className="space-y-4">
                 
                   {filteredLoans.map((loan, index) => (

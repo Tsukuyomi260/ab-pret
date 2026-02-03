@@ -18,6 +18,7 @@ import {
   RefreshCw,
   ArrowRight,
   DollarSign,
+  BarChart3,
   Target,
   Award,
   TrendingDown
@@ -30,12 +31,13 @@ const AdminDashboard = () => {
   const navigate = useNavigate();
   const { isConnected } = useRealtimeNotifications();
 
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [stats, setStats] = useState({
     totalUsers: 0,
     totalLoans: 0,
     totalAmount: 0,
+    totalInterestCollected: 0,
     pendingRequests: 0,
     activeLoans: 0,
     completedLoans: 0,
@@ -69,6 +71,7 @@ const AdminDashboard = () => {
       // Traiter les prêts
       let totalLoans = 0;
       let totalAmount = 0;
+      let totalInterestCollected = 0;
       let pendingRequests = 0;
       let activeLoans = 0;
       let completedLoans = 0;
@@ -77,12 +80,17 @@ const AdminDashboard = () => {
       if (loansResult.success) {
         const loans = loansResult.data || [];
         totalLoans = loans.length;
-        // Ne compter que les prêts validés/approuvés (active ou approved)
-        const approvedLoans = loans.filter(l => l.status === 'active' || l.status === 'approved' || l.status === 'completed');
-        totalAmount = approvedLoans.reduce((sum, loan) => sum + (loan.amount || 0), 0);
+        // Prêts validés par l'admin = ayant été acceptés (approved_at renseigné), tout statut sauf pending/rejected
+        const validatedByAdmin = (l) => l.approved_at && l.status !== 'pending' && l.status !== 'rejected';
+        // Prêts actifs = nombre de prêts validés par l'admin et pas encore remboursés (tout sauf status 'completed')
+        const notYetRepaid = (l) => l.approved_at && l.status !== 'completed' && l.status !== 'rejected' && l.status !== 'pending';
+        activeLoans = loans.filter(notYetRepaid).length;
+        totalAmount = loans.filter(validatedByAdmin).reduce((sum, loan) => sum + (loan.amount || 0), 0);
+        // Intérêts collectés = somme des intérêts des prêts validés et entièrement remboursés
+        const completedValidated = loans.filter(l => l.status === 'completed' && l.approved_at);
+        totalInterestCollected = completedValidated.reduce((sum, l) => sum + Math.round((l.amount || 0) * ((l.interest_rate || 0) / 100)), 0);
         pendingRequests = loans.filter(l => l.status === 'pending').length;
-        activeLoans = loans.filter(l => l.status === 'active' || l.status === 'approved').length;
-        completedLoans = loans.filter(l => l.status === 'completed').length;
+        completedLoans = completedValidated.length;
         
         // Les 5 dernières activités de prêts
         recentLoans = loans.slice(0, 5).map(loan => ({
@@ -130,6 +138,7 @@ const AdminDashboard = () => {
         totalUsers,
         totalLoans,
         totalAmount,
+        totalInterestCollected,
         pendingRequests,
         activeLoans,
         completedLoans,
@@ -218,17 +227,6 @@ const AdminDashboard = () => {
     }
   ];
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Chargement du tableau de bord...</p>
-        </div>
-      </div>
-    );
-  }
-
   if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center p-4">
@@ -288,8 +286,14 @@ const AdminDashboard = () => {
                   </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {loading && (
+          <div className="flex items-center justify-center gap-2 py-2 mb-4 text-gray-500 text-sm">
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-500 border-t-transparent" />
+            <span>Mise à jour des données...</span>
+          </div>
+        )}
         {/* Stats Cards */}
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8">
+        <div className={`grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8 transition-opacity duration-200 ${loading ? 'opacity-75' : ''}`}>
           {/* Total Utilisateurs */}
           <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 group">
             <div className="flex items-start justify-between mb-3 sm:mb-4">
@@ -312,16 +316,25 @@ const AdminDashboard = () => {
             <p className="text-xs sm:text-sm text-blue-100 mt-1">Prêts actifs</p>
                   </div>
 
-          {/* Montant total */}
-          <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 group">
+          {/* Intérêts collectés + lien vers analytics détaillées */}
+          <button
+            type="button"
+            onClick={() => navigate('/admin/analytics/detailed')}
+            className="w-full text-left bg-white rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 group cursor-pointer"
+          >
             <div className="flex items-start justify-between mb-3 sm:mb-4">
               <div className="p-2 sm:p-3 bg-green-100 rounded-xl group-hover:scale-110 transition-transform duration-300">
                 <Wallet size={20} className="sm:w-6 sm:h-6 text-green-600" />
-                      </div>
-                    </div>
-            <p className="text-lg sm:text-xl font-bold text-gray-900">{formatCurrency(stats.totalAmount)}</p>
-            <p className="text-xs sm:text-sm text-gray-600 mt-1">Prêts validés</p>
-                  </div>
+              </div>
+              <BarChart3 size={18} className="text-gray-400 group-hover:text-green-600 transition-colors flex-shrink-0 mt-1" />
+            </div>
+            <p className="text-lg sm:text-xl font-bold text-gray-900">{formatCurrency(stats.totalInterestCollected)}</p>
+            <p className="text-xs sm:text-sm text-gray-600 mt-1">Intérêts collectés</p>
+            <p className="text-xs text-green-600 font-medium mt-2 flex items-center gap-1 group-hover:underline">
+              Voir les statistiques détaillées
+              <ArrowRight size={14} className="inline" />
+            </p>
+          </button>
 
           {/* En attente */}
           <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 group">

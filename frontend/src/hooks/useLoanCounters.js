@@ -66,37 +66,38 @@ export const useLoanCounters = () => {
     }
   };
 
-  // Écouter les changements en temps réel
+  // Charger les compteurs et Realtime après le premier affichage (ne pas bloquer la page)
   useEffect(() => {
     if (!user?.id) return;
 
-    loadCounters();
+    const loadTimer = setTimeout(() => loadCounters(), 400);
 
-    // S'abonner aux changements de la table loans
-    const loansSubscription = supabase
-      .channel('loan_counters')
-      .on(
-        'postgres_changes',
-        {
-          event: '*', // Tous les événements (INSERT, UPDATE, DELETE)
-          schema: 'public',
-          table: 'loans'
-        },
-        (payload) => {
-          console.log('[COUNTERS] Changement détecté:', payload);
-          
-          // Recharger les compteurs après un changement
-          setTimeout(() => {
-            loadCounters();
-          }, 100); // Petit délai pour s'assurer que la base est à jour
-        }
-      )
-      .subscribe((status) => {
-        console.log('[COUNTERS] Statut de la connexion:', status);
-      });
+    let loansSubscription;
+    const channelTimer = setTimeout(() => {
+      loansSubscription = supabase
+        .channel('loan_counters')
+        .on(
+          'postgres_changes',
+          {
+            event: '*',
+            schema: 'public',
+            table: 'loans'
+          },
+          () => {
+            setTimeout(loadCounters, 100);
+          }
+        )
+        .subscribe((status) => {
+          if (process.env.NODE_ENV === 'development' && status === 'CHANNEL_ERROR') {
+            console.warn('[COUNTERS] Realtime non disponible (optionnel)');
+          }
+        });
+    }, 800);
 
     return () => {
-      loansSubscription.unsubscribe();
+      clearTimeout(loadTimer);
+      clearTimeout(channelTimer);
+      if (loansSubscription) loansSubscription.unsubscribe();
     };
   }, [user?.id, user?.role]);
 

@@ -52,7 +52,7 @@ const LoanRequest = () => {
   const [errors, setErrors] = useState({});
   const [calculation, setCalculation] = useState(null);
   const [hasActiveLoan, setHasActiveLoan] = useState(false);
-  const [checkingLoans, setCheckingLoans] = useState(true);
+  const [checkingLoans, setCheckingLoans] = useState(false);
 
   const totalSteps = 4;
 
@@ -434,17 +434,6 @@ const LoanRequest = () => {
     }
   };
 
-  if (checkingLoans) {
-  return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center">
-          <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-blue-500 border-t-transparent mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Vérification...</p>
-          </div>
-        </div>
-    );
-  }
-
   if (submitted) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 flex items-center justify-center p-4">
@@ -513,6 +502,12 @@ const LoanRequest = () => {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 via-purple-50 to-pink-50 pb-24">
+      {checkingLoans && (
+        <div className="sticky top-0 z-40 flex items-center justify-center gap-2 py-2 bg-blue-100/90 text-blue-800 text-sm font-medium">
+          <div className="animate-spin rounded-full h-4 w-4 border-2 border-blue-600 border-t-transparent" />
+          <span>Vérification des prêts en cours...</span>
+        </div>
+      )}
       {/* Header */}
       <div className="bg-white/80 backdrop-blur-lg shadow-lg border-b border-white/50 sticky top-0 z-30">
         <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-6">

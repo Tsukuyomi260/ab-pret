@@ -2,6 +2,8 @@ import { supabase, testSupabaseConnection } from './supabaseClient';
 import { sendOTPSMS, sendWelcomeSMS } from './smsService';
 import { BACKEND_URL } from '../config/backend';
 
+const DEFAULT_PAGE_SIZE = 50;
+
 // ===== TESTS ET VÉRIFICATIONS =====
 
 export const testAllConnections = async () => {
@@ -580,6 +582,35 @@ export const updateUserProfile = async (userId, profileData) => {
   }
 };
 
+/** Utilisateurs paginés (liste admin) — champs nécessaires + count */
+export const getAllUsersPaginated = async (page = 0, pageSize = DEFAULT_PAGE_SIZE) => {
+  try {
+    const from = page * pageSize;
+    const to = from + pageSize - 1;
+    const { data: users, error: usersError, count } = await supabase
+      .from('users')
+      .select('id, first_name, last_name, email, phone_number, status, created_at, filiere, annee_etude, entite, address, user_identity_card_url, temoin_identity_card_url, student_card_url', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to);
+    if (usersError) throw usersError;
+    const { data: loans } = await supabase.from('loans').select('id, user_id, status, amount');
+    const loansData = loans || [];
+    const usersWithStats = (users || []).map(user => {
+      const userLoans = loansData.filter(loan => loan.user_id === user.id);
+      return {
+        ...user,
+        totalLoans: userLoans.length,
+        activeLoans: userLoans.filter(l => l.status === 'approved' || l.status === 'active').length,
+        totalAmount: userLoans.reduce((sum, l) => sum + (l.amount || 0), 0),
+      };
+    });
+    return { success: true, data: usersWithStats, total: count ?? usersWithStats.length };
+  } catch (error) {
+    console.error('[SUPABASE] getAllUsersPaginated:', error.message);
+    return { success: false, error: error.message, data: [], total: 0 };
+  }
+};
+
 export const getAllUsers = async () => {
   try {
     // Récupérer tous les utilisateurs avec leurs informations complètes
@@ -780,6 +811,46 @@ export const getLoans = async (userId = null) => {
   }
 };
 
+/** Prêts paginés + champs allégés pour listes (dashboard, historique) */
+export const getLoansPaginated = async (userId = null, page = 0, pageSize = DEFAULT_PAGE_SIZE) => {
+  try {
+    const from = page * pageSize;
+    const to = from + pageSize - 1;
+    let query = supabase
+      .from('loans')
+      .select('id, amount, status, created_at, purpose, user_id, duration_months, interest_rate, approved_at', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to);
+    if (userId) query = query.eq('user_id', userId);
+    const { data, error, count } = await query;
+    if (error) throw error;
+    return { success: true, data, total: count ?? data?.length ?? 0 };
+  } catch (error) {
+    console.error('[SUPABASE] getLoansPaginated:', error.message);
+    return { success: false, error: error.message, data: [], total: 0 };
+  }
+};
+
+/** Détails complets d’un prêt (pour fiche / admin) — à appeler à la demande */
+export const getLoanById = async (loanId) => {
+  try {
+    const { data, error } = await supabase
+      .from('loans')
+      .select(`
+        *,
+        users (id, first_name, last_name, email, phone_number, address, filiere, annee_etude, entite,
+          temoin_name, temoin_phone, temoin_quartier, user_identity_card_url, temoin_identity_card_url, student_card_url)
+      `)
+      .eq('id', loanId)
+      .single();
+    if (error) throw error;
+    return { success: true, data };
+  } catch (error) {
+    console.error('[SUPABASE] getLoanById:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
 export const updateLoanStatus = async (loanId, status, adminId = null) => {
   try {
     console.log('[UPDATE_LOAN_STATUS] 📝 Mise à jour du prêt:', { loanId, status, adminId });
@@ -946,6 +1017,26 @@ export const getPayments = async (userId = null) => {
   } catch (error) {
     console.error('[SUPABASE] Erreur lors de la récupération des paiements:', error.message);
     return { success: false, error: error.message };
+  }
+};
+
+/** Paiements paginés (champs nécessaires pour listes) */
+export const getPaymentsPaginated = async (userId = null, page = 0, pageSize = DEFAULT_PAGE_SIZE) => {
+  try {
+    const from = page * pageSize;
+    const to = from + pageSize - 1;
+    let query = supabase
+      .from('payments')
+      .select('id, loan_id, user_id, amount, status, created_at, payment_date', { count: 'exact' })
+      .order('created_at', { ascending: false })
+      .range(from, to);
+    if (userId) query = query.eq('user_id', userId);
+    const { data, error, count } = await query;
+    if (error) throw error;
+    return { success: true, data, total: count ?? data?.length ?? 0 };
+  } catch (error) {
+    console.error('[SUPABASE] getPaymentsPaginated:', error.message);
+    return { success: false, error: error.message, data: [], total: 0 };
   }
 };
 

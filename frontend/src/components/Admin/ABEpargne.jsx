@@ -29,7 +29,7 @@ import toast from 'react-hot-toast';
 
 const ABEpargne = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [savingsPlans, setSavingsPlans] = useState([]);
   const [stats, setStats] = useState({
@@ -384,17 +384,6 @@ const ABEpargne = () => {
     );
   });
 
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-purple-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-green-500 border-t-transparent mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Chargement des données...</p>
-        </div>
-      </div>
-    );
-  }
-
   if (error) {
     return (
       <div className="min-h-screen bg-gradient-to-br from-green-50 via-blue-50 to-purple-50 flex items-center justify-center p-4">
@@ -455,8 +444,14 @@ const ABEpargne = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {loading && (
+          <div className="flex items-center justify-center gap-2 py-2 mb-4 text-gray-500 text-sm">
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-green-500 border-t-transparent" />
+            <span>Chargement des données...</span>
+          </div>
+        )}
         {/* Stats Cards - Design Moderne */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
+        <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8 transition-opacity duration-200 ${loading ? 'opacity-75' : ''}`}>
           {/* Card 1: Plans Actifs */}
           <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 group">
             <div className="flex items-start justify-between mb-4">

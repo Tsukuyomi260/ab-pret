@@ -24,7 +24,7 @@ import { formatCurrency } from '../../utils/helpers';
 
 const Analytics = () => {
   const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [analytics, setAnalytics] = useState({
     // Prêts
@@ -34,6 +34,8 @@ const Analytics = () => {
     pendingLoans: 0,
     totalLoanAmount: 0,
     totalPaidAmount: 0,
+    totalInterestCollected: 0,
+    totalInterestNotCollected: 0,
     totalRemainingAmount: 0,
     // Épargne
     totalSavingsPlans: 0,
@@ -54,11 +56,39 @@ const Analytics = () => {
     loadAnalytics();
   }, []);
 
-  const loadAnalytics = async () => {
+  // Mise à jour en temps réel : réagir aux changements sur les tables
+  useEffect(() => {
+    let refreshTimeout = null;
+    const scheduleRefresh = () => {
+      if (refreshTimeout) clearTimeout(refreshTimeout);
+      refreshTimeout = setTimeout(() => loadAnalytics(true), 500);
+    };
+
+    const channel = supabase
+      .channel('analytics_realtime')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'loans' }, scheduleRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'users' }, scheduleRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'payments' }, scheduleRefresh)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'savings_plans' }, scheduleRefresh)
+      .subscribe((status) => {
+        if (status === 'SUBSCRIBED') {
+          console.log('[ANALYTICS] 🔴 Temps réel actif');
+        }
+      });
+
+    return () => {
+      if (refreshTimeout) clearTimeout(refreshTimeout);
+      supabase.removeChannel(channel);
+    };
+  }, []);
+
+  const loadAnalytics = async (silent = false) => {
     try {
-      setLoading(true);
-      setError(null);
-      console.log('[ANALYTICS] 📊 Chargement des analytics...');
+      if (!silent) {
+        setLoading(true);
+        setError(null);
+      }
+      if (!silent) console.log('[ANALYTICS] 📊 Chargement des analytics...');
 
       // Charger toutes les données en parallèle
       const [usersResult, loansResult, paymentsResult, savingsResult] = await Promise.all([
@@ -68,7 +98,7 @@ const Analytics = () => {
         supabase.from('savings_plans').select('*')
       ]);
 
-      console.log('[ANALYTICS] ✅ Données chargées');
+      if (!silent) console.log('[ANALYTICS] ✅ Données chargées');
 
       // Analyser les utilisateurs
       const users = usersResult.success ? usersResult.data : [];
@@ -80,29 +110,50 @@ const Analytics = () => {
       const loans = loansResult.success ? loansResult.data : [];
       const payments = paymentsResult.success ? paymentsResult.data : [];
 
+      // Prêts validés par l'admin (approved_at) = acceptés, tout sauf pending/rejected
+      const validatedByAdmin = (l) => l.approved_at && l.status !== 'pending' && l.status !== 'rejected';
+      const validatedLoans = loans.filter(validatedByAdmin);
+
       const totalLoans = loans.length;
       const activeLoans = loans.filter(l => l.status === 'active' || l.status === 'approved').length;
       const completedLoans = loans.filter(l => l.status === 'completed').length;
       const pendingLoans = loans.filter(l => l.status === 'pending').length;
-      const totalLoanAmount = loans.reduce((sum, l) => sum + (l.amount || 0), 0);
+      // Total prêté = montant total des prêts validés (principal uniquement, sans intérêts ni pénalités)
+      const totalLoanAmount = validatedLoans.reduce((sum, l) => sum + (l.amount || 0), 0);
 
       // Calculer les paiements
       const totalPaidAmount = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
       const totalRemainingAmount = totalLoanAmount - totalPaidAmount;
 
-      // Calculer le taux de remboursement moyen
+      // Intérêts collectés = somme des intérêts des prêts validés et entièrement remboursés (status completed)
+      const completedValidatedLoans = validatedLoans.filter(l => l.status === 'completed');
+      const totalInterestCollected = completedValidatedLoans.reduce((sum, l) => {
+        const principal = l.amount || 0;
+        const rate = (l.interest_rate || 0) / 100;
+        return sum + Math.round(principal * rate);
+      }, 0);
+
+      // Intérêts pas encore collectés = somme des intérêts des prêts validés mais pas encore remboursés (en cours)
+      const notCompletedValidatedLoans = validatedLoans.filter(l => l.status !== 'completed');
+      const totalInterestNotCollected = notCompletedValidatedLoans.reduce((sum, l) => {
+        const principal = l.amount || 0;
+        const rate = (l.interest_rate || 0) / 100;
+        return sum + Math.round(principal * rate);
+      }, 0);
+
+      // Calculer le taux de remboursement moyen (sur le principal validé)
       const averageRepaymentRate = totalLoanAmount > 0 
         ? Math.round((totalPaidAmount / totalLoanAmount) * 100) 
         : 0;
 
-      // Montant moyen des prêts
-      const averageLoanAmount = totalLoans > 0 
-        ? Math.round(totalLoanAmount / totalLoans) 
+      // Montant moyen des prêts validés (principal uniquement)
+      const averageLoanAmount = validatedLoans.length > 0 
+        ? Math.round(totalLoanAmount / validatedLoans.length) 
         : 0;
 
-      // Top emprunteurs (par montant total emprunté)
+      // Top emprunteurs (par montant total emprunté = principal des prêts validés uniquement)
       const borrowerStats = {};
-      loans.forEach(loan => {
+      validatedLoans.forEach(loan => {
         const userId = loan.user_id;
         if (!borrowerStats[userId]) {
           borrowerStats[userId] = {
@@ -138,6 +189,8 @@ const Analytics = () => {
         pendingLoans,
         totalLoanAmount,
         totalPaidAmount,
+        totalInterestCollected,
+        totalInterestNotCollected,
         totalRemainingAmount,
         totalSavingsPlans,
         activeSavingsPlans,
@@ -158,17 +211,6 @@ const Analytics = () => {
       setLoading(false);
     }
   };
-
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-orange-50 via-red-50 to-pink-50 flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-16 w-16 border-4 border-orange-500 border-t-transparent mx-auto mb-4"></div>
-          <p className="text-gray-600 font-medium">Chargement des analytics...</p>
-        </div>
-      </div>
-    );
-  }
 
   if (error) {
     return (
@@ -219,8 +261,14 @@ const Analytics = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {loading && (
+          <div className="flex items-center justify-center gap-2 py-2 mb-4 text-gray-500 text-sm">
+            <div className="animate-spin rounded-full h-4 w-4 border-2 border-orange-500 border-t-transparent" />
+            <span>Chargement des analytics...</span>
+          </div>
+        )}
         {/* Stats Principales - Prêts */}
-        <div className="mb-6">
+        <div className={`mb-6 transition-opacity duration-200 ${loading ? 'opacity-75' : ''}`}>
           <h2 className="text-xl font-bold text-gray-900 font-montserrat mb-4">📊 Prêts</h2>
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
             {/* Total prêts */}
@@ -284,38 +332,43 @@ const Analytics = () => {
               <p className="text-lg sm:text-xl font-bold text-gray-900">{formatCurrency(analytics.totalLoanAmount)}</p>
             </div>
 
-            {/* Total payé */}
+            {/* Intérêts collectés (prêts validés et entièrement remboursés) */}
             <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100">
               <div className="flex items-center gap-3 mb-3">
                 <div className="p-2 bg-green-100 rounded-lg">
                   <CheckCircle size={18} className="text-green-600" />
                 </div>
-                <p className="text-xs sm:text-sm text-gray-600 font-medium">Total payé</p>
+                <p className="text-xs sm:text-sm text-gray-600 font-medium">Intérêts collectés</p>
               </div>
-              <p className="text-lg sm:text-xl font-bold text-green-600">{formatCurrency(analytics.totalPaidAmount)}</p>
+              <p className="text-lg sm:text-xl font-bold text-green-600">{formatCurrency(analytics.totalInterestCollected)}</p>
             </div>
 
-            {/* Restant */}
+            {/* Intérêts à percevoir (prêts validés pas encore remboursés) */}
             <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100">
               <div className="flex items-center gap-3 mb-3">
                 <div className="p-2 bg-orange-100 rounded-lg">
                   <TrendingDown size={18} className="text-orange-600" />
                 </div>
-                <p className="text-xs sm:text-sm text-gray-600 font-medium">Restant</p>
+                <p className="text-xs sm:text-sm text-gray-600 font-medium">Intérêts à percevoir</p>
               </div>
-              <p className="text-lg sm:text-xl font-bold text-orange-600">{formatCurrency(analytics.totalRemainingAmount)}</p>
+              <p className="text-lg sm:text-xl font-bold text-orange-600">{formatCurrency(analytics.totalInterestNotCollected)}</p>
             </div>
 
-            {/* Taux de remboursement */}
-            <div className="bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 text-white">
+            {/* Voir statistiques détaillées */}
+            <button
+              type="button"
+              onClick={() => navigate('/admin/analytics/detailed')}
+              className="w-full text-left bg-gradient-to-br from-green-500 to-emerald-600 rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 text-white group border-0 cursor-pointer"
+            >
               <div className="flex items-center gap-3 mb-3">
-                <div className="p-2 bg-white/20 rounded-lg">
-                  <Target size={18} className="text-white" />
+                <div className="p-2 bg-white/20 rounded-lg group-hover:scale-110 transition-transform">
+                  <BarChart3 size={18} className="text-white" />
                 </div>
-                <p className="text-xs sm:text-sm text-green-100 font-medium">Taux remboursement</p>
+                <p className="text-xs sm:text-sm text-green-100 font-medium">Statistiques détaillées</p>
               </div>
-              <p className="text-2xl sm:text-3xl font-bold">{analytics.averageRepaymentRate}%</p>
-            </div>
+              <p className="text-sm sm:text-base font-semibold text-green-100">Voir les statistiques détaillées</p>
+              <p className="text-xs text-green-200/90 mt-1">Graphiques, filtres par période, comptabilité</p>
+            </button>
           </div>
         </div>
 

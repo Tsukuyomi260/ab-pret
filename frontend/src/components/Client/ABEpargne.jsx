@@ -15,7 +15,7 @@ const ABEpargne = () => {
     nombreMois: 6
   });
   const [showPayment, setShowPayment] = useState(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   
   // Vérifier si on vient d'un paiement (rechargement après paiement)
   useEffect(() => {
@@ -399,20 +399,14 @@ const ABEpargne = () => {
                   </div>
   );
 
-  // Affichage de chargement
-  if (loading) {
-    return (
-      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
-                        <div className="text-center">
-          <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p className="text-gray-600">Chargement de votre plan...</p>
-                        </div>
-                      </div>
-    );
-  }
-
   return (
-    <div className="max-w-sm mx-auto bg-white min-h-screen">
+    <div className="max-w-sm mx-auto bg-white min-h-screen relative">
+      {loading && (
+        <div className="absolute top-4 left-1/2 -translate-x-1/2 z-10 flex items-center gap-2 px-4 py-2 bg-white/95 shadow-lg rounded-full border border-gray-200">
+          <div className="w-5 h-5 border-2 border-blue-600 border-t-transparent rounded-full animate-spin" />
+          <span className="text-sm text-gray-600">Vérification du plan...</span>
+        </div>
+      )}
       {currentPage === 'config' ? <ConfigPage /> : <DashboardPage />}
     </div>
   );

@@ -63,6 +63,9 @@ export const AuthProvider = ({ children }) => {
     let subscription;
     let isInitialized = false;
 
+    const CACHE_MAX_AGE_MS = 5 * 60 * 1000; // 5 minutes pour afficher la page tout de suite
+    const DB_TIMEOUT_MS = 2000;
+
     const initializeAuth = async () => {
       try {
         // 1. Vérifier d'abord la session actuelle
@@ -72,11 +75,63 @@ export const AuthProvider = ({ children }) => {
         if (session?.user) {
           console.log('[AUTH] Session trouvée:', session.user.email);
           
-          // Récupérer le rôle depuis la DB pour être sûr
-          let roleFromJwt = session.user?.user_metadata?.role || session.user?.app_metadata?.role || 'client';
-          
-          try {
-            // Ajouter un timeout pour éviter le blocage
+          const roleFromJwt = session.user?.user_metadata?.role || session.user?.app_metadata?.role || 'client';
+          const cacheTime = localStorage.getItem('ab_user_cache_time');
+          const cached = localStorage.getItem('ab_user_cache');
+          const cacheRecent = cacheTime && cached && (Date.now() - parseInt(cacheTime, 10)) < CACHE_MAX_AGE_MS;
+          let userSetFromCache = false;
+
+          // Si cache récent : afficher la page immédiatement, puis rafraîchir en arrière-plan
+          if (cacheRecent) {
+            try {
+              const cachedUser = JSON.parse(cached);
+              if (cachedUser?.id === session.user.id) {
+                userSetFromCache = true;
+                const userData = {
+                  ...session.user,
+                  role: cachedUser.role || roleFromJwt,
+                  firstName: cachedUser.first_name,
+                  lastName: cachedUser.last_name
+                };
+                setUser(userData);
+                setLoading(false);
+                // Rafraîchir le rôle en arrière-plan (sans bloquer l'affichage)
+                (async () => {
+                  try {
+                    const { data: dbUser } = await supabase
+                      .from('users')
+                      .select('role, first_name, last_name')
+                      .eq('id', session.user.id)
+                      .single();
+                    if (dbUser) {
+                      setUser(prev => ({
+                        ...prev,
+                        ...session.user,
+                        role: dbUser.role || roleFromJwt,
+                        firstName: dbUser.first_name,
+                        lastName: dbUser.last_name
+                      }));
+                      localStorage.setItem('ab_user_cache', JSON.stringify({
+                        id: session.user.id,
+                        email: session.user.email,
+                        role: dbUser.role || roleFromJwt,
+                        first_name: dbUser.first_name || '',
+                        last_name: dbUser.last_name || ''
+                      }));
+                      localStorage.setItem('ab_user_cache_time', Date.now().toString());
+                    }
+                  } catch (_) {}
+                })();
+                // Ne pas return : on continue pour configurer l'écouteur ci-dessous
+              }
+            } catch (e) {
+              console.warn('[AUTH] Cache invalide, fallback DB');
+            }
+          }
+
+          // Pas de cache récent ou cache non utilisé : attendre la réponse DB (timeout court)
+          if (!userSetFromCache) {
+            try {
             const dbQueryPromise = supabase
               .from('users')
               .select('role, first_name, last_name')
@@ -84,40 +139,32 @@ export const AuthProvider = ({ children }) => {
               .single();
             
             const timeoutPromise = new Promise((_, reject) => 
-              setTimeout(() => reject(new Error('Timeout')), 3000)
+              setTimeout(() => reject(new Error('Timeout')), DB_TIMEOUT_MS)
             );
             
             const result = await Promise.race([dbQueryPromise, timeoutPromise]);
             
             if (!result.error && result.data) {
               const dbUser = result.data;
-              console.log('[AUTH] Rôle récupéré depuis la DB:', dbUser.role);
-              roleFromJwt = dbUser.role || roleFromJwt;
-              
-              // Mettre à jour les métadonnées locales
+              const roleFromJwtFinal = dbUser.role || roleFromJwt;
               const userData = { 
                 ...session.user, 
-                role: roleFromJwt,
+                role: roleFromJwtFinal,
                 firstName: dbUser.first_name || session.user.user_metadata?.first_name,
                 lastName: dbUser.last_name || session.user.user_metadata?.last_name
               };
-              
               setUser(userData);
-              
-              // Mettre en cache avec le bon rôle et timestamp
               localStorage.setItem('ab_user_cache', JSON.stringify({
                 id: userData.id,
                 email: userData.email,
-                role: roleFromJwt,
+                role: roleFromJwtFinal,
                 first_name: dbUser.first_name || '',
                 last_name: dbUser.last_name || ''
               }));
               localStorage.setItem('ab_user_cache_time', Date.now().toString());
             } else {
-              console.warn('[AUTH] Impossible de récupérer le rôle depuis la DB, utilisation JWT');
               const userData = { ...session.user, role: roleFromJwt };
               setUser(userData);
-              
               localStorage.setItem('ab_user_cache', JSON.stringify({
                 id: userData.id,
                 email: userData.email,
@@ -131,7 +178,6 @@ export const AuthProvider = ({ children }) => {
             console.warn('[AUTH] Erreur/timeout récupération rôle DB:', dbError.message);
             const userData = { ...session.user, role: roleFromJwt };
             setUser(userData);
-            
             localStorage.setItem('ab_user_cache', JSON.stringify({
               id: userData.id,
               email: userData.email,
@@ -140,6 +186,7 @@ export const AuthProvider = ({ children }) => {
               last_name: userData.user_metadata?.last_name || ''
             }));
             localStorage.setItem('ab_user_cache_time', Date.now().toString());
+          }
           }
         } else {
           console.log('[AUTH] Aucune session active');
