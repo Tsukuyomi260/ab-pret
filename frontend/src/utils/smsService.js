@@ -5,7 +5,7 @@ export const validateBeninPhoneNumber = (phoneNumber) => {
   const beninPhoneRegex = /^\+229[0-9]{8}$/;
   let formattedNumber = phoneNumber;
   if (!phoneNumber.startsWith('+229')) {
-    const cleanNumber = phoneNumber.replace(/[\s\-\(\)]/g, '');
+    const cleanNumber = phoneNumber.replace(/[\s\-()]/g, '');
     if (cleanNumber.startsWith('0')) {
       formattedNumber = '+229' + cleanNumber.substring(1);
     } else if (cleanNumber.startsWith('229')) {

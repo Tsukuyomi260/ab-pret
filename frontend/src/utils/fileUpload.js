@@ -24,7 +24,7 @@ export const uploadFile = async (file, bucket, path) => {
     }
 
     // Upload vers Supabase Storage
-    const { data, error } = await supabase.storage
+    const { error } = await supabase.storage
       .from(bucket)
       .upload(path, file, {
         cacheControl: '3600',

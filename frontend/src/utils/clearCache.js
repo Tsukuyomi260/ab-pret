@@ -96,8 +96,8 @@ export const forceReload = () => {
   if (window.location.reload) {
     window.location.reload(true); // true = bypass cache
   } else {
-    // Fallback pour les navigateurs modernes
-    window.location.href = window.location.href;
+    // Fallback : recharger la page
+    window.location.reload();
   }
 };
 
@@ -125,12 +125,14 @@ export const initCacheManagement = () => {
   return false;
 };
 
-export default {
+const clearCacheModule = {
   checkAndClearCache,
   clearApplicationCache,
   forceReload,
   getAppVersion,
   initCacheManagement
 };
+
+export default clearCacheModule;
 
 

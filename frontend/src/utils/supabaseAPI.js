@@ -1226,7 +1226,6 @@ export const getAnalyticsData = async () => {
 
     const users = usersResult.data;
     const loans = loansResult.data;
-    const payments = paymentsResult.data;
 
     // Calculer les statistiques
     const totalLoans = loans.length;
