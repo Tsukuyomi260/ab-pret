@@ -6,7 +6,7 @@ import { registerServiceWorker } from '../utils/serviceWorkerConfig';
 // Utilitaire pour convertir la clé VAPID
 function urlBase64ToUint8Array(base64String) {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/\-/g, "+").replace(/_/g, "/");
+  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
   const rawData = window.atob(base64);
   return Uint8Array.from([...rawData].map((c) => c.charCodeAt(0)));
 }
@@ -97,6 +97,7 @@ export const usePushNotifications = () => {
     };
 
     checkAndRenewSubscription();
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- exécution volontaire uniquement à l'init / changement user ou vapid
   }, [isSupported, vapidPublicKey, user]);
 
   // Vérification intelligente et renouvellement automatique (différée, sans bloquer l'affichage)
@@ -152,6 +153,7 @@ export const usePushNotifications = () => {
       clearTimeout(id);
       if (intervalId) clearInterval(intervalId);
     };
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- interval volontaire, pas de renouvellement à chaque changement de callback
   }, [user?.id, vapidPublicKey]);
 
   // Valider un token d'abonnement de manière intelligente
@@ -349,9 +351,9 @@ export const usePushNotifications = () => {
     try {
       // Enregistrer le service worker avec la configuration
       console.log('[PUSH HOOK] Enregistrement du service worker...');
-      const reg = await registerServiceWorker();
-      
-      if (!reg) {
+      const registration = await registerServiceWorker();
+
+      if (!registration) {
         console.log('[PUSH HOOK] Service worker non disponible, continuation sans...');
       }
 
@@ -367,7 +369,7 @@ export const usePushNotifications = () => {
 
       // Vérifier si déjà abonné
       console.log('[PUSH HOOK] Vérification de l\'abonnement existant...');
-      const existingSubscription = await reg.pushManager.getSubscription();
+      const existingSubscription = registration ? await registration.pushManager.getSubscription() : null;
       if (existingSubscription) {
         setSubscription(existingSubscription);
         setIsSubscribed(true);
@@ -377,7 +379,8 @@ export const usePushNotifications = () => {
 
       // Créer un nouvel abonnement
       console.log('[PUSH HOOK] Création d\'un nouvel abonnement...');
-      const newSubscription = await reg.pushManager.subscribe({
+      if (!registration) return false;
+      const newSubscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(vapidPublicKey),
       });
@@ -422,7 +425,7 @@ export const usePushNotifications = () => {
     if (!subscription) return false;
 
     try {
-      const reg = await navigator.serviceWorker.ready;
+      await navigator.serviceWorker.ready;
       const result = await subscription.unsubscribe();
       
       if (result) {

@@ -321,6 +321,10 @@ export const NotificationProvider = ({ children }) => {
   }, [loadRealNotifications]);
 
   // Fonctions pour les toasts
+  const removeToast = useCallback((id) => {
+    setToasts(prev => prev.filter(toast => toast.id !== id));
+  }, []);
+
   const showToast = useCallback((message, type = 'info', duration = 5000) => {
     const id = Date.now() + Math.random();
     const newToast = { id, message, type, duration };
@@ -329,7 +333,7 @@ export const NotificationProvider = ({ children }) => {
     setTimeout(() => {
       removeToast(id);
     }, duration);
-  }, []);
+  }, [removeToast]);
 
   const showSuccess = useCallback((message) => {
     showToast(message, 'success');
@@ -346,10 +350,6 @@ export const NotificationProvider = ({ children }) => {
   const showInfo = useCallback((message) => {
     showToast(message, 'info');
   }, [showToast]);
-
-  const removeToast = useCallback((id) => {
-    setToasts(prev => prev.filter(toast => toast.id !== id));
-  }, []);
 
   // Initialiser avec des notifications réelles (sans userId pour éviter de charger toutes les notifications)
   // Les notifications seront chargées par les composants qui utilisent le contexte avec le bon userId

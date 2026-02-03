@@ -181,7 +181,9 @@ export const useRealtimeNotifications = () => {
         loansSubscription.unsubscribe();
       };
     }
-  }, [addNotification, user?.role, user?.id]); // Dépendance sur le rôle et l'ID de l'utilisateur
+  // processedIds (Set stable) et user (usage via user?.id / user?.role) volontairement stables pour éviter ré-abonnements
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addNotification, user?.role, user?.id]);
 
   return { isConnected };
 };

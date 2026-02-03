@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { useAuth } from '../context/AuthContext';
 
@@ -15,7 +15,7 @@ export const useLoanCounters = () => {
   const [pendingRequests, setPendingRequests] = useState(0); // Demandes en attente de validation
 
   // Charger les compteurs initiaux
-  const loadCounters = async () => {
+  const loadCounters = useCallback(async () => {
     if (!user?.id) return;
 
     try {
@@ -64,7 +64,7 @@ export const useLoanCounters = () => {
     } catch (error) {
       console.error('Erreur lors du chargement des compteurs:', error);
     }
-  };
+  }, [user?.id, user?.role]);
 
   // Charger les compteurs et Realtime après le premier affichage (ne pas bloquer la page)
   useEffect(() => {
@@ -99,7 +99,7 @@ export const useLoanCounters = () => {
       clearTimeout(channelTimer);
       if (loansSubscription) loansSubscription.unsubscribe();
     };
-  }, [user?.id, user?.role]);
+  }, [user?.id, user?.role, loadCounters]);
 
   // Fonction pour obtenir le compteur de demandes en attente (admin seulement)
   const getPendingRequestsCount = () => {
