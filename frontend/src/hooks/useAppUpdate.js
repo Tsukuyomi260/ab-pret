@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 
-const CHECK_INTERVAL = 5 * 60 * 1000; // Vérifier toutes les 5 minutes
+const CHECK_INTERVAL = 2 * 60 * 1000; // Vérifier toutes les 2 minutes
 const VERSION_FILE = '/version.json';
 
 export const useAppUpdate = () => {

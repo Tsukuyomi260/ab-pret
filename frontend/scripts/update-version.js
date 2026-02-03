@@ -36,6 +36,19 @@ try {
     'utf8'
   );
 
+  // Mettre à jour le CACHE_NAME dans le Service Worker pour invalider le cache à chaque déploiement
+  const swPath = path.join(__dirname, '../public/serviceWorker.js');
+  if (fs.existsSync(swPath)) {
+    const cacheName = `ab-campus-finance-v${versionData.version}-b${versionData.buildNumber}`;
+    let swContent = fs.readFileSync(swPath, 'utf8');
+    swContent = swContent.replace(
+      /const CACHE_NAME = '[^']+';/,
+      `const CACHE_NAME = '${cacheName}';`
+    );
+    fs.writeFileSync(swPath, swContent, 'utf8');
+    console.log(`   Cache SW: ${cacheName}`);
+  }
+
   console.log('✅ Version mise à jour:');
   console.log(`   Version: ${versionData.version}`);
   console.log(`   Build Number: ${versionData.buildNumber}`);
