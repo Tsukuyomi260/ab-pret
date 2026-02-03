@@ -1,5 +1,5 @@
 import { supabase, testSupabaseConnection } from './supabaseClient';
-import { sendOTPSMS, sendWelcomeSMS } from './smsService';
+import { sendOTPSMS } from './smsService';
 import { BACKEND_URL } from '../config/backend';
 
 const DEFAULT_PAGE_SIZE = 50;
@@ -1337,8 +1337,6 @@ export const processFedaPayLoanRepayment = async (transactionData) => {
         .single();
 
       if (userData?.phone_number) {
-        const message = `CAMPUS FINANCE\n\nBonjour ${userData.first_name || 'Client'},\n\nVotre remboursement de ${new Intl.NumberFormat('fr-CI', { style: 'currency', currency: 'XOF' }).format(amount / 100)} a été traité avec succès.\n\nMerci pour votre confiance !\n\nCampus Finance`;
-        
         await sendOTPSMS(userData.phone_number, 'CONFIRMATION', userData.first_name || 'Client');
       }
     } catch (smsError) {

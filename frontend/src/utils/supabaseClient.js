@@ -44,11 +44,11 @@ export const testSupabaseConnection = async () => {
   }
 
   try {
-    const { data, error } = await supabase
+    const { error } = await supabase
       .from('users')
       .select('count')
       .limit(1);
-    
+
     if (error) {
       console.error('[SUPABASE] Erreur de connexion:', error.message);
       return { success: false, error: error.message };

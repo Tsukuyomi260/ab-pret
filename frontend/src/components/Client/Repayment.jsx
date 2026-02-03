@@ -50,8 +50,8 @@ const Repayment = () => {
 
         // Trouver le prêt actif ou approuvé le plus récent (pas les prêts complétés)
         console.log('[REPAYMENT] Tous les prêts:', loans.map(loan => ({ id: loan.id, status: loan.status })));
-        const activeLoan = loans.find(loan => 
-          loan.status === 'active' || loan.status === 'approved'
+        const activeLoan = loans.find(loan =>
+          loan.status === 'active' || loan.status === 'approved' || loan.status === 'overdue'
         );
         console.log('[REPAYMENT] Prêt actif trouvé:', activeLoan ? { id: activeLoan.id, status: activeLoan.status } : 'Aucun');
         
@@ -65,32 +65,30 @@ const Repayment = () => {
           const interestAmount = principalAmount * (activeLoan.interest_rate || 0) / 100;
           const totalOriginalAmount = principalAmount + interestAmount;
           
-          // Ajouter les pénalités si le prêt est en retard
-          const penaltyAmount = parseFloat(activeLoan.total_penalty_amount || 0);
-          const totalAmountWithPenalty = totalOriginalAmount + penaltyAmount;
-          const remainingAmount = Math.max(0, totalAmountWithPenalty - paidAmount);
-          
-          // Debug: Vérifier les calculs
-          console.log('[REPAYMENT] Calculs détaillés:', {
-            principalAmount: principalAmount,
-            interestAmount: interestAmount,
-            totalOriginalAmount: totalOriginalAmount,
-            penaltyAmount: penaltyAmount,
-            totalAmountWithPenalty: totalAmountWithPenalty,
-            paidAmount: paidAmount,
-            remainingAmount: remainingAmount,
-            remainingAmountRounded: Math.round(remainingAmount),
-            loanStatus: activeLoan.status
-          });
-          
-          // Calculer la date d'échéance (le décompte commence à partir de la date d'approbation)
-          const durationDays = activeLoan.duration || 30; // duration contient le nombre de jours
+          // Durée en jours : duration_months * 30 ou duration (jours) ou 30
+          const durationDays = activeLoan.duration_months != null
+            ? Math.round(Number(activeLoan.duration_months) * 30)
+            : (activeLoan.duration != null ? Number(activeLoan.duration) : 30);
           let dueDate = null;
           let nextPaymentDate = null;
-          
+
           if (activeLoan.approved_at) {
             const approvedDate = new Date(activeLoan.approved_at);
             dueDate = new Date(approvedDate.getTime() + (durationDays * 24 * 60 * 60 * 1000));
+          }
+
+          // Pénalités : utiliser celles du serveur ou calculer côté client si prêt en retard et serveur pas à jour
+          let penaltyAmount = parseFloat(activeLoan.total_penalty_amount || 0);
+          if (dueDate && new Date() > dueDate && penaltyAmount === 0) {
+            const daysOverdue = Math.floor((new Date() - dueDate) / (1000 * 60 * 60 * 24));
+            const penaltyRate = parseFloat(activeLoan.daily_penalty_rate) || 2.0;
+            penaltyAmount = totalOriginalAmount * (penaltyRate / 100) * daysOverdue;
+          }
+          const totalAmountWithPenalty = totalOriginalAmount + penaltyAmount;
+          const remainingAmount = Math.max(0, totalAmountWithPenalty - paidAmount);
+
+          if (activeLoan.approved_at) {
+            const approvedDate = new Date(activeLoan.approved_at);
             
             // Calculer la date du prochain paiement (basée sur la date d'approbation)
             const now = new Date();
@@ -123,7 +121,7 @@ const Repayment = () => {
             dueDate: dueDate ? dueDate.toISOString().split('T')[0] : null,
             nextPaymentDate: nextPaymentDate ? nextPaymentDate.toISOString().split('T')[0] : null,
             interest_rate: activeLoan.interest_rate || 0,
-            duration: activeLoan.duration || 30,
+            duration: durationDays,
             purpose: activeLoan.purpose || 'Non spécifié',
             status: activeLoan.status
           };
