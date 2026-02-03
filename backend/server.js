@@ -3084,7 +3084,7 @@ async function manageOverdueLoans() {
     const today = new Date();
     today.setHours(0, 0, 0, 0);
     
-    // Récupérer tous les prêts actifs
+    // Récupérer tous les prêts actifs ou déjà en retard (pour recalculer les pénalités)
     const { data: activeLoans, error: loansError } = await supabase
       .from('loans')
       .select(`
@@ -3093,13 +3093,14 @@ async function manageOverdueLoans() {
         amount,
         interest_rate,
         duration,
+        duration_months,
         approved_at,
         status,
         daily_penalty_rate,
         total_penalty_amount,
         last_penalty_calculation
       `)
-      .eq('status', 'active')
+      .in('status', ['active', 'overdue'])
       .not('approved_at', 'is', null);
     
     if (loansError) {
@@ -3117,34 +3118,32 @@ async function manageOverdueLoans() {
     
     for (const loan of activeLoans) {
       try {
-        // Calculer la date d'échéance
+        // Durée en jours : duration_months * 30 si duration en mois, sinon duration (déjà en jours)
+        const durationDays = loan.duration_months != null
+          ? Math.round(Number(loan.duration_months) * 30)
+          : (loan.duration != null ? Number(loan.duration) : 30);
         const approvedDate = new Date(loan.approved_at);
         const dueDate = new Date(approvedDate);
-        dueDate.setDate(dueDate.getDate() + loan.duration);
-        
+        dueDate.setDate(dueDate.getDate() + durationDays);
+
         const daysOverdue = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
-        
+
         if (daysOverdue > 0) {
-          // Prêt en retard - calculer les pénalités
-          const penaltyRate = loan.daily_penalty_rate || 2.0; // 2% par défaut
-          const principalAmount = parseFloat(loan.amount);
-          const interestAmount = principalAmount * (loan.interest_rate / 100);
+          // Prêt en retard - calculer les pénalités (2% par jour sur le montant dû)
+          const penaltyRate = loan.daily_penalty_rate != null ? Number(loan.daily_penalty_rate) : 2.0;
+          const principalAmount = parseFloat(loan.amount) || 0;
+          const interestAmount = principalAmount * ((loan.interest_rate || 0) / 100);
           const totalOriginalAmount = principalAmount + interestAmount;
-          
-          // Calculer la pénalité totale
+
           const totalPenalty = totalOriginalAmount * (penaltyRate / 100) * daysOverdue;
-          const totalAmountWithPenalty = totalOriginalAmount + totalPenalty;
-          
-          // Vérifier si c'est un nouveau prêt en retard
           const wasOverdue = loan.status === 'overdue';
-          const newStatus = 'overdue';
-          
-          // Mettre à jour le prêt avec les pénalités
+
+          // Mettre à jour le prêt : pénalités + statut overdue (nécessite que la contrainte DB inclue 'overdue')
           const { error: updateError } = await supabase
             .from('loans')
             .update({
-              status: newStatus,
-              total_penalty_amount: totalPenalty,
+              status: 'overdue',
+              total_penalty_amount: Math.round(totalPenalty * 100) / 100,
               last_penalty_calculation: today.toISOString(),
               updated_at: new Date().toISOString()
             })
