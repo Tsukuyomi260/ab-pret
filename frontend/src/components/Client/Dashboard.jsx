@@ -1,9 +1,11 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import ContactButton from '../UI/ContactButton';
+import LoyaltyAchievementModal from '../UI/LoyaltyAchievementModal';
 import { useDashboardStats } from '../../hooks/useDashboardStats';
 import { DashboardStatsSkeleton } from '../UI/Skeleton';
+import { checkLoyaltyPopup } from '../../utils/supabaseAPI';
 import { 
   CreditCard, 
   Clock, 
@@ -25,6 +27,27 @@ const ClientDashboard = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const { stats, loading, error, refetch: loadStats, isFetching } = useDashboardStats(user?.id);
+  const [showLoyaltyModal, setShowLoyaltyModal] = useState(false);
+  const [loyaltyModalData, setLoyaltyModalData] = useState(null);
+
+  // Vérifier si un popup de fidélité doit être affiché au chargement
+  useEffect(() => {
+    const checkPopup = async () => {
+      if (user?.id) {
+        try {
+          const result = await checkLoyaltyPopup(user.id, false);
+          if (result.success && result.showPopup) {
+            setLoyaltyModalData(result.notification);
+            setShowLoyaltyModal(true);
+          }
+        } catch (error) {
+          console.error('[DASHBOARD] Erreur vérification popup fidélité:', error);
+        }
+      }
+    };
+
+    checkPopup();
+  }, [user?.id]);
 
   if (error) {
     return (
@@ -246,6 +269,17 @@ const ClientDashboard = () => {
       </div>
       
       <ContactButton />
+
+      {/* Modal de félicitations pour la fidélité */}
+      <LoyaltyAchievementModal
+        isOpen={showLoyaltyModal}
+        onClose={() => setShowLoyaltyModal(false)}
+        userName={loyaltyModalData?.userName || user?.first_name || 'Cher client'}
+        onViewBenefits={() => navigate('/loyalty-score')}
+        onContactAdmin={() => {
+          // Le modal gère déjà le contact WhatsApp
+        }}
+      />
       </div>
   );
 };

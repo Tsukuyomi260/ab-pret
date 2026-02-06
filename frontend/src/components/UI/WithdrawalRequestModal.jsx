@@ -79,52 +79,29 @@ const WithdrawalRequestModal = ({ plan, onClose, onSuccess }) => {
         console.error('[WITHDRAWAL] Erreur mise à jour plan:', updateError);
       }
 
-      // Créer une notification pour l'admin
-      const { data: adminData } = await supabase
-        .from('users')
-        .select('id')
-        .eq('role', 'admin')
-        .single();
+      // Notifier l'admin via le backend (notification en base + push) — l'insert côté client est bloqué par RLS
+      try {
+        const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+        const notifResponse = await fetch(`${BACKEND_URL}/api/notify-admin-withdrawal`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            withdrawalId: withdrawalData.id,
+            clientName: `${plan.user?.first_name} ${plan.user?.last_name}`,
+            amount: plan.current_balance,
+            userId: plan.user_id,
+            planId: plan.id
+          })
+        });
 
-      if (adminData) {
-        await supabase
-          .from('notifications')
-          .insert([{
-            user_id: adminData.id,
-            title: 'Nouvelle demande de retrait',
-            message: `${plan.user?.first_name} ${plan.user?.last_name} demande un retrait de ${formatCurrency(plan.current_balance)}`,
-            type: 'withdrawal_request',
-            data: {
-              withdrawal_id: withdrawalData.id,
-              plan_id: plan.id,
-              user_id: plan.user_id,
-              amount: plan.current_balance
-            }
-          }]);
-
-        // Envoyer une notification push à l'admin
-        try {
-          const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
-          const notifResponse = await fetch(`${BACKEND_URL}/api/notify-admin-withdrawal`, {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              withdrawalId: withdrawalData.id,
-              clientName: `${plan.user?.first_name} ${plan.user?.last_name}`,
-              amount: plan.current_balance,
-              userId: plan.user_id
-            })
-          });
-
-          if (notifResponse.ok) {
-            console.log('[WITHDRAWAL] ✅ Notification push envoyée à l\'admin');
-          } else {
-            console.error('[WITHDRAWAL] ⚠️ Erreur notification push:', await notifResponse.text());
-          }
-        } catch (notifError) {
-          console.error('[WITHDRAWAL] ⚠️ Erreur envoi notification push:', notifError);
-          // Ne pas bloquer la demande si la notification échoue
+        if (notifResponse.ok) {
+          console.log('[WITHDRAWAL] ✅ Notification envoyée à l\'admin (cloche + push)');
+        } else {
+          console.error('[WITHDRAWAL] ⚠️ Erreur notification admin:', await notifResponse.text());
         }
+      } catch (notifError) {
+        console.error('[WITHDRAWAL] ⚠️ Erreur envoi notification admin:', notifError);
+        // Ne pas bloquer la demande si la notification échoue
       }
 
       console.log('[WITHDRAWAL] ✅ Demande de retrait envoyée avec succès');

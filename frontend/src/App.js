@@ -29,6 +29,7 @@ import AdminMenu from './components/Admin/AdminMenu';
 import Settings from './components/Admin/Settings';
 import AdminABEpargne from './components/Admin/ABEpargne';
 import TestNotifications from './components/Admin/TestNotifications';
+import Transactions from './components/Admin/Transactions';
 
 import LoanRequest from './components/Client/LoanRequest';
 import LoanHistory from './components/Client/LoanHistory';
@@ -40,6 +41,7 @@ import Profile from './components/Client/Profile';
 import Menu from './components/Client/Menu';
 import ABLogement from './components/Client/ABLogement';
 import ABEpargne from './components/Client/ABEpargne';
+import EpargneHistorique from './components/Client/EpargneHistorique';
 import RetourEpargne from './components/Client/RetourEpargne';
 import PlanEpargne from './components/Client/PlanEpargne';
 import PersonalizePlan from './components/Client/PersonalizePlan';
@@ -290,6 +292,14 @@ const AppContent = () => {
             </ProtectedRoute>
           } />
           
+          <Route path="/admin/transactions" element={
+            <ProtectedRoute adminOnly>
+              <Layout>
+                <Transactions />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          
           <Route path="/loan-request" element={
             <ProtectedRoute>
               <Layout>
@@ -370,7 +380,13 @@ const AppContent = () => {
               </Layout>
             </ProtectedRoute>
           } />
-          
+          <Route path="/ab-epargne/historique" element={
+            <ProtectedRoute>
+              <Layout>
+                <EpargneHistorique />
+              </Layout>
+            </ProtectedRoute>
+          } />
           <Route path="/ab-epargne/retour" element={
             <ProtectedRoute>
               <Layout>

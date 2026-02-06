@@ -1094,35 +1094,64 @@ app.post('/api/fedapay/webhook', async (req, res) => {
             supabaseUrl: process.env.REACT_APP_SUPABASE_URL ? 'Configurée' : 'Manquante'
           });
 
-          // 1. Créer l'enregistrement de paiement
-          const { data: paymentData, error: paymentError } = await supabase
+          // 1. Vérifier si le paiement existe déjà (idempotence)
+          const { data: existingPayment } = await supabase
             .from('payments')
-            .insert([{
-              loan_id: loanId,
-              user_id: userId,
-              amount: transaction.amount,
-              method: 'mobile_money', // Valeur par défaut simple
-              status: 'completed',
-            transaction_id: transaction.id,
-              payment_date: new Date().toISOString(),
-              description: `Remboursement complet du prêt #${loanId}`,
-              metadata: {
-                fedapay_data: {
-                  transaction_id: transaction.id,
-                  amount: transaction.amount,
-                  payment_date: new Date().toISOString(),
-                  payment_method: transaction.payment_method
-                },
-                payment_type: 'loan_repayment',
-                app_source: 'ab_pret_web'
-              }
-            }])
-            .select()
-            .single();
+            .select('id')
+            .or(`fedapay_transaction_id.eq.${transaction.id},transaction_id.eq.${transaction.id}`)
+            .maybeSingle();
 
-          if (paymentError) {
-            console.error('[FEDAPAY_WEBHOOK] ❌ Erreur création paiement:', paymentError);
-            throw paymentError;
+          let paymentData;
+          
+          if (existingPayment) {
+            console.log('[FEDAPAY_WEBHOOK] ⚠️ Paiement déjà existant, évite le doublon:', {
+              payment_id: existingPayment.id,
+              transaction_id: transaction.id
+            });
+            // Retourner le paiement existant au lieu de créer un doublon
+            const { data: existingPaymentData } = await supabase
+              .from('payments')
+              .select('*')
+              .eq('id', existingPayment.id)
+              .single();
+            
+            paymentData = existingPaymentData;
+            console.log('[FEDAPAY_WEBHOOK] ✅ Utilisation du paiement existant:', paymentData);
+          } else {
+            // Créer l'enregistrement de paiement seulement s'il n'existe pas
+            const { data: newPaymentData, error: paymentError } = await supabase
+              .from('payments')
+              .insert([{
+                loan_id: loanId,
+                user_id: userId,
+                amount: transaction.amount,
+                method: 'mobile_money', // Valeur par défaut simple
+                status: 'completed',
+                transaction_id: transaction.id,
+                fedapay_transaction_id: transaction.id, // Ajouter aussi dans ce champ pour cohérence
+                payment_date: new Date().toISOString(),
+                description: `Remboursement complet du prêt #${loanId}`,
+                metadata: {
+                  fedapay_data: {
+                    transaction_id: transaction.id,
+                    amount: transaction.amount,
+                    payment_date: new Date().toISOString(),
+                    payment_method: transaction.payment_method
+                  },
+                  payment_type: 'loan_repayment',
+                  app_source: 'ab_pret_web'
+                }
+              }])
+              .select()
+              .single();
+
+            if (paymentError) {
+              console.error('[FEDAPAY_WEBHOOK] ❌ Erreur création paiement:', paymentError);
+              throw paymentError;
+            }
+
+            paymentData = newPaymentData;
+            console.log('[FEDAPAY_WEBHOOK] ✅ Paiement créé:', paymentData);
           }
 
           console.log('[FEDAPAY_WEBHOOK] ✅ Paiement créé:', paymentData);
@@ -1301,43 +1330,71 @@ app.post('/api/fedapay/webhook', async (req, res) => {
             reference: transaction.reference
           });
 
-          // Créer le plan d'épargne
-          const { data: plan, error: planErr } = await supabase
+          // Vérifier si le plan existe déjà (idempotence) - éviter les doublons
+          const { data: existingPlan } = await supabase
             .from('savings_plans')
-            .insert({
-              user_id: userId,
-              savings_account_id: account.id,
-              plan_name: 'Plan Épargne',
-              fixed_amount: fixedAmount,
-              frequency_days: frequencyDays,
-              duration_months: durationMonths,
-              total_deposits_required: totalDepositsRequired,
-              total_amount_target: totalAmountTarget,
-              completed_deposits: 0,
-              current_balance: 0,
-              total_deposited: 0,
-              start_date: startDate.toISOString(),
-              end_date: endDate.toISOString(),
-              next_deposit_date: startDate.toISOString(),
-              status: 'active',
-              completion_percentage: 0,
-              transaction_reference: transaction.reference,
-              interest_rate: 5,          // 👈 taux d'intérêt par mois
-              created_at: new Date().toISOString(),
-              updated_at: new Date().toISOString()
-            })
-            .select()
-            .single();
+            .select('id')
+            .eq('transaction_reference', transaction.reference)
+            .maybeSingle();
 
-          if (planErr) {
-            console.error('[FEDAPAY_WEBHOOK] ❌ Erreur création plan épargne:', planErr);
-            console.error('[FEDAPAY_WEBHOOK] ❌ Détails erreur:', {
-              message: planErr.message,
-              details: planErr.details,
-              hint: planErr.hint,
-              code: planErr.code
+          let plan;
+          
+          if (existingPlan) {
+            console.log('[FEDAPAY_WEBHOOK] ⚠️ Plan d\'épargne déjà existant, évite le doublon:', {
+              plan_id: existingPlan.id,
+              transaction_reference: transaction.reference
             });
-            throw planErr;
+            
+            // Récupérer le plan existant
+            const { data: existingPlanData } = await supabase
+              .from('savings_plans')
+              .select('*')
+              .eq('id', existingPlan.id)
+              .single();
+            
+            plan = existingPlanData;
+            console.log('[FEDAPAY_WEBHOOK] ✅ Utilisation du plan existant:', plan);
+          } else {
+            // Créer le plan d'épargne seulement s'il n'existe pas
+            const { data: newPlan, error: planErr } = await supabase
+              .from('savings_plans')
+              .insert({
+                user_id: userId,
+                savings_account_id: account.id,
+                plan_name: 'Plan Épargne',
+                fixed_amount: fixedAmount,
+                frequency_days: frequencyDays,
+                duration_months: durationMonths,
+                total_deposits_required: totalDepositsRequired,
+                total_amount_target: totalAmountTarget,
+                completed_deposits: 0,
+                current_balance: 0,
+                total_deposited: 0,
+                start_date: startDate.toISOString(),
+                end_date: endDate.toISOString(),
+                next_deposit_date: startDate.toISOString(),
+                status: 'active',
+                completion_percentage: 0,
+                transaction_reference: transaction.reference,
+                interest_rate: 5,          // 👈 taux d'intérêt par mois
+                created_at: new Date().toISOString(),
+                updated_at: new Date().toISOString()
+              })
+              .select()
+              .single();
+
+            if (planErr) {
+              console.error('[FEDAPAY_WEBHOOK] ❌ Erreur création plan épargne:', planErr);
+              console.error('[FEDAPAY_WEBHOOK] ❌ Détails erreur:', {
+                message: planErr.message,
+                details: planErr.details,
+                hint: planErr.hint,
+                code: planErr.code
+              });
+              throw planErr;
+            }
+
+            plan = newPlan;
           }
 
           console.log('[FEDAPAY_WEBHOOK] 🎉 Plan d\'épargne créé avec succès:', {
@@ -1404,6 +1461,12 @@ app.post('/api/fedapay/webhook', async (req, res) => {
             console.error('[FEDAPAY_WEBHOOK] ❌ Plan non trouvé:', planError);
             throw new Error('Plan non trouvé');
           }
+
+          // Ne pas accepter de dépôt si le plan est suspendu (7+ jours de retard)
+          if (currentPlan.is_suspended) {
+            console.log('[FEDAPAY_WEBHOOK] ⚠️ Dépôt ignoré : plan #' + planId + ' est suspendu');
+            return res.status(200).json({ success: true, ignored: true, reason: 'plan_suspended' });
+          }
           
           // Calculer les nouvelles valeurs
           const newTotalDeposited = (currentPlan.total_deposited || 0) + depositAmount;
@@ -1460,21 +1523,37 @@ app.post('/api/fedapay/webhook', async (req, res) => {
             console.error('[FEDAPAY_WEBHOOK] ❌ Erreur mise à jour compte:', accountError);
           }
           
-          // Créer une entrée dans savings_transactions
-          const { error: transactionError } = await supabase
+          // Vérifier si la transaction d'épargne existe déjà (idempotence)
+          const { data: existingSavingsTransaction } = await supabase
             .from('savings_transactions')
-            .insert({
-              user_id: userId,
-              savings_plan_id: planId,
-              transaction_type: 'deposit',
-              amount: depositAmount,
-              transaction_reference: transaction.reference,
-              status: 'completed',
-              created_at: new Date().toISOString()
+            .select('id')
+            .eq('transaction_reference', transaction.reference)
+            .maybeSingle();
+          
+          if (!existingSavingsTransaction) {
+            // Créer une entrée dans savings_transactions seulement si elle n'existe pas
+            const { error: transactionError } = await supabase
+              .from('savings_transactions')
+              .insert({
+                user_id: userId,
+                savings_plan_id: planId,
+                transaction_type: 'deposit',
+                amount: depositAmount,
+                transaction_reference: transaction.reference,
+                status: 'completed',
+                created_at: new Date().toISOString()
+              });
+              
+            if (transactionError) {
+              console.error('[FEDAPAY_WEBHOOK] ❌ Erreur création transaction:', transactionError);
+            } else {
+              console.log('[FEDAPAY_WEBHOOK] ✅ Transaction d\'épargne créée');
+            }
+          } else {
+            console.log('[FEDAPAY_WEBHOOK] ⚠️ Transaction d\'épargne déjà existante, évite le doublon:', {
+              transaction_id: existingSavingsTransaction.id,
+              reference: transaction.reference
             });
-            
-          if (transactionError) {
-            console.error('[FEDAPAY_WEBHOOK] ❌ Erreur création transaction:', transactionError);
           }
           
           // Envoyer une notification push à l'utilisateur
@@ -1911,6 +1990,9 @@ app.get('/api/savings/plan-status', async (req, res) => {
         goal,
         goal_label,
         personalized_at,
+        is_overdue,
+        days_overdue,
+        is_suspended,
         created_at,
         updated_at
       `);
@@ -1919,8 +2001,12 @@ app.get('/api/savings/plan-status', async (req, res) => {
       // Chercher directement par ID du plan
       query = query.eq('id', planId);
     } else if (userId) {
-      // Chercher le dernier plan créé pour cet utilisateur (tous les statuts)
-      query = query.eq('user_id', userId).order('created_at', { ascending: false }).limit(1);
+      // Uniquement plan actif ou en attente de retrait (pas les plans terminés = historique)
+      query = query
+        .eq('user_id', userId)
+        .in('status', ['active', 'withdrawal_pending'])
+        .order('created_at', { ascending: false })
+        .limit(1);
     } else {
       // Chercher par transaction_reference
       query = query.eq('transaction_reference', reference);
@@ -1940,6 +2026,30 @@ app.get('/api/savings/plan-status', async (req, res) => {
     
   } catch (error) {
     console.error('[SAVINGS_API] ❌ Erreur:', error);
+    return res.status(500).json({ success: false, error: 'Erreur serveur' });
+  }
+});
+
+// Historique des plans d'épargne terminés (pour le client)
+app.get('/api/savings/history', async (req, res) => {
+  try {
+    const userId = req.query.userId;
+    if (!userId) return res.status(400).json({ success: false, error: 'userId requis' });
+
+    const { data: plans, error } = await supabase
+      .from('savings_plans')
+      .select(`
+        id, plan_name, goal, goal_label, fixed_amount, frequency_days,
+        total_amount_target, current_balance, status, created_at, updated_at
+      `)
+      .eq('user_id', userId)
+      .eq('status', 'completed')
+      .order('updated_at', { ascending: false });
+
+    if (error) return res.status(500).json({ success: false, error: 'Erreur DB' });
+    return res.json({ success: true, plans: plans || [] });
+  } catch (error) {
+    console.error('[SAVINGS_HISTORY]', error);
     return res.status(500).json({ success: false, error: 'Erreur serveur' });
   }
 });
@@ -2108,23 +2218,45 @@ async function sendSavingsDepositReminderNotifications() {
           let title, body;
           
           if (daysRemaining === 0) {
-            // Message spécial pour le jour même
             title = "AB Campus Finance - Dépôt d'épargne aujourd'hui !";
             body = `Bonjour ${clientName}, c'est aujourd'hui que vous devez effectuer votre dépôt d'épargne de ${amountFormatted}. Si vous ne le faites pas aujourd'hui, vous pourriez perdre tous les intérêts que vous avez accumulés jusqu'à présent.`;
           } else {
-            // Messages pour les jours précédents
             const daysText = daysRemaining === 1 ? '24h' : `${daysRemaining} jours`;
             title = "AB Campus Finance - Rappel de dépôt d'épargne";
             body = `Bonjour ${clientName}, votre prochain dépôt sur votre compte épargne est dans ${daysText}. Effectuer votre dépôt pour ne pas perdre les intérêts cumulés à ce jour.`;
           }
           
-          // Récupérer les abonnements de l'utilisateur
+          // Toujours créer une notification en base pour affichage dans la cloche (même sans push)
+          const { error: notifErr } = await supabase
+            .from('notifications')
+            .insert({
+              user_id: plan.user_id,
+              title,
+              message: body,
+              type: 'savings_deposit_reminder',
+              priority: 'high',
+              read: false,
+              data: {
+                plan_id: plan.id,
+                days_remaining: daysRemaining,
+                amount: amountFormatted,
+                plan_name: plan.plan_name,
+                url: '/ab-epargne'
+              }
+            });
+          if (notifErr) {
+            console.error(`[SAVINGS_REMINDER] Erreur insertion notification pour plan #${plan.id}:`, notifErr.message);
+          } else {
+            notificationsSent++;
+          }
+          
+          // Push si abonné
           const { data: subscriptions } = await supabase
             .from('push_subscriptions')
             .select('subscription')
             .eq('user_id', plan.user_id);
           
-          if (subscriptions && subscriptions.length > 0) {
+          if (subscriptions && subscriptions.length > 0 && webPush) {
             for (const sub of subscriptions) {
               try {
                 await webPush.sendNotification(sub.subscription, JSON.stringify({
@@ -2142,16 +2274,15 @@ async function sendSavingsDepositReminderNotifications() {
                   },
                   vibrate: [200, 50, 100]
                 }));
-                notificationsSent++;
                 const logText = daysRemaining === 0 ? 'aujourd\'hui' : `${daysRemaining === 1 ? '24h' : `${daysRemaining} jours`} restant(s)`;
-                console.log(`[SAVINGS_REMINDER] Notification envoyée à ${clientName} - ${logText}`);
+                console.log(`[SAVINGS_REMINDER] Push envoyé à ${clientName} - ${logText}`);
               } catch (pushError) {
-                console.error(`[SAVINGS_REMINDER] Erreur envoi notification à ${clientName}:`, pushError);
+                console.error(`[SAVINGS_REMINDER] Erreur push à ${clientName}:`, pushError);
                 errors++;
               }
             }
           } else {
-            console.log(`[SAVINGS_REMINDER] Utilisateur ${clientName} non abonné aux notifications`);
+            console.log(`[SAVINGS_REMINDER] Utilisateur ${clientName} non abonné aux push (notification en base créée)`);
           }
         }
       } catch (planError) {
@@ -2160,8 +2291,8 @@ async function sendSavingsDepositReminderNotifications() {
       }
     }
     
-    console.log(`[SAVINGS_REMINDER] Terminé: ${notificationsSent} notifications envoyées, ${errors} erreurs`);
-    return notificationsSent > 0;
+    console.log(`[SAVINGS_REMINDER] Terminé: ${notificationsSent} notification(s) créée(s), ${errors} erreur(s) push`);
+    return true;
     
   } catch (error) {
     console.error('[SAVINGS_REMINDER] Erreur générale:', error);
@@ -2266,6 +2397,17 @@ async function checkAndNotifyLoyaltyAchievement(userId) {
     // Ensemble des prêts remboursés à temps (unique par prêt)
     const onTimeLoanIds = new Set();
 
+    // Récupérer la date du dernier reset de fidélité
+    const { data: userResetData } = await supabase
+      .from('users')
+      .select('loyalty_last_reset')
+      .eq('id', userId)
+      .single();
+
+    const lastResetDate = userResetData?.loyalty_last_reset 
+      ? new Date(userResetData.loyalty_last_reset) 
+      : null;
+
     completedPayments.forEach(p => {
       const loan = loanById.get(p.loan_id);
       if (!loan) return;
@@ -2273,6 +2415,11 @@ async function checkAndNotifyLoyaltyAchievement(userId) {
       // Le décompte commence à partir de la date d'approbation, pas de la demande
       const startDate = loan.approved_at ? new Date(loan.approved_at) : null;
       if (!startDate) return; // Prêt non approuvé, on ignore
+      
+      // Si un reset a eu lieu, ne compter que les remboursements après cette date
+      if (lastResetDate && startDate.getTime() < lastResetDate.getTime()) {
+        return; // Ignorer les prêts approuvés avant le dernier reset
+      }
       
       const durationDays = parseInt(loan.duration_months || loan.duration || 30, 10);
       const dueDate = new Date(startDate.getTime() + durationDays * 24 * 60 * 60 * 1000);
@@ -2296,10 +2443,25 @@ async function checkAndNotifyLoyaltyAchievement(userId) {
 
     // Si l'utilisateur vient d'atteindre le score maximum (5)
     if (loyaltyScore === 5) {
+      // Vérifier si l'utilisateur a déjà une notification de fidélité non fermée
+      const { data: existingNotification } = await supabase
+        .from('notifications')
+        .select('id')
+        .eq('user_id', userId)
+        .eq('type', 'loyalty_achievement')
+        .eq('read', false)
+        .single();
+
+      // Si une notification existe déjà, ne pas créer de doublon
+      if (existingNotification) {
+        console.log('[LOYALTY] Notification de fidélité déjà existante pour cet utilisateur');
+        return true;
+      }
+
       // Récupérer les informations de l'utilisateur
       const { data: userData, error: userError } = await supabase
         .from('users')
-        .select('first_name, last_name')
+        .select('first_name, last_name, loyalty_status')
         .eq('id', userId)
         .single();
 
@@ -2310,10 +2472,81 @@ async function checkAndNotifyLoyaltyAchievement(userId) {
 
       const clientName = `${userData.first_name} ${userData.last_name}`;
       
+      // Créer une notification dans la DB pour le client
+      const { error: clientNotifError } = await supabase
+        .from('notifications')
+        .insert({
+          user_id: userId,
+          title: '🏆 Félicitations ! Score de fidélité maximum atteint',
+          message: `Bravo ${clientName} ! Vous avez atteint le score de fidélité maximum (5/5) grâce à vos 5 remboursements ponctuels. Votre sérieux et votre fidélité sont remarquables !`,
+          type: 'loyalty_achievement',
+          priority: 'high',
+          read: false,
+          data: {
+            showPopup: true,
+            score: 5,
+            clientName: clientName,
+            userId: userId
+          }
+        });
+
+      if (clientNotifError) {
+        console.error('[LOYALTY] Erreur création notification client:', clientNotifError);
+      } else {
+        console.log('[LOYALTY] ✅ Notification client créée dans la DB');
+      }
+
+      // Récupérer l'admin pour créer sa notification
+      const { data: adminData } = await supabase
+        .from('users')
+        .select('id')
+        .eq('role', 'admin')
+        .single();
+
+      if (adminData) {
+        // Vérifier si l'admin a déjà une notification pour cet utilisateur
+        const { data: existingAdminNotifs } = await supabase
+          .from('notifications')
+          .select('*')
+          .eq('user_id', adminData.id)
+          .eq('type', 'loyalty_achievement_admin')
+          .eq('read', false);
+
+        const existingAdminNotif = existingAdminNotifs?.find(
+          notif => notif.data?.targetUserId === userId || notif.data?.userId === userId
+        );
+
+        if (!existingAdminNotif) {
+          // Créer une notification dans la DB pour l'admin
+          const { error: adminNotifError } = await supabase
+            .from('notifications')
+            .insert({
+              user_id: adminData.id,
+              title: '🏆 Score de fidélité atteint',
+              message: `L'utilisateur ${clientName} a atteint le score de fidélité maximum (5/5). Il attend sa récompense.`,
+              type: 'loyalty_achievement_admin',
+              priority: 'high',
+              read: false,
+              data: {
+                showPopup: true,
+                clientName: clientName,
+                userId: userId,
+                targetUserId: userId
+              }
+            });
+
+          if (adminNotifError) {
+            console.error('[LOYALTY] Erreur création notification admin:', adminNotifError);
+          } else {
+            console.log('[LOYALTY] ✅ Notification admin créée dans la DB');
+          }
+        }
+      }
+
       const title = "🏆 AB Campus Finance - Félicitations !";
       const body = `Bravo ${clientName} ! Vous avez atteint le score de fidélité maximum (5/5) grâce à vos 5 remboursements ponctuels. Votre sérieux et votre fidélité sont remarquables ! Vous serez contacté très bientôt pour recevoir votre récompense.`;
 
-      // Récupérer les abonnements de l'utilisateur
+      // Récupérer les abonnements de l'utilisateur pour les notifications push
       const { data: subscriptions } = await supabase
         .from('push_subscriptions')
         .select('subscription')
@@ -2339,36 +2572,24 @@ async function checkAndNotifyLoyaltyAchievement(userId) {
               vibrate: [200, 50, 100]
             }));
             notificationsSent++;
-            console.log(`[LOYALTY] ✅ Notification de fidélité envoyée à ${clientName}`);
+            console.log(`[LOYALTY] ✅ Notification push envoyée à ${clientName}`);
           } catch (pushError) {
             errors++;
-            console.error(`[LOYALTY] ❌ Erreur envoi notification à ${clientName}:`, pushError);
+            console.error(`[LOYALTY] ❌ Erreur envoi notification push à ${clientName}:`, pushError);
           }
         }
 
-        console.log(`[LOYALTY] Notifications envoyées: ${notificationsSent} succès, ${errors} erreurs`);
-        
-        // Envoyer une notification à l'admin
-        try {
-          await notifyAdminLoyaltyAchievement(clientName, userId);
-        } catch (adminError) {
-          console.error('[LOYALTY] Erreur notification admin:', adminError);
-          // Ne pas faire échouer la fonction pour cette erreur
-        }
-        
-        return notificationsSent > 0;
-      } else {
-        console.log(`[LOYALTY] Utilisateur ${clientName} non abonné aux notifications`);
-        
-        // Envoyer quand même la notification à l'admin même si l'utilisateur n'est pas abonné
-        try {
-          await notifyAdminLoyaltyAchievement(clientName, userId);
-        } catch (adminError) {
-          console.error('[LOYALTY] Erreur notification admin:', adminError);
-        }
-        
-        return false;
+        console.log(`[LOYALTY] Notifications push envoyées: ${notificationsSent} succès, ${errors} erreurs`);
       }
+      
+      // Envoyer une notification push à l'admin
+      try {
+        await notifyAdminLoyaltyAchievement(clientName, userId);
+      } catch (adminError) {
+        console.error('[LOYALTY] Erreur notification push admin:', adminError);
+      }
+      
+      return true;
     }
 
     return false;
@@ -2400,6 +2621,7 @@ async function sendLoanReminderNotifications() {
         user_id,
         amount,
         duration,
+        duration_months,
         approved_at,
         status,
         users!inner(first_name, last_name)
@@ -2424,10 +2646,13 @@ async function sendLoanReminderNotifications() {
     
     for (const loan of loans) {
       try {
-        // Calculer la date d'échéance à partir de la date d'approbation et de la durée
+        // Calculer la date d'échéance (duration en jours : duration_months * 30 ou duration)
+        const durationDays = loan.duration_months != null
+          ? Math.round(Number(loan.duration_months) * 30)
+          : (loan.duration != null ? Number(loan.duration) : 30);
         const approvedDate = new Date(loan.approved_at);
         const dueDate = new Date(approvedDate);
-        dueDate.setDate(dueDate.getDate() + loan.duration);
+        dueDate.setDate(dueDate.getDate() + durationDays);
         
         const daysRemaining = Math.ceil((dueDate - today) / (1000 * 60 * 60 * 24));
         
@@ -2440,13 +2665,36 @@ async function sendLoanReminderNotifications() {
           const title = "AB Campus Finance - Rappel d'échéance";
           const body = `Bonjour ${clientName}, votre prêt de ${amountFormatted} arrive à échéance dans ${daysText}. Rembourser maintenant pour éviter toute pénalité !`;
           
-          // Récupérer les abonnements de l'utilisateur
+          // Toujours créer une notification en base pour affichage dans la cloche (même sans push)
+          const { error: notifErr } = await supabase
+            .from('notifications')
+            .insert({
+              user_id: loan.user_id,
+              title,
+              message: body,
+              type: 'loan_reminder',
+              priority: 'high',
+              read: false,
+              data: {
+                loan_id: loan.id,
+                days_remaining: daysRemaining,
+                amount: amountFormatted,
+                url: '/repayment'
+              }
+            });
+          if (notifErr) {
+            console.error(`[LOAN_REMINDER] Erreur insertion notification pour prêt #${loan.id}:`, notifErr.message);
+          } else {
+            notificationsSent++;
+          }
+          
+          // Push si abonné
           const { data: subscriptions } = await supabase
             .from('push_subscriptions')
             .select('subscription')
             .eq('user_id', loan.user_id);
           
-          if (subscriptions && subscriptions.length > 0) {
+          if (subscriptions && subscriptions.length > 0 && webPush) {
             for (const sub of subscriptions) {
               try {
                 await webPush.sendNotification(sub.subscription, JSON.stringify({
@@ -2463,15 +2711,14 @@ async function sendLoanReminderNotifications() {
                   },
                   vibrate: [200, 50, 100]
                 }));
-                notificationsSent++;
-                console.log(`[LOAN_REMINDER] Notification envoyée à ${clientName} - ${daysText} restant(s)`);
+                console.log(`[LOAN_REMINDER] Push envoyé à ${clientName} - ${daysText} restant(s)`);
               } catch (pushError) {
-                console.error(`[LOAN_REMINDER] Erreur envoi notification à ${clientName}:`, pushError);
+                console.error(`[LOAN_REMINDER] Erreur push à ${clientName}:`, pushError);
                 errors++;
               }
             }
           } else {
-            console.log(`[LOAN_REMINDER] Utilisateur ${clientName} non abonné aux notifications`);
+            console.log(`[LOAN_REMINDER] Utilisateur ${clientName} non abonné aux notifications push (notification en base créée)`);
           }
         }
       } catch (loanError) {
@@ -2480,8 +2727,8 @@ async function sendLoanReminderNotifications() {
       }
     }
     
-    console.log(`[LOAN_REMINDER] Terminé: ${notificationsSent} notifications envoyées, ${errors} erreurs`);
-    return notificationsSent > 0;
+    console.log(`[LOAN_REMINDER] Terminé: ${notificationsSent} notification(s) créée(s), ${errors} erreur(s) push`);
+    return true;
     
   } catch (error) {
     console.error('[LOAN_REMINDER] Erreur générale:', error);
@@ -2504,6 +2751,23 @@ app.post('/api/trigger-savings-reminders', async (req, res) => {
     res.status(500).json({ 
       success: false, 
       error: 'Erreur serveur lors du traitement des rappels de dépôt d\'épargne' 
+    });
+  }
+});
+
+// Route pour déclencher manuellement la gestion des plans d'épargne en retard
+app.post('/api/trigger-savings-overdue-check', async (req, res) => {
+  try {
+    const success = await manageOverdueSavings();
+    res.json({
+      success: true,
+      message: success ? 'Gestion des retards d\'épargne effectuée' : 'Aucun plan en retard traité'
+    });
+  } catch (error) {
+    console.error('[SAVINGS_OVERDUE] Erreur déclenchement manuel:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Erreur serveur lors de la gestion des retards d\'épargne'
     });
   }
 });
@@ -2576,6 +2840,196 @@ app.post('/api/trigger-admin-loyalty-notification', async (req, res) => {
     res.status(500).json({ 
       success: false, 
       error: 'Erreur serveur lors de la notification admin' 
+    });
+  }
+});
+
+// Route pour vérifier si un popup de fidélité doit être affiché
+app.get('/api/loyalty-popup-check', async (req, res) => {
+  try {
+    const userId = req.query.userId;
+    const isAdmin = req.query.isAdmin === 'true';
+
+    if (!userId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'userId requis' 
+      });
+    }
+
+    let notification = null;
+
+    if (isAdmin) {
+      // Pour l'admin, chercher une notification de type loyalty_achievement_admin non lue
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('type', 'loyalty_achievement_admin')
+        .eq('read', false)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('[LOYALTY_POPUP] Erreur récupération notification admin:', error);
+        return res.status(500).json({ success: false, error: error.message });
+      }
+
+      notification = data;
+    } else {
+      // Pour le client, chercher une notification de type loyalty_achievement non lue
+      const { data, error } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', userId)
+        .eq('type', 'loyalty_achievement')
+        .eq('read', false)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      if (error && error.code !== 'PGRST116') {
+        console.error('[LOYALTY_POPUP] Erreur récupération notification client:', error);
+        return res.status(500).json({ success: false, error: error.message });
+      }
+
+      notification = data;
+    }
+
+    if (notification && notification.data?.showPopup) {
+      return res.json({
+        success: true,
+        showPopup: true,
+        notification: {
+          id: notification.id,
+          userName: notification.data.clientName || null,
+          userId: notification.data.userId || notification.data.targetUserId || null,
+          score: notification.data.score || 5
+        }
+      });
+    }
+
+    return res.json({
+      success: true,
+      showPopup: false
+    });
+  } catch (error) {
+    console.error('[LOYALTY_POPUP] Erreur lors de la vérification:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Erreur serveur lors de la vérification du popup' 
+    });
+  }
+});
+
+// Route pour réinitialiser le compteur de fidélité et mettre à jour le statut
+app.post('/api/loyalty-reset-counter', async (req, res) => {
+  try {
+    const { userId } = req.body;
+
+    if (!userId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'userId requis' 
+      });
+    }
+
+    // Récupérer l'utilisateur avec son statut actuel
+    const { data: userData, error: userError } = await supabase
+      .from('users')
+      .select('loyalty_status')
+      .eq('id', userId)
+      .single();
+
+    if (userError || !userData) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Utilisateur non trouvé' 
+      });
+    }
+
+    // Déterminer le nouveau statut selon la progression
+    let newStatus = 'Gold';
+    if (userData.loyalty_status === 'Gold') {
+      newStatus = 'Diamond';
+    } else if (userData.loyalty_status === 'Diamond') {
+      newStatus = 'Prestige';
+    } else if (!userData.loyalty_status || userData.loyalty_status === null) {
+      newStatus = 'Gold';
+    } else {
+      // Si déjà Prestige, on reste Prestige
+      newStatus = 'Prestige';
+    }
+
+    // Mettre à jour le statut de l'utilisateur et la date de reset
+    const { error: updateError } = await supabase
+      .from('users')
+      .update({ 
+        loyalty_status: newStatus,
+        loyalty_last_reset: new Date().toISOString()
+      })
+      .eq('id', userId);
+
+    if (updateError) {
+      console.error('[LOYALTY_RESET] Erreur mise à jour statut:', updateError);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Erreur lors de la mise à jour du statut' 
+      });
+    }
+
+    // Marquer les notifications de fidélité comme lues pour cet utilisateur
+    await supabase
+      .from('notifications')
+      .update({ read: true })
+      .eq('user_id', userId)
+      .eq('type', 'loyalty_achievement');
+
+    // Marquer aussi la notification admin correspondante comme lue
+    const { data: adminData } = await supabase
+      .from('users')
+      .select('id')
+      .eq('role', 'admin')
+      .single();
+
+    if (adminData) {
+      // Récupérer toutes les notifications admin non lues et filtrer celles qui concernent cet utilisateur
+      const { data: adminNotifications } = await supabase
+        .from('notifications')
+        .select('*')
+        .eq('user_id', adminData.id)
+        .eq('type', 'loyalty_achievement_admin')
+        .eq('read', false);
+
+      if (adminNotifications && adminNotifications.length > 0) {
+        // Filtrer celles qui concernent cet utilisateur
+        const relevantNotifications = adminNotifications.filter(
+          notif => notif.data?.targetUserId === userId || notif.data?.userId === userId
+        );
+
+        // Marquer comme lues
+        for (const notif of relevantNotifications) {
+          await supabase
+            .from('notifications')
+            .update({ read: true })
+            .eq('id', notif.id);
+        }
+      }
+    }
+
+    console.log(`[LOYALTY_RESET] Compteur réinitialisé pour l'utilisateur ${userId}, nouveau statut: ${newStatus}`);
+
+    return res.json({
+      success: true,
+      message: 'Compteur réinitialisé avec succès',
+      newStatus: newStatus
+    });
+  } catch (error) {
+    console.error('[LOYALTY_RESET] Erreur lors de la réinitialisation:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: 'Erreur serveur lors de la réinitialisation' 
     });
   }
 });
@@ -2871,7 +3325,7 @@ app.post('/api/notify-admin-repayment', async (req, res) => {
 // Route pour notifier l'admin d'une nouvelle demande de retrait
 app.post('/api/notify-admin-withdrawal', async (req, res) => {
   try {
-    const { withdrawalId, clientName, amount, userId } = req.body;
+    const { withdrawalId, clientName, amount, userId, planId } = req.body;
     
     if (!withdrawalId || !clientName || !amount) {
       return res.status(400).json({ 
@@ -2904,30 +3358,57 @@ app.post('/api/notify-admin-withdrawal', async (req, res) => {
 
     const adminName = adminData.first_name || 'Admin';
     const amountFormatted = `${parseInt(amount).toLocaleString()} FCFA`;
+    const title = "Nouvelle demande de retrait";
+    const message = `${clientName} demande un retrait de ${amountFormatted}. Cliquez pour traiter la demande.`;
+
+    // Toujours créer la notification en base (côté backend = pas de RLS bloquant) pour que la cloche admin affiche
+    const { error: notifErr } = await supabase
+      .from('notifications')
+      .insert({
+        user_id: adminData.id,
+        title,
+        message,
+        type: 'withdrawal_request',
+        priority: 'high',
+        read: false,
+        data: {
+          withdrawal_id: withdrawalId,
+          plan_id: planId || null,
+          user_id: userId || null,
+          amount: parseInt(amount, 10),
+          client_name: clientName,
+          url: '/admin/ab-epargne'
+        }
+      });
+
+    if (notifErr) {
+      console.error('[ADMIN_NOTIFICATION_WITHDRAWAL] ❌ Erreur création notification en base:', notifErr);
+    } else {
+      console.log('[ADMIN_NOTIFICATION_WITHDRAWAL] ✅ Notification en base créée pour l\'admin');
+      await supabase.from('withdrawal_requests').update({ admin_notified_at: new Date().toISOString() }).eq('id', withdrawalId);
+    }
     
-    const title = "AB Campus Finance - Demande de retrait";
+    // Push si l'admin est abonné
     const body = `Hello ${adminName}, ${clientName} demande un retrait de ${amountFormatted}. Cliquez pour traiter la demande.`;
-    
-    // Récupérer les abonnements de l'admin
     const { data: subscriptions } = await supabase
       .from('push_subscriptions')
       .select('subscription, user_id')
       .eq('user_id', adminData.id);
     
-    console.log('[ADMIN_NOTIFICATION_WITHDRAWAL] Abonnements trouvés:', {
+    console.log('[ADMIN_NOTIFICATION_WITHDRAWAL] Abonnements push trouvés:', {
       adminId: adminData.id,
       subscriptionsCount: subscriptions?.length || 0
     });
     
     if (!subscriptions || subscriptions.length === 0) {
-      console.log(`[ADMIN_NOTIFICATION_WITHDRAWAL] Admin ${adminName} non abonné aux notifications`);
       return res.json({ 
         success: true, 
-        message: 'Demande enregistrée mais admin non abonné aux notifications' 
+        message: 'Notification enregistrée (cloche). Admin non abonné aux notifications push.' 
       });
     }
     
     let notificationsSent = 0;
+    let marked = false;
     let errors = 0;
     
     for (const sub of subscriptions) {
@@ -2948,6 +3429,10 @@ app.post('/api/notify-admin-withdrawal', async (req, res) => {
           vibrate: [200, 50, 100]
         }));
         notificationsSent++;
+        if (!marked) {
+          await supabase.from('withdrawal_requests').update({ admin_notified_at: new Date().toISOString() }).eq('id', withdrawalId);
+          marked = true;
+        }
         console.log(`[ADMIN_NOTIFICATION_WITHDRAWAL] ✅ Notification envoyée à l'admin ${adminName}`);
       } catch (pushError) {
         console.error(`[ADMIN_NOTIFICATION_WITHDRAWAL] ❌ Erreur envoi notification:`, pushError);
@@ -2956,6 +3441,7 @@ app.post('/api/notify-admin-withdrawal', async (req, res) => {
     }
     
     if (notificationsSent > 0) {
+      if (!marked) await supabase.from('withdrawal_requests').update({ admin_notified_at: new Date().toISOString() }).eq('id', withdrawalId);
       res.json({ 
         success: true, 
         message: `Notification de retrait envoyée à l'admin ${adminName}`,
@@ -2975,6 +3461,113 @@ app.post('/api/notify-admin-withdrawal', async (req, res) => {
       success: false, 
       error: 'Erreur serveur lors de l\'envoi de la notification' 
     });
+  }
+});
+
+// Approuver une demande de retrait (côté backend = notification client garantie, plan passé en historique)
+app.post('/api/savings/withdrawal-approve', async (req, res) => {
+  try {
+    const { withdrawalId, processedBy } = req.body;
+    if (!withdrawalId) return res.status(400).json({ success: false, error: 'withdrawalId requis' });
+
+    const { data: w, error: fetchErr } = await supabase
+      .from('withdrawal_requests')
+      .select('id, user_id, savings_plan_id, amount, status')
+      .eq('id', withdrawalId)
+      .single();
+
+    if (fetchErr || !w) return res.status(404).json({ success: false, error: 'Demande non trouvée' });
+    if (w.status !== 'pending') return res.status(400).json({ success: false, error: 'Demande déjà traitée' });
+
+    const { error: updateReqErr } = await supabase
+      .from('withdrawal_requests')
+      .update({
+        status: 'approved',
+        processed_at: new Date().toISOString(),
+        processed_by: processedBy || null
+      })
+      .eq('id', withdrawalId);
+
+    if (updateReqErr) throw updateReqErr;
+
+    const { error: planErr } = await supabase
+      .from('savings_plans')
+      .update({
+        current_balance: 0,
+        target_amount: 0,
+        status: 'completed',
+        updated_at: new Date().toISOString()
+      })
+      .eq('id', w.savings_plan_id);
+
+    if (planErr) throw planErr;
+
+    const amountFormatted = `${Number(w.amount).toLocaleString()} FCFA`;
+    await supabase.from('notifications').insert({
+      user_id: w.user_id,
+      title: 'Retrait approuvé',
+      message: `Votre retrait de ${amountFormatted} a été approuvé et transféré. Votre plan est terminé et apparaît dans votre historique.`,
+      type: 'withdrawal_approved',
+      priority: 'high',
+      read: false,
+      data: { withdrawal_id: w.id, amount: w.amount, plan_id: w.savings_plan_id }
+    });
+
+    res.json({ success: true, message: 'Retrait approuvé. Le plan est passé en historique.' });
+  } catch (error) {
+    console.error('[WITHDRAWAL_APPROVE]', error);
+    res.status(500).json({ success: false, error: error.message || 'Erreur serveur' });
+  }
+});
+
+// Rejeter une demande de retrait
+app.post('/api/savings/withdrawal-reject', async (req, res) => {
+  try {
+    const { withdrawalId, reason, processedBy } = req.body;
+    if (!withdrawalId) return res.status(400).json({ success: false, error: 'withdrawalId requis' });
+
+    const { data: w, error: fetchErr } = await supabase
+      .from('withdrawal_requests')
+      .select('id, user_id, savings_plan_id, amount, status')
+      .eq('id', withdrawalId)
+      .single();
+
+    if (fetchErr || !w) return res.status(404).json({ success: false, error: 'Demande non trouvée' });
+    if (w.status !== 'pending') return res.status(400).json({ success: false, error: 'Demande déjà traitée' });
+
+    const { error: updateReqErr } = await supabase
+      .from('withdrawal_requests')
+      .update({
+        status: 'rejected',
+        processed_at: new Date().toISOString(),
+        processed_by: processedBy || null,
+        notes: reason || null
+      })
+      .eq('id', withdrawalId);
+
+    if (updateReqErr) throw updateReqErr;
+
+    const { error: planErr } = await supabase
+      .from('savings_plans')
+      .update({ status: 'active', updated_at: new Date().toISOString() })
+      .eq('id', w.savings_plan_id);
+
+    if (planErr) throw planErr;
+
+    await supabase.from('notifications').insert({
+      user_id: w.user_id,
+      title: 'Retrait refusé',
+      message: reason ? `Votre demande de retrait a été refusée. Raison: ${reason}` : 'Votre demande de retrait a été refusée.',
+      type: 'withdrawal_rejected',
+      priority: 'high',
+      read: false,
+      data: { withdrawal_id: w.id, reason: reason || null }
+    });
+
+    res.json({ success: true, message: 'Demande rejetée' });
+  } catch (error) {
+    console.error('[WITHDRAWAL_REJECT]', error);
+    res.status(500).json({ success: false, error: error.message || 'Erreur serveur' });
   }
 });
 
@@ -3193,6 +3786,280 @@ async function manageOverdueLoans() {
   }
 }
 
+// Fonction pour gérer les plans d'épargne en retard (pénalités, suspension, notifications)
+async function manageOverdueSavings() {
+  try {
+    console.log('[SAVINGS_OVERDUE] Vérification des plans d\'épargne en retard...');
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    // Récupérer tous les plans actifs (non suspendus) avec une date de prochain dépôt
+    const { data: plans, error: plansError } = await supabase
+      .from('savings_plans')
+      .select(`
+        id,
+        user_id,
+        plan_name,
+        fixed_amount,
+        next_deposit_date,
+        current_balance,
+        total_deposited,
+        interest_rate,
+        status,
+        is_overdue,
+        is_suspended,
+        days_overdue,
+        overdue_since,
+        lost_interest_amount
+      `)
+      .eq('status', 'active')
+      .eq('is_suspended', false)
+      .not('next_deposit_date', 'is', null);
+
+    if (plansError) {
+      console.error('[SAVINGS_OVERDUE] Erreur récupération plans:', plansError);
+      return false;
+    }
+
+    if (!plans || plans.length === 0) {
+      console.log('[SAVINGS_OVERDUE] Aucun plan actif à vérifier');
+      return true;
+    }
+
+    let updatedPlans = 0;
+    let suspendedCount = 0;
+
+    for (const plan of plans) {
+      try {
+        const nextDepositDate = new Date(plan.next_deposit_date);
+        nextDepositDate.setHours(0, 0, 0, 0);
+
+        if (nextDepositDate >= today) {
+          // Pas en retard : remettre is_overdue à false si besoin
+          if (plan.is_overdue) {
+            await supabase
+              .from('savings_plans')
+              .update({
+                is_overdue: false,
+                days_overdue: 0,
+                overdue_since: null,
+                updated_at: new Date().toISOString()
+              })
+              .eq('id', plan.id);
+            updatedPlans++;
+          }
+          continue;
+        }
+
+        const daysOverdue = Math.floor((today - nextDepositDate) / (1000 * 60 * 60 * 24));
+        const currentBalance = parseFloat(plan.current_balance) || 0;
+        const totalDeposited = parseFloat(plan.total_deposited) || 0;
+        // Intérêts accumulés = solde - dépôts (estimation si pas de colonne total_interest_earned)
+        const accumulatedInterest = Math.max(0, currentBalance - totalDeposited);
+
+        // Récupérer le nom du client pour les notifications
+        const { data: userData } = await supabase
+          .from('users')
+          .select('first_name, last_name')
+          .eq('id', plan.user_id)
+          .single();
+        const clientName = userData ? `${userData.first_name || ''} ${userData.last_name || ''}`.trim() || 'Client' : 'Client';
+        const amountFormatted = `${parseInt(plan.fixed_amount || 0).toLocaleString()} FCFA`;
+
+        if (daysOverdue >= 7) {
+          // 7+ jours : suspension du plan + perte définitive des intérêts
+          const lostInterest = plan.lost_interest_amount != null
+            ? parseFloat(plan.lost_interest_amount)
+            : accumulatedInterest;
+
+          const { error: updateError } = await supabase
+            .from('savings_plans')
+            .update({
+              is_overdue: true,
+              days_overdue: daysOverdue,
+              overdue_since: plan.overdue_since || nextDepositDate.toISOString(),
+              is_suspended: true,
+              suspended_since: new Date().toISOString(),
+              lost_interest_amount: Math.round(lostInterest * 100) / 100,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', plan.id);
+
+          if (updateError) {
+            console.error(`[SAVINGS_OVERDUE] Erreur suspension plan #${plan.id}:`, updateError);
+          } else {
+            updatedPlans++;
+            suspendedCount++;
+            console.log(`[SAVINGS_OVERDUE] 🚨 Plan #${plan.id} suspendu - ${clientName}: ${daysOverdue} jour(s) de retard, intérêts perdus: ${(lostInterest || 0).toLocaleString()} FCFA`);
+
+            // Notification en base pour le client
+            await supabase.from('notifications').insert({
+              user_id: plan.user_id,
+              title: 'Plan d\'épargne suspendu',
+              message: `Bonjour ${clientName}, votre plan "${plan.plan_name || 'Épargne'}" a été suspendu après ${daysOverdue} jours de retard. Les intérêts accumulés (${(lostInterest || 0).toLocaleString()} FCFA) ont été perdus. Contactez l\'équipe pour plus d\'informations.`,
+              type: 'savings_plan_suspended',
+              priority: 'high',
+              read: false,
+              data: { plan_id: plan.id, days_overdue: daysOverdue, lost_interest_amount: lostInterest }
+            });
+
+            // Notification push
+            const { data: subscriptions } = await supabase.from('push_subscriptions').select('subscription').eq('user_id', plan.user_id);
+            if (subscriptions && subscriptions.length > 0 && webPush) {
+              const body = `Votre plan d'épargne a été suspendu après ${daysOverdue} jours de retard. Intérêts perdus: ${(lostInterest || 0).toLocaleString()} FCFA.`;
+              for (const sub of subscriptions) {
+                try {
+                  await webPush.sendNotification(sub.subscription, JSON.stringify({
+                    title: 'AB Campus Finance - Plan d\'épargne suspendu',
+                    body,
+                    data: { url: '/ab-epargne', type: 'savings_plan_suspended', planId: plan.id },
+                    vibrate: [200, 50, 100]
+                  }));
+                } catch (e) {
+                  console.error('[SAVINGS_OVERDUE] Erreur push:', e.message);
+                }
+              }
+            }
+          }
+        } else {
+          // 1-6 jours : marquer en retard + avertissement (perte des intérêts à 7j si pas de dépôt)
+          const overdueSince = plan.overdue_since || nextDepositDate.toISOString();
+
+          const { error: updateError } = await supabase
+            .from('savings_plans')
+            .update({
+              is_overdue: true,
+              days_overdue: daysOverdue,
+              overdue_since: overdueSince,
+              lost_interest_amount: 0,
+              updated_at: new Date().toISOString()
+            })
+            .eq('id', plan.id);
+
+          if (updateError) {
+            console.error(`[SAVINGS_OVERDUE] Erreur mise à jour plan #${plan.id}:`, updateError);
+          } else {
+            updatedPlans++;
+            console.log(`[SAVINGS_OVERDUE] ⚠️ Plan #${plan.id} - ${clientName}: ${daysOverdue} jour(s) de retard`);
+
+            // Notification en base (une seule par jour pour éviter spam: on pourrait vérifier si une notif du jour existe)
+            const notifTitle = daysOverdue === 1 ? 'Dépôt d\'épargne en retard' : `Dépôt en retard de ${daysOverdue} jours`;
+            const notifMessage = `Bonjour ${clientName}, votre dépôt de ${amountFormatted} pour le plan "${plan.plan_name || 'Épargne'}" est en retard de ${daysOverdue} jour(s). Si vous ne déposez pas dans les 7 jours, vous perdrez les intérêts accumulés et le plan sera suspendu.`;
+            await supabase.from('notifications').insert({
+              user_id: plan.user_id,
+              title: notifTitle,
+              message: notifMessage,
+              type: 'savings_deposit_overdue',
+              priority: 'high',
+              read: false,
+              data: { plan_id: plan.id, days_overdue: daysOverdue, fixed_amount: plan.fixed_amount }
+            });
+
+            // Push (optionnel, une fois par jour suffit)
+            const { data: subscriptions } = await supabase.from('push_subscriptions').select('subscription').eq('user_id', plan.user_id);
+            if (subscriptions && subscriptions.length > 0 && webPush) {
+              const body = `Dépôt en retard de ${daysOverdue} jour(s). Effectuez votre dépôt de ${amountFormatted} pour éviter la suspension.`;
+              for (const sub of subscriptions) {
+                try {
+                  await webPush.sendNotification(sub.subscription, JSON.stringify({
+                    title: 'AB Campus Finance - Dépôt d\'épargne en retard',
+                    body,
+                    data: { url: '/ab-epargne', type: 'savings_deposit_overdue', planId: plan.id },
+                    vibrate: [200, 50, 100]
+                  }));
+                } catch (e) {
+                  console.error('[SAVINGS_OVERDUE] Erreur push:', e.message);
+                }
+              }
+            }
+          }
+        }
+      } catch (err) {
+        console.error(`[SAVINGS_OVERDUE] Erreur traitement plan #${plan.id}:`, err);
+      }
+    }
+
+    console.log(`[SAVINGS_OVERDUE] Terminé: ${updatedPlans} plan(s) mis à jour, ${suspendedCount} suspendu(s)`);
+    return true;
+  } catch (error) {
+    console.error('[SAVINGS_OVERDUE] Erreur générale:', error);
+    return false;
+  }
+}
+
+// Job de rattrapage : notifier l'admin pour toute demande de retrait en attente non encore notifiée (garantie sans faille)
+async function notifyAdminForPendingWithdrawals() {
+  try {
+    const { data: pending } = await supabase
+      .from('withdrawal_requests')
+      .select('id, user_id, savings_plan_id, amount, created_at')
+      .eq('status', 'pending')
+      .is('admin_notified_at', null)
+      .order('created_at', { ascending: true });
+
+    if (!pending || pending.length === 0) return;
+
+    const { data: adminData } = await supabase.from('users').select('id, first_name, last_name').eq('role', 'admin').single();
+    if (!adminData) return;
+
+    const userIds = [...new Set(pending.map(r => r.user_id).filter(Boolean))];
+    const { data: users } = await supabase.from('users').select('id, first_name, last_name').in('id', userIds);
+    const usersMap = {};
+    (users || []).forEach(u => { usersMap[u.id] = u; });
+
+    const adminName = adminData.first_name || 'Admin';
+    for (const row of pending) {
+      const u = usersMap[row.user_id];
+      const clientName = u ? `${u.first_name || ''} ${u.last_name || ''}`.trim() || 'Client' : 'Client';
+      const amountFormatted = `${Number(row.amount).toLocaleString()} FCFA`;
+      const title = "Nouvelle demande de retrait";
+      const message = `${clientName} demande un retrait de ${amountFormatted}. Cliquez pour traiter la demande.`;
+
+      const { error: notifErr } = await supabase.from('notifications').insert({
+        user_id: adminData.id,
+        title,
+        message,
+        type: 'withdrawal_request',
+        priority: 'high',
+        read: false,
+        data: {
+          withdrawal_id: row.id,
+          plan_id: row.savings_plan_id,
+          user_id: row.user_id,
+          amount: Number(row.amount),
+          client_name: clientName,
+          url: '/admin/ab-epargne'
+        }
+      });
+      if (notifErr) {
+        console.error('[WITHDRAWAL_JOB] Erreur notification pour', row.id, notifErr);
+        continue;
+      }
+
+      const { data: subs } = await supabase.from('push_subscriptions').select('subscription').eq('user_id', adminData.id);
+      const body = `Hello ${adminName}, ${clientName} demande un retrait de ${amountFormatted}. Cliquez pour traiter la demande.`;
+      if (subs && subs.length > 0 && webPush) {
+        for (const sub of subs) {
+          try {
+            await webPush.sendNotification(sub.subscription, JSON.stringify({
+              title,
+              body,
+              data: { url: '/admin/ab-epargne', type: 'withdrawal_request', withdrawalId: row.id, amount: amountFormatted, clientName, userId: row.user_id },
+              vibrate: [200, 50, 100]
+            }));
+          } catch (e) { /* ignore */ }
+        }
+      }
+
+      await supabase.from('withdrawal_requests').update({ admin_notified_at: new Date().toISOString() }).eq('id', row.id);
+      console.log('[WITHDRAWAL_JOB] Admin notifié pour demande', row.id);
+    }
+  } catch (e) {
+    console.error('[WITHDRAWAL_JOB] Erreur:', e);
+  }
+}
+
 // Fonction pour programmer les rappels de prêt et d'épargne à 11h chaque jour
 function scheduleReminders() {
   const now = new Date();
@@ -3211,16 +4078,18 @@ function scheduleReminders() {
   setTimeout(() => {
     console.log('[SCHEDULER] Exécution des rappels...');
     
-    // Exécuter les rappels de prêt, d'épargne et la gestion des retards en parallèle
+    // Exécuter les rappels de prêt, d'épargne et la gestion des retards (prêts + épargne) en parallèle
     Promise.all([
       sendLoanReminderNotifications(),
       sendSavingsDepositReminderNotifications(),
-      manageOverdueLoans()
-    ]).then(([loanResults, savingsResults, overdueResults]) => {
+      manageOverdueLoans(),
+      manageOverdueSavings()
+    ]).then(([loanResults, savingsResults, overdueLoansResults, overdueSavingsResults]) => {
       console.log('[SCHEDULER] Rappels et gestion terminés:', {
         loans: loanResults ? 'Envoyés' : 'Aucun',
         savings: savingsResults ? 'Envoyés' : 'Aucun',
-        overdue: overdueResults ? 'Traité' : 'Erreur'
+        overdueLoans: overdueLoansResults ? 'Traité' : 'Erreur',
+        overdueSavings: overdueSavingsResults ? 'Traité' : 'Erreur'
       });
     }).catch(error => {
       console.error('[SCHEDULER] Erreur lors de l\'exécution des rappels:', error);
@@ -3545,6 +4414,10 @@ app.delete('/api/admin/delete-user/:userId', async (req, res) => {
 
 // Démarrer le scheduler des rappels
 scheduleReminders();
+
+// Rattrapage des demandes de retrait non notifiées : toutes les 2 min + une fois au démarrage (délai 30s)
+setTimeout(() => notifyAdminForPendingWithdrawals(), 30 * 1000);
+setInterval(notifyAdminForPendingWithdrawals, 2 * 60 * 1000);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

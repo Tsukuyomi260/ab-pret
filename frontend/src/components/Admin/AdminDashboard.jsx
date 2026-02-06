@@ -1,8 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getAllUsers, getLoans, getAnalyticsData } from '../../utils/supabaseAPI';
+import { getAllUsers, getLoans, getAnalyticsData, checkLoyaltyPopup, resetLoyaltyCounter } from '../../utils/supabaseAPI';
 import { useRealtimeNotifications } from '../../hooks/useRealtimeNotifications';
+import AdminLoyaltyAlertModal from './AdminLoyaltyAlertModal';
 import { 
   Users, 
   CreditCard, 
@@ -21,7 +22,8 @@ import {
   BarChart3,
   Target,
   Award,
-  TrendingDown
+  TrendingDown,
+  Receipt
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 import { supabase } from '../../utils/supabaseClient';
@@ -45,10 +47,44 @@ const AdminDashboard = () => {
     activeSavingsPlans: 0
   });
   const [recentActivities, setRecentActivities] = useState([]);
+  const [showLoyaltyModal, setShowLoyaltyModal] = useState(false);
+  const [loyaltyModalData, setLoyaltyModalData] = useState(null);
 
   useEffect(() => {
     loadDashboardData();
+    // Vérifier si un popup de fidélité doit être affiché au chargement
+    checkAdminLoyaltyPopup();
   }, []);
+
+  const checkAdminLoyaltyPopup = async () => {
+    if (user?.id) {
+      try {
+        const result = await checkLoyaltyPopup(user.id, true);
+        if (result.success && result.showPopup) {
+          setLoyaltyModalData(result.notification);
+          setShowLoyaltyModal(true);
+        }
+      } catch (error) {
+        console.error('[ADMIN_DASHBOARD] Erreur vérification popup fidélité:', error);
+      }
+    }
+  };
+
+  const handleContactUser = async (userId) => {
+    // Réinitialiser le compteur et mettre à jour le statut
+    try {
+      const result = await resetLoyaltyCounter(userId);
+      if (result.success) {
+        console.log('[ADMIN_DASHBOARD] Compteur réinitialisé, nouveau statut:', result.newStatus);
+        // Rediriger vers le profil utilisateur avec les stats des 5 derniers prêts
+        navigate(`/admin/user-management?userId=${userId}&showStats=true`);
+      }
+    } catch (error) {
+      console.error('[ADMIN_DASHBOARD] Erreur réinitialisation compteur:', error);
+      // Rediriger quand même vers le profil
+      navigate(`/admin/user-management?userId=${userId}&showStats=true`);
+    }
+  };
 
   const loadDashboardData = async () => {
       try {
@@ -217,13 +253,13 @@ const AdminDashboard = () => {
       path: '/admin/analytics'
     },
     {
-      title: 'Utilisateurs',
-      description: 'Gérer les clients',
-      icon: Users,
+      title: 'Transactions',
+      description: 'Voir toutes les transactions',
+      icon: Receipt,
       color: 'from-purple-500 to-pink-600',
       iconBg: 'bg-purple-100',
       iconColor: 'text-purple-600',
-      path: '/admin/user-management'
+      path: '/admin/transactions'
     }
   ];
 
@@ -294,16 +330,21 @@ const AdminDashboard = () => {
         )}
         {/* Stats Cards */}
         <div className={`grid grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 mb-8 transition-opacity duration-200 ${loading ? 'opacity-75' : ''}`}>
-          {/* Total Utilisateurs */}
-          <div className="bg-white rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 group">
+          {/* Transactions */}
+          <button
+            type="button"
+            onClick={() => navigate('/admin/transactions')}
+            className="text-left bg-white rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 group cursor-pointer"
+          >
             <div className="flex items-start justify-between mb-3 sm:mb-4">
               <div className="p-2 sm:p-3 bg-purple-100 rounded-xl group-hover:scale-110 transition-transform duration-300">
-                <Users size={20} className="sm:w-6 sm:h-6 text-purple-600" />
+                <Receipt size={20} className="sm:w-6 sm:h-6 text-purple-600" />
               </div>
+              <ArrowRight size={18} className="text-gray-400 group-hover:text-purple-600 transition-colors flex-shrink-0 mt-1" />
             </div>
-            <p className="text-2xl sm:text-3xl font-bold text-gray-900">{stats.totalUsers}</p>
-            <p className="text-xs sm:text-sm text-gray-600 mt-1">Utilisateurs</p>
-          </div>
+            <p className="text-2xl sm:text-3xl font-bold text-gray-900">Transactions</p>
+            <p className="text-xs sm:text-sm text-gray-600 mt-1">Voir toutes les transactions</p>
+          </button>
 
           {/* Prêts actifs */}
           <div className="bg-gradient-to-br from-blue-500 to-purple-600 rounded-2xl p-4 sm:p-6 shadow-lg hover:shadow-xl transition-all duration-300 text-white group">
@@ -452,6 +493,15 @@ const AdminDashboard = () => {
           </div>
             </div>
           </div>
+
+      {/* Modal d'alerte de fidélité pour l'admin */}
+      <AdminLoyaltyAlertModal
+        isOpen={showLoyaltyModal}
+        onClose={() => setShowLoyaltyModal(false)}
+        userName={loyaltyModalData?.userName || 'Un utilisateur'}
+        userId={loyaltyModalData?.userId}
+        onContactUser={handleContactUser}
+      />
     </div>
   );
 };

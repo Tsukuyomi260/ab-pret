@@ -976,6 +976,32 @@ export const updateLoanStatus = async (loanId, status, adminId = null) => {
 
 export const createPayment = async (paymentData) => {
   try {
+    // Vérifier si le paiement existe déjà (idempotence) - éviter les doublons
+    const transactionId = paymentData.fedapay_transaction_id || paymentData.transaction_id;
+    if (transactionId) {
+      const { data: existingPayment } = await supabase
+        .from('payments')
+        .select('id')
+        .or(`fedapay_transaction_id.eq.${transactionId},transaction_id.eq.${transactionId}`)
+        .maybeSingle();
+
+      if (existingPayment) {
+        console.log('[SUPABASE] ⚠️ Paiement déjà existant, évite le doublon:', {
+          payment_id: existingPayment.id,
+          transaction_id: transactionId
+        });
+        
+        // Retourner le paiement existant
+        const { data: payment } = await supabase
+          .from('payments')
+          .select('*')
+          .eq('id', existingPayment.id)
+          .single();
+
+        return { success: true, data: payment, isDuplicate: true };
+      }
+    }
+
     const { data, error } = await supabase
       .from('payments')
       .insert([paymentData])
@@ -1000,7 +1026,25 @@ export const getPayments = async (userId = null) => {
         loans (
           id,
           amount,
-          purpose
+          purpose,
+          interest_rate,
+          status,
+          approved_at,
+          created_at,
+          users (
+            id,
+            first_name,
+            last_name,
+            email,
+            phone_number
+          )
+        ),
+        users (
+          id,
+          first_name,
+          last_name,
+          email,
+          phone_number
         )
       `)
       .order('created_at', { ascending: false });
@@ -1056,6 +1100,31 @@ export const createLoanRepayment = async (repaymentData) => {
       throw new Error('Données de remboursement incomplètes');
     }
 
+    // Vérifier si le paiement existe déjà (idempotence) - éviter les doublons
+    if (repaymentData.fedapay_transaction_id) {
+      const { data: existingPayment } = await supabase
+        .from('payments')
+        .select('id')
+        .or(`fedapay_transaction_id.eq.${repaymentData.fedapay_transaction_id},transaction_id.eq.${repaymentData.fedapay_transaction_id}`)
+        .maybeSingle();
+
+      if (existingPayment) {
+        console.log('[SUPABASE] ⚠️ Paiement déjà existant, évite le doublon:', {
+          payment_id: existingPayment.id,
+          transaction_id: repaymentData.fedapay_transaction_id
+        });
+        
+        // Retourner le paiement existant
+        const { data: paymentData } = await supabase
+          .from('payments')
+          .select('*')
+          .eq('id', existingPayment.id)
+          .single();
+
+        return { success: true, data: paymentData, isDuplicate: true };
+      }
+    }
+
     // Créer l'enregistrement de remboursement
     const repaymentRecord = {
       loan_id: repaymentData.loan_id,
@@ -1063,6 +1132,7 @@ export const createLoanRepayment = async (repaymentData) => {
       amount: repaymentData.amount,
       payment_method: repaymentData.payment_method || 'fedapay',
       fedapay_transaction_id: repaymentData.fedapay_transaction_id,
+      transaction_id: repaymentData.fedapay_transaction_id, // Ajouter aussi dans transaction_id pour cohérence
       status: repaymentData.status || 'pending',
       payment_date: repaymentData.payment_date || new Date().toISOString(),
       description: repaymentData.description || 'Remboursement de prêt via FedaPay',
@@ -1354,6 +1424,49 @@ export const processFedaPayLoanRepayment = async (transactionData) => {
 
   } catch (error) {
     console.error('[SUPABASE] Erreur lors du traitement du remboursement FedaPay:', error.message);
+    return { success: false, error: error.message };
+  }
+};
+
+// ===== LOYALTY SYSTEM =====
+
+// Vérifier si un popup de fidélité doit être affiché
+export const checkLoyaltyPopup = async (userId, isAdmin = false) => {
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/loyalty-popup-check?userId=${userId}&isAdmin=${isAdmin}`);
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.error || 'Erreur lors de la vérification du popup');
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('[SUPABASE] Erreur lors de la vérification du popup de fidélité:', error.message);
+    return { success: false, showPopup: false, error: error.message };
+  }
+};
+
+// Réinitialiser le compteur de fidélité et mettre à jour le statut
+export const resetLoyaltyCounter = async (userId) => {
+  try {
+    const response = await fetch(`${BACKEND_URL}/api/loyalty-reset-counter`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ userId }),
+    });
+    
+    const data = await response.json();
+    
+    if (!response.ok) {
+      throw new Error(data.error || 'Erreur lors de la réinitialisation du compteur');
+    }
+    
+    return data;
+  } catch (error) {
+    console.error('[SUPABASE] Erreur lors de la réinitialisation du compteur:', error.message);
     return { success: false, error: error.message };
   }
 };

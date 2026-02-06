@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 import { supabase } from '../../utils/supabaseClient';
+import { BACKEND_URL } from '../../config/backend';
 import toast from 'react-hot-toast';
 
 const ABEpargne = () => {
@@ -226,99 +227,51 @@ const ABEpargne = () => {
   const handleApproveWithdrawal = async (withdrawal) => {
     try {
       console.log('[ADMIN_AB_EPARGNE] ✅ Approbation retrait:', withdrawal.id);
-      
-      // Mettre à jour le statut de la demande
-      const { error: updateError } = await supabase
-        .from('withdrawal_requests')
-        .update({
-          status: 'approved',
-          processed_at: new Date().toISOString(),
-          processed_by: (await supabase.auth.getUser()).data.user?.id
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+
+      const res = await fetch(`${BACKEND_URL}/api/savings/withdrawal-approve`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          withdrawalId: withdrawal.id,
+          processedBy: authUser?.id || null
         })
-        .eq('id', withdrawal.id);
+      });
 
-      if (updateError) throw updateError;
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'Erreur lors de l\'approbation');
+      }
 
-      // Remettre le plan à zéro
-      const { error: planError } = await supabase
-        .from('savings_plans')
-        .update({
-          current_balance: 0,
-          target_amount: 0,
-          status: 'completed',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', withdrawal.savings_plan_id);
-
-      if (planError) throw planError;
-
-      // Créer une notification pour le client
-      await supabase
-        .from('notifications')
-        .insert([{
-          user_id: withdrawal.user_id,
-          title: 'Retrait approuvé',
-          message: `Votre retrait de ${formatCurrency(withdrawal.amount)} a été approuvé et transféré.`,
-          type: 'withdrawal_approved',
-          data: {
-            withdrawal_id: withdrawal.id,
-            amount: withdrawal.amount
-          }
-        }]);
-
-      toast.success('Retrait approuvé avec succès !');
+      toast.success('Retrait approuvé avec succès ! Le plan est passé en historique.');
       setSelectedWithdrawal(null);
-      
-      // Recharger les données
       loadWithdrawalRequests();
       loadSavingsData();
     } catch (error) {
       console.error('[ADMIN_AB_EPARGNE] ❌ Erreur approbation:', error);
-      toast.error('Erreur lors de l\'approbation du retrait');
+      toast.error(error.message || 'Erreur lors de l\'approbation du retrait');
     }
   };
 
   const handleRejectWithdrawal = async (withdrawal, reason) => {
     try {
       console.log('[ADMIN_AB_EPARGNE] ❌ Rejet retrait:', withdrawal.id);
-      
-      // Mettre à jour le statut de la demande
-      const { error: updateError } = await supabase
-        .from('withdrawal_requests')
-        .update({
-          status: 'rejected',
-          processed_at: new Date().toISOString(),
-          processed_by: (await supabase.auth.getUser()).data.user?.id,
-          notes: reason
+      const { data: { user: authUser } } = await supabase.auth.getUser();
+
+      const res = await fetch(`${BACKEND_URL}/api/savings/withdrawal-reject`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          withdrawalId: withdrawal.id,
+          reason: reason || '',
+          processedBy: authUser?.id || null
         })
-        .eq('id', withdrawal.id);
+      });
 
-      if (updateError) throw updateError;
-
-      // Remettre le plan en actif
-      const { error: planError } = await supabase
-        .from('savings_plans')
-        .update({
-          status: 'active',
-          updated_at: new Date().toISOString()
-        })
-        .eq('id', withdrawal.savings_plan_id);
-
-      if (planError) throw planError;
-
-      // Créer une notification pour le client
-      await supabase
-        .from('notifications')
-        .insert([{
-          user_id: withdrawal.user_id,
-          title: 'Retrait refusé',
-          message: `Votre demande de retrait a été refusée. Raison: ${reason}`,
-          type: 'withdrawal_rejected',
-          data: {
-            withdrawal_id: withdrawal.id,
-            reason: reason
-          }
-        }]);
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.error || 'Erreur lors du rejet');
+      }
 
       toast.success('Demande rejetée');
       setSelectedWithdrawal(null);
@@ -330,6 +283,67 @@ const ABEpargne = () => {
       console.error('[ADMIN_AB_EPARGNE] ❌ Erreur rejet:', error);
       toast.error('Erreur lors du rejet de la demande');
     }
+  };
+
+  // Fonction pour calculer si un plan est en retard
+  // TOUJOURS calculer en comparant avec la date actuelle pour être sûr
+  const isPlanOverdue = (plan) => {
+    if (!plan || !plan.next_deposit_date) return false;
+    
+    // TOUJOURS calculer en comparant next_deposit_date avec aujourd'hui
+    // Ignorer is_overdue de la DB car il peut ne pas être à jour
+    const nextDepositDate = new Date(plan.next_deposit_date);
+    const today = new Date();
+    
+    // Normaliser les dates à minuit pour une comparaison précise
+    today.setHours(0, 0, 0, 0);
+    nextDepositDate.setHours(0, 0, 0, 0);
+    
+    // Si la date du prochain dépôt est dans le passé, le plan est en retard
+    return nextDepositDate < today;
+  };
+
+  // Fonction pour calculer le nombre de jours de retard
+  // TOUJOURS calculer pour être sûr
+  const getDaysOverdue = (plan) => {
+    if (!plan || !plan.next_deposit_date) return 0;
+    
+    // TOUJOURS calculer la différence
+    const nextDepositDate = new Date(plan.next_deposit_date);
+    const today = new Date();
+    
+    // Normaliser les dates à minuit
+    today.setHours(0, 0, 0, 0);
+    nextDepositDate.setHours(0, 0, 0, 0);
+    
+    // Calculer la différence en jours
+    const diffTime = today.getTime() - nextDepositDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    // Retourner 0 si pas de retard, sinon le nombre de jours
+    return Math.max(0, diffDays);
+  };
+
+  // Composant pour l'indicateur de retard (mini badge)
+  const OverdueIndicator = ({ plan }) => {
+    const overdue = isPlanOverdue(plan);
+    const daysOverdue = getDaysOverdue(plan);
+    
+    if (!overdue) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-green-50 text-green-600 border border-green-200">
+          <CheckCircle size={10} />
+          À jour
+        </span>
+      );
+    }
+    
+    return (
+      <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold bg-orange-50 text-orange-600 border border-orange-200 animate-pulse">
+        <AlertCircle size={10} />
+        Retard {daysOverdue > 0 && `${daysOverdue}j`}
+      </span>
+    );
   };
 
   const getStatusBadge = (plan) => {
@@ -655,9 +669,12 @@ const ABEpargne = () => {
                       </div>
 
                       <div className="bg-orange-50 rounded-xl p-3">
-                        <div className="flex items-center gap-2 mb-1">
-                          <Calendar size={16} className="text-orange-600" />
-                          <p className="text-xs text-gray-600 font-medium">Prochain dépôt</p>
+                        <div className="flex items-center justify-between mb-1">
+                          <div className="flex items-center gap-2">
+                            <Calendar size={16} className="text-orange-600" />
+                            <p className="text-xs text-gray-600 font-medium">Prochain dépôt</p>
+                          </div>
+                          <OverdueIndicator plan={plan} />
                         </div>
                         <p className="text-sm font-bold text-orange-700">
                           {plan.next_deposit_date 

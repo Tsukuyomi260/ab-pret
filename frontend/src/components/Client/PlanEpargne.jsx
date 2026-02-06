@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { BACKEND_URL } from '../../config/backend';
 import { useAuth } from '../../context/AuthContext';
-import { ChevronLeft, Plus, Minus, Wallet, Calendar, Target, TrendingUp, Sparkles, CheckCircle2 } from 'lucide-react';
+import { ChevronLeft, Plus, Minus, Wallet, Calendar, Target, TrendingUp, Sparkles, CheckCircle2, AlertTriangle, Clock } from 'lucide-react';
 import FedaPayDepotButton from '../UI/FedaPayDepotButton';
 import WithdrawalRequestModal from '../UI/WithdrawalRequestModal';
 import toast from 'react-hot-toast';
@@ -208,6 +208,67 @@ const PlanEpargne = () => {
     });
   };
 
+  // Fonction pour calculer si le client est en retard
+  // TOUJOURS calculer en comparant avec la date actuelle pour être sûr
+  const isOverdue = () => {
+    if (!plan || !plan.next_deposit_date) return false;
+    
+    // TOUJOURS calculer en comparant next_deposit_date avec aujourd'hui
+    // Ignorer is_overdue de la DB car il peut ne pas être à jour
+    const nextDepositDate = new Date(plan.next_deposit_date);
+    const today = new Date();
+    
+    // Normaliser les dates à minuit pour une comparaison précise
+    today.setHours(0, 0, 0, 0);
+    nextDepositDate.setHours(0, 0, 0, 0);
+    
+    // Si la date du prochain dépôt est dans le passé, le client est en retard
+    return nextDepositDate < today;
+  };
+
+  // Fonction pour calculer le nombre de jours de retard
+  // TOUJOURS calculer pour être sûr
+  const getDaysOverdue = () => {
+    if (!plan || !plan.next_deposit_date) return 0;
+    
+    // TOUJOURS calculer la différence
+    const nextDepositDate = new Date(plan.next_deposit_date);
+    const today = new Date();
+    
+    // Normaliser les dates à minuit
+    today.setHours(0, 0, 0, 0);
+    nextDepositDate.setHours(0, 0, 0, 0);
+    
+    // Calculer la différence en jours
+    const diffTime = today.getTime() - nextDepositDate.getTime();
+    const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+    
+    // Retourner 0 si pas de retard, sinon le nombre de jours
+    return Math.max(0, diffDays);
+  };
+
+  // Composant pour l'indicateur de retard
+  const OverdueIndicator = () => {
+    const overdue = isOverdue();
+    const daysOverdue = getDaysOverdue();
+    
+    if (!overdue) {
+      return (
+        <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-green-50 text-green-700 border border-green-200">
+          <CheckCircle2 size={12} className="text-green-600" />
+          À jour
+        </span>
+      );
+    }
+    
+    return (
+      <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold bg-orange-50 text-orange-700 border border-orange-200 animate-pulse">
+        <AlertTriangle size={12} className="text-orange-600" />
+        En retard {daysOverdue > 0 && `(${daysOverdue}j)`}
+      </span>
+    );
+  };
+
   // Vérifier si le plan est éligible au retrait
   const isEligibleForWithdrawal = () => {
     if (!plan) return false;
@@ -320,7 +381,10 @@ const PlanEpargne = () => {
             </div>
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
               <span className="text-sm text-gray-600">Prochain dépôt à effectuer</span>
-              <span className="text-sm font-semibold text-gray-900">{plan.fixed_amount?.toLocaleString()} F</span>
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-semibold text-gray-900">{plan.fixed_amount?.toLocaleString()} F</span>
+                <OverdueIndicator />
+              </div>
             </div>
             <div className="flex justify-between items-center py-2 border-b border-gray-100">
               <span className="text-sm text-gray-600">Date du dernier dépôt</span>
@@ -363,9 +427,12 @@ const PlanEpargne = () => {
               <span className="text-gray-600">Dépôts effectués</span>
               <span className="font-medium">{plan.completed_deposits || 0} / {plan.total_deposits_required || 0}</span>
             </div>
-            <div className="flex justify-between">
+            <div className="flex justify-between items-center">
               <span className="text-gray-600">Prochain dépôt</span>
-              <span className="font-medium text-blue-600">{formatDate(plan.next_deposit_date)}</span>
+              <div className="flex items-center gap-2">
+                <span className="font-medium text-blue-600">{formatDate(plan.next_deposit_date)}</span>
+                <OverdueIndicator />
+              </div>
             </div>
           </div>
         </div>

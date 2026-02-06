@@ -20,14 +20,14 @@
     "react-dom": "^18.2.0",
     "react-hot-toast": "^2.6.0",
     "react-router-dom": "^6.3.0",
-    "react-scripts": "5.0.1",
+    "react-scripts": "^5.0.1",
     "react-window": "^2.2.6",
     "recharts": "^2.15.4",
     "web-push": "^3.6.7",
     "web-vitals": "^2.1.4"
   },
   "scripts": {
-    "start": "BROWSER=none PORT=3001 react-app-rewired start",
+    "start": "node scripts/start.js",
     "dev": "react-app-rewired start",
     "prebuild": "node scripts/update-version.js",
     "build": "react-app-rewired build",

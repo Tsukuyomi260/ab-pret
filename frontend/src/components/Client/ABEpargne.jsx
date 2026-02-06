@@ -250,10 +250,20 @@ const ABEpargne = () => {
         {/* Pay Now Button - Style moneroo */}
         <button
           onClick={handleConfigSubmit}
-          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-lg font-semibold text-base shadow-md hover:shadow-lg transition-all duration-200 mb-6"
+          className="w-full bg-blue-600 hover:bg-blue-700 text-white py-4 rounded-lg font-semibold text-base shadow-md hover:shadow-lg transition-all duration-200 mb-4"
         >
           Pay now
         </button>
+
+        <p className="text-center mb-6">
+          <button
+            type="button"
+            onClick={() => navigate('/ab-epargne/historique')}
+            className="text-sm text-blue-600 hover:underline"
+          >
+            Voir mon historique des plans terminés
+          </button>
+        </p>
 
         {/* Footer - Style moneroo */}
         <div className="text-center pt-4 border-t border-gray-200">

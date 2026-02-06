@@ -227,7 +227,8 @@ const LoanRequests = () => {
           totalBorrowed: 0,
           totalPaid: 0,
           activeLoanAmount: 0,
-          activeLoanInterest: 0
+          activeLoanInterest: 0,
+          dueDate: null
         }
       };
     }
@@ -240,6 +241,10 @@ const LoanRequests = () => {
       acc[userId].stats.activeLoans++;
       acc[userId].stats.activeLoanAmount += loan.amount || 0;
       acc[userId].stats.activeLoanInterest += Math.round((loan.amount || 0) * ((loan.interest_rate || 0) / 100));
+      // Garder la date d'échéance du prêt actif (le plus récent si plusieurs)
+      if (loan.dueDate && (!acc[userId].stats.dueDate || new Date(loan.dueDate) > new Date(acc[userId].stats.dueDate))) {
+        acc[userId].stats.dueDate = loan.dueDate;
+      }
     }
     if (loan.status === 'completed') acc[userId].stats.completedLoans++;
     acc[userId].stats.totalBorrowed += loan.amount;
@@ -579,7 +584,7 @@ const LoanRequests = () => {
                       </div>
                           </div>
 
-                    {/* Footer : totaux + prêt en cours + intérêt à rembourser */}
+                    {/* Footer : totaux + prêt en cours + intérêt à rembourser + date d'échéance */}
                     <div className="flex flex-col gap-3 pt-4 border-t border-gray-100">
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs sm:text-sm text-gray-600">
                         <span className="truncate">Total emprunté: <span className="font-bold text-gray-900">{formatCurrency(profile.stats.totalBorrowed)}</span></span>
@@ -588,6 +593,12 @@ const LoanRequests = () => {
                           <>
                             <span className="truncate">Prêt en cours: <span className="font-bold text-blue-700">{formatCurrency(profile.stats.activeLoanAmount)}</span></span>
                             <span className="truncate">Intérêt à rembourser: <span className="font-bold text-orange-600">{formatCurrency(profile.stats.activeLoanInterest)}</span></span>
+                            {profile.stats.dueDate && (
+                              <span className="truncate flex items-center gap-1">
+                                <Calendar size={14} className="text-purple-600" />
+                                Date d'échéance: <span className="font-bold text-purple-700">{new Date(profile.stats.dueDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                              </span>
+                            )}
                           </>
                         )}
                       </div>
