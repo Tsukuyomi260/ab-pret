@@ -6,7 +6,6 @@ import { useAuth } from '../../context/AuthContext';
 import Card from '../UI/Card';
 import Button from '../UI/Button';
 import { ListSkeleton } from '../UI/Skeleton';
-import NotificationBell from '../UI/NotificationBell';
 import { getLoans, getPayments } from '../../utils/supabaseAPI';
 import { 
   Search, 
@@ -24,16 +23,12 @@ import {
   FileText,
   BookOpen,
   Activity,
-  Percent,
-  Award,
-  Gift,
-  Rocket,
   Shield
 } from 'lucide-react';
 import { formatCurrency, formatDate } from '../../utils/helpers';
 
 const LoanHistory = () => {
-  const { notifications, markAsRead } = useNotifications();
+  useNotifications();
   const { user } = useAuth();
   const navigate = useNavigate();
   const [loans, setLoans] = useState([]);

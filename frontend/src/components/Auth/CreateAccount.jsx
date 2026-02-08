@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
 import { motion, AnimatePresence } from 'framer-motion';
 import Button from '../UI/Button';
@@ -15,17 +14,16 @@ import {
   Eye,
   EyeOff,
   MapPin,
-  Phone,
-  Shield
+  Phone
 } from 'lucide-react';
 import { validateEmail } from '../../utils/helpers';
 import { validateBeninPhoneNumber } from '../../utils/smsService';
 
 const CreateAccount = () => {
   const navigate = useNavigate();
-  const { showSuccess, showError } = useNotifications();
+  useNotifications();
   const [currentStep, setCurrentStep] = useState(1);
-  const [loading, setLoading] = useState(false);
+  const [loading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState({});
 
@@ -42,7 +40,7 @@ const CreateAccount = () => {
   });
 
   // Étape 2 - Confirmation
-  const [isConfirmed, setIsConfirmed] = useState(false);
+  const [, setIsConfirmed] = useState(false);
 
   const steps = [
     { id: 1, title: 'Informations de base', icon: User },

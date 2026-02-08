@@ -29,7 +29,7 @@ export const AuthProvider = ({ children }) => {
     try {
       const cached = localStorage.getItem('ab_user_cache');
       if (cached) {
-        const cachedUser = JSON.parse(cached);
+        JSON.parse(cached);
         // Vérifier si le cache est récent (moins de 24h)
         const cacheTime = localStorage.getItem('ab_user_cache_time');
         if (cacheTime) {
@@ -61,7 +61,6 @@ export const AuthProvider = ({ children }) => {
     }
 
     let subscription;
-    let isInitialized = false;
 
     const CACHE_MAX_AGE_MS = 5 * 60 * 1000; // 5 minutes pour afficher la page tout de suite
     const DB_TIMEOUT_MS = 2000;
@@ -323,7 +322,6 @@ export const AuthProvider = ({ children }) => {
         );
 
         subscription = res.data.subscription;
-        isInitialized = true;
         console.log('[AUTH] ✅ Contexte d\'authentification initialisé');
         
       } catch (error) {

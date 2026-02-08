@@ -1,14 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
-import { useAuth } from '../../context/AuthContext';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useNotifications } from '../../context/NotificationContext';
-// Finalisation côté Supabase (auth + profil)
 import { signUpWithPhone, updateUserProfile } from '../../utils/supabaseAPI';
 import Button from '../UI/Button';
 import Input from '../UI/Input';
 import Logo from '../UI/Logo';
 import StarBorder from '../UI/StarBorder';
-import { Mail, Lock, Phone, Eye, EyeOff, Camera, GraduationCap, Building, User, Shield, CheckCircle, Upload, ArrowRight, ArrowLeft, MapPin } from 'lucide-react';
+import { Mail, Lock, Phone, Eye, EyeOff, Camera, GraduationCap, Building, User, Shield, CheckCircle, ArrowRight, ArrowLeft, MapPin } from 'lucide-react';
 import { validateEmail, validatePhone } from '../../utils/helpers';
 import { uploadIdentityCard } from '../../utils/fileUpload';
 
@@ -139,6 +137,8 @@ const Register = () => {
         if (!validatePhone(formData.emergencyPhone)) newErrors.emergencyPhone = 'Numéro de téléphone invalide';
         if (!validateEmail(formData.emergencyEmail)) newErrors.emergencyEmail = 'Email invalide';
         if (!formData.emergencyAddress.trim()) newErrors.emergencyAddress = 'L\'adresse est requise';
+        break;
+      default:
         break;
     }
 

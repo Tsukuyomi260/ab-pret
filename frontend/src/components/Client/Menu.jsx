@@ -1,21 +1,17 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-// Animations supprimées pour améliorer les performances
 
 import { 
   Home,
   ArrowRight,
   PiggyBank,
-  Heart,
-  GraduationCap,
   Award,
-  TrendingUp,
-  Users
+  TrendingUp
 } from 'lucide-react';
 
 const Menu = () => {
   const navigate = useNavigate();
-  const [user, setUser] = useState({
+  const [, setUser] = useState({
     name: 'Elise HASSI',
     email: 'elise.hassi@example.com',
     role: 'client',

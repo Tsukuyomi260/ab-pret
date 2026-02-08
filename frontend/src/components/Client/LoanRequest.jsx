@@ -9,7 +9,6 @@ import {
   CheckCircle, 
   CreditCard, 
   DollarSign, 
-  Clock, 
   BookOpen,
   ShoppingBag,
   Home,
@@ -48,7 +47,6 @@ const LoanRequest = () => {
   const [submitted, setSubmitted] = useState(false);
   const [loanId, setLoanId] = useState(null);
   const [pdfDownloaded, setPdfDownloaded] = useState(false);
-  const [showPdfStep, setShowPdfStep] = useState(false);
   const [errors, setErrors] = useState({});
   const [calculation, setCalculation] = useState(null);
   const [hasActiveLoan, setHasActiveLoan] = useState(false);
@@ -58,6 +56,7 @@ const LoanRequest = () => {
 
   useEffect(() => {
     checkExistingLoans();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
     const checkExistingLoans = async () => {
@@ -92,6 +91,7 @@ const LoanRequest = () => {
     if (formData.amount && formData.duration) {
       calculateLoan();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [formData.amount, formData.duration]);
 
   const calculateLoan = () => {

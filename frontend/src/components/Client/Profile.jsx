@@ -21,9 +21,9 @@ const Profile = () => {
   const { notifications, markAsRead } = useNotifications();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [profileImage, setProfileImage] = useState(null);
+  const [, setProfileImage] = useState(null);
   const [previewImage, setPreviewImage] = useState(null);
-  const [imageLoading, setImageLoading] = useState(false);
+  const [imageLoading] = useState(false);
   const fileInputRef = useRef(null);
 
   const [formData, setFormData] = useState({
@@ -41,14 +41,6 @@ const Profile = () => {
     setLoading(true);
     try {
       console.log('[PROFILE] Sauvegarde du profil en cours...');
-      
-      // Préparer les données du profil
-      const profileData = {
-        firstName: formData.firstName,
-        lastName: formData.lastName,
-        email: formData.email,
-        phone: formData.phone
-      };
       
       // Mettre à jour le cache local
       try {
@@ -288,7 +280,7 @@ const Profile = () => {
                         {previewImage ? (
                           <img 
                             src={previewImage} 
-                            alt="Photo de profil" 
+                            alt="Avatar" 
                             className="w-full h-full object-cover relative z-10"
                           />
                         ) : (

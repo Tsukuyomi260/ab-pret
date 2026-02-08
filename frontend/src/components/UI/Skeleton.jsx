@@ -58,4 +58,5 @@ export function ListSkeleton({ rows = 5 }) {
   );
 }
 
-export default { StatsCardSkeleton, DashboardStatsSkeleton, ListRowSkeleton, ListSkeleton };
+const SkeletonExports = { StatsCardSkeleton, DashboardStatsSkeleton, ListRowSkeleton, ListSkeleton };
+export default SkeletonExports;

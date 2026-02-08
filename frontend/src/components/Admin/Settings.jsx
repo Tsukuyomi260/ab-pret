@@ -1,5 +1,4 @@
-import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
 import RoleDebugger from './RoleDebugger';
@@ -9,7 +8,6 @@ import {
   Shield, 
   Bell, 
   Save,
-  RefreshCw,
   Eye,
   EyeOff,
   Lock,
@@ -17,17 +15,14 @@ import {
   Phone,
   AlertCircle,
   CheckCircle,
-  Smartphone,
   Activity,
   Bug
 } from 'lucide-react';
 
 const Settings = () => {
-  const navigate = useNavigate();
   const { user } = useAuth();
   const { showSuccess, showError } = useNotifications();
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(null);
   const [showPassword, setShowPassword] = useState(false);
   const [showDebugPanel, setShowDebugPanel] = useState(false);
 

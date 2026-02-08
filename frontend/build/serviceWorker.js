@@ -1,13 +1,13 @@
 // Service Worker simple pour AB Campus Finance
 // La version du cache est mise à jour automatiquement lors du build
-const CACHE_NAME = 'ab-campus-finance-v2.0.0';
+const CACHE_NAME = 'ab-campus-finance-v2.0.0-b9';
 const urlsToCache = [
   '/',
   '/manifest.json',
-  '/version.json',
   '/logo192.png',
   '/logo512.png'
 ];
+// version.json n'est pas mis en cache pour que la détection de mise à jour fonctionne
 
 // Installation du service worker
 self.addEventListener('install', (event) => {
@@ -54,25 +54,26 @@ self.addEventListener('activate', (event) => {
 // Interception des requêtes
 self.addEventListener('fetch', (event) => {
   // Ne pas intercepter les requêtes vers l'API backend
-  if (event.request.url.includes('/api/') || 
+  if (event.request.url.includes('/api/') ||
       event.request.url.includes('supabase') ||
       event.request.url.includes('fedapay')) {
+    return;
+  }
+
+  // version.json : toujours réseau en premier pour que la détection de mise à jour fonctionne
+  const url = new URL(event.request.url);
+  if (url.pathname === '/version.json' || url.pathname.endsWith('/version.json')) {
+    event.respondWith(fetch(event.request).catch(() => caches.match(event.request)));
     return;
   }
 
   event.respondWith(
     caches.match(event.request)
       .then((response) => {
-        // Retourner la version en cache si disponible
         if (response) {
-          console.log('[SW] Ressource trouvée en cache:', event.request.url);
           return response;
         }
-
-        // Sinon, faire la requête réseau
-        console.log('[SW] Requête réseau:', event.request.url);
         return fetch(event.request).catch(() => {
-          // En cas d'erreur réseau, retourner une page d'erreur si c'est une navigation
           if (event.request.mode === 'navigate') {
             return caches.match('/');
           }

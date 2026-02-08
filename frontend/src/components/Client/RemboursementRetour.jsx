@@ -52,6 +52,7 @@ const RemboursementRetour = () => {
       setStatus('error');
       setMessage('Remboursement non approuvé');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search, navigate, user]);
 
   const checkRepaymentStatus = async (transactionId) => {

@@ -1,7 +1,6 @@
 import React from 'react';
 import Header from './Header';
 import Footer from './Footer';
-import NotificationBell from '../UI/NotificationBell';
 import { DockProvider } from '../../context/DockContext';
 
 const Layout = ({ children }) => {

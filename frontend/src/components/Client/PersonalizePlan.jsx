@@ -3,7 +3,6 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ChevronLeft, GraduationCap, Home, Bike, Smartphone, Shirt, PartyPopper, Briefcase, UtensilsCrossed, Laptop, Plane, Gift, Heart, Sparkles } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { BACKEND_URL } from '../../config/backend';
-import { supabase } from '../../utils/supabaseClient';
 import toast from 'react-hot-toast';
 
 const SAVINGS_GOALS = [
@@ -29,7 +28,7 @@ const PersonalizePlan = () => {
   const [customGoal, setCustomGoal] = useState('');
   const [planName, setPlanName] = useState('');
   const [loading, setLoading] = useState(false);
-  const [plan, setPlan] = useState(null);
+  const [, setPlan] = useState(null);
 
   useEffect(() => {
     const fetchPlan = async () => {

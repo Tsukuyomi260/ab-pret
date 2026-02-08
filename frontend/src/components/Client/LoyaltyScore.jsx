@@ -32,7 +32,7 @@ import { formatCurrency } from '../../utils/helpers';
 const LoyaltyScore = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
-  const { showSuccess, showError } = useNotifications();
+  const { showError } = useNotifications();
   const [activeTab, setActiveTab] = useState('overview');
   const [showInfoModal, setShowInfoModal] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -180,6 +180,7 @@ const LoyaltyScore = () => {
   // Charger les données au montage du composant
   useEffect(() => {
     calculateLoyaltyScore();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [calculateLoyaltyScore]);
 
   const benefits = [

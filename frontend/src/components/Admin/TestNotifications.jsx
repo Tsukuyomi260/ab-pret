@@ -3,13 +3,12 @@ import { motion } from 'framer-motion';
 import { 
   Bell, 
   Send, 
-  Users, 
   CheckCircle, 
   AlertCircle, 
+  AlertTriangle,
   Loader2,
   CreditCard,
   Clock,
-  AlertTriangle,
   RefreshCw
 } from 'lucide-react';
 import Card from '../UI/Card';

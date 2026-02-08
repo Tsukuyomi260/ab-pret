@@ -31,6 +31,7 @@ const RepaymentSuccess = () => {
       // Traiter le remboursement automatiquement
       processRepayment(data);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location]);
 
   const processRepayment = async (data) => {

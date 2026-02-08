@@ -1556,6 +1556,17 @@ app.post('/api/fedapay/webhook', async (req, res) => {
             });
           }
           
+          // Vérifier si l'objectif est atteint et notifier l'admin + client
+          const targetAmount = updatedPlan.total_amount_target || updatedPlan.target_amount || 0;
+          if (newCurrentBalance >= targetAmount && targetAmount > 0 && updatedPlan.status === 'active') {
+            console.log('[FEDAPAY_WEBHOOK] 🎯 Objectif atteint ! Notifications admin + client...');
+            try {
+              await notifyAdminPlanGoalReached(planId, userId, newCurrentBalance, targetAmount);
+            } catch (goalError) {
+              console.error('[FEDAPAY_WEBHOOK] ❌ Erreur notification objectif atteint:', goalError);
+            }
+          }
+          
           // Envoyer une notification push à l'utilisateur
           try {
             // Récupérer les informations de l'utilisateur
@@ -3786,6 +3797,140 @@ async function manageOverdueLoans() {
   }
 }
 
+// Notifier l'admin quand un plan atteint son objectif (le client peut maintenant retirer)
+async function notifyAdminPlanGoalReached(planId, userId, currentBalance, targetAmount) {
+  try {
+    const { data: plan } = await supabase
+      .from('savings_plans')
+      .select('plan_name, goal, goal_label, user_id, goal_reached_notified_at')
+      .eq('id', planId)
+      .single();
+
+    if (!plan) return;
+    
+    // Éviter les doublons : si déjà notifié, ne rien faire
+    if (plan.goal_reached_notified_at) {
+      console.log('[GOAL_REACHED] Plan', planId, 'déjà notifié, skip');
+      return;
+    }
+
+    const { data: user } = await supabase
+      .from('users')
+      .select('first_name, last_name')
+      .eq('id', userId)
+      .single();
+
+    if (!user) return;
+
+    const clientName = `${user.first_name || ''} ${user.last_name || ''}`.trim() || 'Client';
+    const planName = plan.plan_name || plan.goal_label || 'Plan d\'épargne';
+    const amountFormatted = `${Number(currentBalance).toLocaleString()} FCFA`;
+    const targetFormatted = `${Number(targetAmount).toLocaleString()} FCFA`;
+
+    const { data: adminData } = await supabase
+      .from('users')
+      .select('id, first_name, last_name')
+      .eq('role', 'admin')
+      .single();
+
+    if (!adminData) return;
+
+    const title = "🎯 Objectif d'épargne atteint";
+    const message = `${clientName} a atteint l'objectif de son plan "${planName}" (${targetFormatted}). Le client peut maintenant demander un retrait.`;
+
+    await supabase.from('notifications').insert({
+      user_id: adminData.id,
+      title,
+      message,
+      type: 'savings_goal_reached',
+      priority: 'high',
+      read: false,
+      data: {
+        plan_id: planId,
+        user_id: userId,
+        current_balance: currentBalance,
+        target_amount: targetAmount,
+        client_name: clientName,
+        plan_name: planName,
+        url: '/admin/ab-epargne'
+      }
+    });
+
+    const { data: subs } = await supabase
+      .from('push_subscriptions')
+      .select('subscription')
+      .eq('user_id', adminData.id);
+
+    if (subs && subs.length > 0 && webPush) {
+      const adminName = adminData.first_name || 'Admin';
+      const body = `Hello ${adminName}, ${clientName} a atteint l'objectif de son plan "${planName}". Il peut maintenant retirer.`;
+      for (const sub of subs) {
+        try {
+          await webPush.sendNotification(sub.subscription, JSON.stringify({
+            title,
+            body,
+            data: { url: '/admin/ab-epargne', type: 'savings_goal_reached', planId, userId },
+            vibrate: [200, 50, 100]
+          }));
+        } catch (e) { /* ignore */ }
+      }
+    }
+
+    await supabase.from('notifications').insert({
+      user_id: userId,
+      title: '🎉 Félicitations ! Objectif atteint',
+      message: `Vous avez atteint l'objectif de votre plan "${planName}" (${targetFormatted}). Vous pouvez maintenant demander un retrait depuis votre tableau de bord.`,
+      type: 'savings_goal_reached_client',
+      priority: 'high',
+      read: false,
+      data: {
+        plan_id: planId,
+        current_balance: currentBalance,
+        target_amount: targetAmount,
+        plan_name: planName,
+        url: `/ab-epargne/plan/${planId}`
+      }
+    });
+
+    await supabase
+      .from('savings_plans')
+      .update({ goal_reached_notified_at: new Date().toISOString() })
+      .eq('id', planId);
+
+    console.log('[GOAL_REACHED] ✅ Admin et client notifiés pour plan', planId);
+  } catch (e) {
+    console.error('[GOAL_REACHED] Erreur:', e);
+  }
+}
+
+// Job de rattrapage : notifier l'admin pour les plans ayant atteint leur objectif mais pas encore notifiés
+async function notifyAdminForPlansGoalReached() {
+  try {
+    const { data: plans } = await supabase
+      .from('savings_plans')
+      .select('id, user_id, plan_name, goal, goal_label, current_balance, total_amount_target, target_amount, status')
+      .eq('status', 'active')
+      .is('goal_reached_notified_at', null);
+
+    if (!plans || plans.length === 0) return;
+
+    for (const plan of plans) {
+      const targetAmount = plan.total_amount_target || plan.target_amount || 0;
+      const currentBalance = plan.current_balance || 0;
+      if (targetAmount > 0 && currentBalance >= targetAmount) {
+        await notifyAdminPlanGoalReached(plan.id, plan.user_id, currentBalance, targetAmount);
+        await supabase
+          .from('savings_plans')
+          .update({ goal_reached_notified_at: new Date().toISOString() })
+          .eq('id', plan.id);
+        console.log('[GOAL_REACHED_JOB] Plan', plan.id, 'notifié');
+      }
+    }
+  } catch (e) {
+    console.error('[GOAL_REACHED_JOB] Erreur:', e);
+  }
+}
+
 // Fonction pour gérer les plans d'épargne en retard (pénalités, suspension, notifications)
 async function manageOverdueSavings() {
   try {
@@ -4418,6 +4563,10 @@ scheduleReminders();
 // Rattrapage des demandes de retrait non notifiées : toutes les 2 min + une fois au démarrage (délai 30s)
 setTimeout(() => notifyAdminForPendingWithdrawals(), 30 * 1000);
 setInterval(notifyAdminForPendingWithdrawals, 2 * 60 * 1000);
+
+// Rattrapage des plans ayant atteint leur objectif : toutes les 5 min + une fois au démarrage (délai 60s)
+setTimeout(() => notifyAdminForPlansGoalReached(), 60 * 1000);
+setInterval(notifyAdminForPlansGoalReached, 5 * 60 * 1000);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

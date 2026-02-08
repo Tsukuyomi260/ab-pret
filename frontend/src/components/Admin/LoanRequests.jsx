@@ -1,5 +1,4 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { getLoans, updateLoanStatus, getPayments } from '../../utils/supabaseAPI';
 import { useNotifications } from '../../context/NotificationContext';
 import { 
@@ -10,7 +9,6 @@ import {
   Clock, 
   CheckCircle, 
   XCircle,
-  DollarSign,
   Calendar,
   RefreshCw,
   User,
@@ -24,14 +22,11 @@ import {
   CreditCard,
   FileText,
   Shield,
-  Target,
-  Award,
   Filter
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 
 const LoanRequests = () => {
-  const navigate = useNavigate();
   const { showSuccess, showError } = useNotifications();
   const [loanRequests, setLoanRequests] = useState([]);
   const [loading, setLoading] = useState(false);

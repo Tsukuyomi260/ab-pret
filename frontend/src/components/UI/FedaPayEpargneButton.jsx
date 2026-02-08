@@ -1,16 +1,13 @@
 import React, { useRef, useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import { useAuth } from "../../context/AuthContext";
 
 const FedaPayEpargneButton = ({ planConfig }) => {
   const buttonRef = useRef(null);
-  const navigate = useNavigate();
   const { user } = useAuth();
   const [fedaPayLoaded, setFedaPayLoaded] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState(null);
 
-  // Fonction pour forcer le rafraîchissement de la page
   const forcePageRefresh = () => {
     console.log("[FedaPay] 🔄 FORÇAGE du rafraîchissement de la page");
     

@@ -1,28 +1,22 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
-import { getAllUsers, getLoans, getAnalyticsData, checkLoyaltyPopup, resetLoyaltyCounter } from '../../utils/supabaseAPI';
+import { getAllUsers, getLoans, checkLoyaltyPopup, resetLoyaltyCounter } from '../../utils/supabaseAPI';
 import { useRealtimeNotifications } from '../../hooks/useRealtimeNotifications';
 import AdminLoyaltyAlertModal from './AdminLoyaltyAlertModal';
 import { 
-  Users, 
   CreditCard, 
   TrendingUp, 
   AlertCircle, 
   CheckCircle,
   Clock,
-  Eye,
   Home,
   PiggyBank,
   Wallet,
   Activity,
   RefreshCw,
   ArrowRight,
-  DollarSign,
   BarChart3,
-  Target,
-  Award,
-  TrendingDown,
   Receipt
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
@@ -52,8 +46,8 @@ const AdminDashboard = () => {
 
   useEffect(() => {
     loadDashboardData();
-    // Vérifier si un popup de fidélité doit être affiché au chargement
     checkAdminLoyaltyPopup();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const checkAdminLoyaltyPopup = async () => {

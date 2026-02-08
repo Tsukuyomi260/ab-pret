@@ -29,7 +29,7 @@ const WithdrawalRequestModal = ({ plan, onClose, onSuccess }) => {
     }
 
     // Validation du numéro de téléphone (format basique)
-    const phoneRegex = /^[\d\s\+\-\(\)]+$/;
+    const phoneRegex = /^[\d\s+\-()]+$/;
     if (!phoneRegex.test(formData.phoneNumber)) {
       setError('Numéro de téléphone invalide');
       return;

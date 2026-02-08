@@ -17,11 +17,9 @@ import {
   Calendar,
   Wallet,
   Target,
-  TrendingDown,
   Award,
   Activity,
-  CreditCard,
-  ArrowLeft
+  CreditCard
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 import { supabase } from '../../utils/supabaseClient';

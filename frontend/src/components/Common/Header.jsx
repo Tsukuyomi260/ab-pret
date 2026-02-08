@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useNotifications } from '../../context/NotificationContext';
-import { LogOut, User, Bell, Menu, X, ArrowRight } from 'lucide-react';
+import { LogOut, User, Bell, ArrowRight } from 'lucide-react';
 import Logo from '../UI/Logo';
 import NotificationBell from '../UI/NotificationBell';
 // Animations supprimées pour améliorer les performances

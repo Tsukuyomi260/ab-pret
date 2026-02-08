@@ -11,8 +11,7 @@ import {
   DollarSign,
   CheckCircle,
   XCircle,
-  Clock,
-  AlertTriangle
+  Clock
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 import TransactionDrawer from './TransactionDrawer';

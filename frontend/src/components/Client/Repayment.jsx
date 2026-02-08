@@ -16,7 +16,6 @@ import {
   TrendingUp,
   CheckCircle,
   DollarSign,
-  Clock,
   Info
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
@@ -146,6 +145,7 @@ const Repayment = () => {
 
   useEffect(() => {
     loadActiveLoan();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user?.id]);
 
 
@@ -157,10 +157,6 @@ const Repayment = () => {
     setTimeout(() => {
       loadActiveLoan();
     }, 1000);
-  };
-
-  const handleRepaymentError = (error) => {
-    showError(error);
   };
 
   return (

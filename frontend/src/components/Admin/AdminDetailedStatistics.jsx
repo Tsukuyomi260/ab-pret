@@ -76,8 +76,6 @@ function isInRange(dateStr, start, end) {
   return d >= start && d <= end;
 }
 
-const COLORS = ['#22c55e', '#3b82f6', '#eab308', '#ef4444', '#8b5cf6'];
-
 const formatDateForInput = (d) => d.toISOString().slice(0, 10);
 
 const AdminDetailedStatistics = () => {
@@ -185,7 +183,6 @@ const AdminDetailedStatistics = () => {
       const buckets = {};
       const d = new Date(start);
       while (d <= end) {
-        const key = d.toISOString().slice(0, 10);
         const weekStart = new Date(d);
         weekStart.setDate(d.getDate() - d.getDay());
         const weekKey = weekStart.toISOString().slice(0, 10);

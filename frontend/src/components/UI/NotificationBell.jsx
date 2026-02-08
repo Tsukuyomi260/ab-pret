@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 // Animations supprimées pour améliorer les performances
-import { Bell, X, CheckCircle, AlertCircle, Info, Clock, DollarSign, CreditCard, FileText, Calendar, Wifi, WifiOff, CheckCheck, Trash2 } from 'lucide-react';
+import { Bell, X, CheckCircle, AlertCircle, Info, Clock, Wifi, WifiOff, CheckCheck, Trash2 } from 'lucide-react';
 import { useNotifications } from '../../context/NotificationContext';
 import { useLoanCounters } from '../../hooks/useLoanCounters';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
@@ -70,7 +70,6 @@ const NotificationBell = ({ notifications: propNotifications, onNotificationClic
   
   // Nombre de demandes en attente (notifications dynamiques) non dismissed
   const activePendingLoanCount = pendingLoanRequests.filter(loan => !dismissedPendingLoans.has(loan.id)).length;
-  const pendingLoanNotificationsCount = notifications.filter(n => n.isPendingLoan).length;
   
   // Afficher les boutons s'il y a des notifications à gérer (réelles ou demandes en attente)
   // Utiliser activePendingLoanCount au lieu de pendingRequests pour exclure les dismissed
@@ -111,6 +110,7 @@ const NotificationBell = ({ notifications: propNotifications, onNotificationClic
         setIsLoadingNotifications(false);
       });
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, user?.id]);
 
   useEffect(() => {

@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { BACKEND_URL } from '../../config/backend';
 import { useAuth } from '../../context/AuthContext';
-import { ChevronLeft, Plus, Minus, Wallet, Calendar, Target, TrendingUp, Sparkles, CheckCircle2, AlertTriangle, Clock } from 'lucide-react';
+import { ChevronLeft, Minus, CheckCircle2, AlertTriangle } from 'lucide-react';
 import FedaPayDepotButton from '../UI/FedaPayDepotButton';
 import WithdrawalRequestModal from '../UI/WithdrawalRequestModal';
 import toast from 'react-hot-toast';
@@ -80,6 +80,7 @@ const PlanEpargne = () => {
     if (user && id) {
       fetchPlan();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user, id]);
 
   // Composant pour le cercle de progression
@@ -188,15 +189,6 @@ const PlanEpargne = () => {
     );
   }
 
-  // Fonction pour calculer les jours restants
-  const getDaysRemaining = () => {
-    if (!plan.end_date) return 0;
-    const endDate = new Date(plan.end_date);
-    const today = new Date();
-    const diffTime = endDate - today;
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-    return Math.max(0, diffDays);
-  };
 
   // Fonction pour formater la date
   const formatDate = (dateString) => {

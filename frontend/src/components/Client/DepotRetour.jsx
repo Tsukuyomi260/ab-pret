@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
-import { CheckCircle, Wallet, TrendingUp } from 'lucide-react';
+import { CheckCircle } from 'lucide-react';
 
 // Configuration du backend selon l'environnement
 const getBackendUrl = () => {
@@ -52,6 +52,7 @@ const DepotRetour = () => {
       setStatus('error');
       setMessage('Dépôt non approuvé');
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search]);
 
   const checkDepositStatus = async (reference) => {

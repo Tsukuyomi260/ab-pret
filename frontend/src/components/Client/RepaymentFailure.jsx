@@ -9,7 +9,7 @@ import { formatCurrency } from '../../utils/helpers';
 
 const RepaymentFailure = () => {
   const { showError } = useNotifications();
-  const { user } = useAuth();
+  useAuth();
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const [loading, setLoading] = useState(false);

@@ -181,10 +181,8 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
 const AppContent = () => {
   const {
     updateAvailable,
-    isChecking,
     currentVersion,
     newVersion,
-    checkVersion,
     applyUpdate,
     ignoreUpdate
   } = useAppUpdate();

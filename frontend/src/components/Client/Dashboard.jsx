@@ -9,11 +9,9 @@ import { checkLoyaltyPopup } from '../../utils/supabaseAPI';
 import { 
   CreditCard, 
   Clock, 
-  CheckCircle, 
   Plus,
   Star,
   Award,
-  DollarSign,
   RefreshCw,
   ArrowRight,
   PiggyBank,

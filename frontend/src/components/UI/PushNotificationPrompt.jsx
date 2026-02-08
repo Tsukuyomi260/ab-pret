@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Bell, X, CheckCircle, AlertCircle } from 'lucide-react';
+import { Bell, CheckCircle, AlertCircle } from 'lucide-react';
 import { usePushNotifications } from '../../hooks/usePushNotifications';
 
 const PushNotificationPrompt = () => {
@@ -65,12 +65,11 @@ const PushNotificationPrompt = () => {
     }
   };
 
+  // eslint-disable-next-line no-unused-vars
   const handleDecline = () => {
-    // Marquer que l'utilisateur a refusé les notifications
     localStorage.setItem('notification-prompt-seen', 'true');
     localStorage.setItem('notification-prompt-declined', 'true');
     localStorage.setItem('notification-prompt-last-seen', Date.now().toString());
-    console.log('[PUSH PROMPT] Prompt marqué comme refusé - ne plus afficher');
     setShowPrompt(false);
   };
 

@@ -3,50 +3,14 @@
   "outputDirectory": "build",
   "framework": "create-react-app",
   "env": {
-    "REACT_APP_BACKEND_URL": "https://ab-pret-back.onrender.com"
+    "REACT_APP_BACKEND_URL": "https://ab-pret-back.onrender.com",
+    "CI": "false"
   },
-  "rewrites": [
-    {
-      "source": "/(.*)",
-      "destination": "/index.html"
-    }
-  ],
+  "rewrites": [{"source": "/(.*)", "destination": "/index.html"}],
   "headers": [
-    {
-      "source": "/static/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    },
-    {
-      "source": "/index.html",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-cache, no-store, must-revalidate"
-        }
-      ]
-    },
-    {
-      "source": "/version.json",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-cache, no-store, must-revalidate"
-        }
-      ]
-    },
-    {
-      "source": "/serviceWorker.js",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "no-cache, no-store, must-revalidate"
-        }
-      ]
-    }
+    {"source": "/static/(.*)", "headers": [{"key": "Cache-Control", "value": "public, max-age=31536000, immutable"}]},
+    {"source": "/index.html", "headers": [{"key": "Cache-Control", "value": "no-cache, no-store, must-revalidate"}]},
+    {"source": "/version.json", "headers": [{"key": "Cache-Control", "value": "no-cache, no-store, must-revalidate"}]},
+    {"source": "/serviceWorker.js", "headers": [{"key": "Cache-Control", "value": "no-cache, no-store, must-revalidate"}]}
   ]
 }

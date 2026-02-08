@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { BACKEND_URL } from '../../config/backend';
 import { useAuth } from '../../context/AuthContext';
-import { supabase } from '../../utils/supabaseClient';
 
 const RetourEpargne = () => {
   const navigate = useNavigate();
@@ -25,7 +24,7 @@ const RetourEpargne = () => {
         const reference = urlParams.get("reference");
         const paymentStatus = urlParams.get("status");
         
-        if (!planId && !reference || paymentStatus !== 'approved') {
+        if ((!planId && !reference) || paymentStatus !== 'approved') {
           setError('Paiement non confirmé');
           setStatus('error');
           return;
@@ -121,8 +120,8 @@ const RetourEpargne = () => {
       }
     };
 
-    // Démarrer le polling immédiatement
     pollForPlan();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.search, navigate]);
 
   const handleRetry = () => {

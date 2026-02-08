@@ -3,21 +3,18 @@ import { useNavigate } from 'react-router-dom';
 import { getLoans, getAllUsers, getPayments } from '../../utils/supabaseAPI';
 import { supabase } from '../../utils/supabaseClient';
 import { 
-  TrendingUp, 
   Users, 
   CreditCard, 
   DollarSign,
   Activity,
   RefreshCw,
   CheckCircle,
-  XCircle,
   Clock,
   PiggyBank,
   Wallet,
   AlertCircle,
   TrendingDown,
   Award,
-  Target,
   BarChart3
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';

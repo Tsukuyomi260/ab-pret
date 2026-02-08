@@ -16,13 +16,10 @@ import {
   RefreshCw,
   User,
   X,
-  MapPin,
   GraduationCap,
-  Building,
   Shield,
   AlertTriangle,
   FileImage,
-  Home,
   CreditCard,
   Filter,
   Trash2
@@ -44,6 +41,7 @@ const UserManagement = () => {
 
   useEffect(() => {
     loadUsers();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const loadUsers = async () => {
