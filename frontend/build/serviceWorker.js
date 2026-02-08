@@ -1,6 +1,6 @@
 // Service Worker simple pour AB Campus Finance
 // La version du cache est mise à jour automatiquement lors du build
-const CACHE_NAME = 'ab-campus-finance-v2.0.0-b9';
+const CACHE_NAME = 'ab-campus-finance-v2.0.0-b10';
 const urlsToCache = [
   '/',
   '/manifest.json',

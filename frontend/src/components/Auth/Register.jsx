@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate, useLocation } from 'react-router-dom';
+import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useNotifications } from '../../context/NotificationContext';
 import { signUpWithPhone, updateUserProfile } from '../../utils/supabaseAPI';
 import Button from '../UI/Button';
