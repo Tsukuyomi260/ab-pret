@@ -1065,6 +1065,15 @@ app.post('/api/fedapay/webhook', async (req, res) => {
     console.log(`[FEDAPAY_WEBHOOK] 📊 Traitement webhook: ${transaction.status}`);
     
     if (transaction.status === 'transferred' || transaction.status === 'approved') {
+      console.log(`[FEDAPAY_WEBHOOK] ✅ Transaction confirmée - Status: ${transaction.status}`);
+      console.log(`[FEDAPAY_WEBHOOK] 🔍 Vérification conditions:`, {
+        paymentType,
+        loanId: !!loanId,
+        userId: !!userId,
+        hasLoanId: !!loanId,
+        hasUserId: !!userId
+      });
+      
       if (paymentType === 'loan_repayment' && loanId && userId) {
         console.log(`[FEDAPAY_WEBHOOK] 🎯 Paiement confirmé pour le prêt #${loanId}`);
         
@@ -1098,7 +1107,7 @@ app.post('/api/fedapay/webhook', async (req, res) => {
           const { data: existingPayment } = await supabase
             .from('payments')
             .select('id')
-            .or(`fedapay_transaction_id.eq.${transaction.id},transaction_id.eq.${transaction.id}`)
+            .eq('transaction_id', transaction.id)
             .maybeSingle();
 
           let paymentData;
@@ -1128,7 +1137,6 @@ app.post('/api/fedapay/webhook', async (req, res) => {
                 method: 'mobile_money', // Valeur par défaut simple
                 status: 'completed',
                 transaction_id: transaction.id,
-                fedapay_transaction_id: transaction.id, // Ajouter aussi dans ce champ pour cohérence
                 payment_date: new Date().toISOString(),
                 description: `Remboursement complet du prêt #${loanId}`,
                 metadata: {
@@ -1156,15 +1164,77 @@ app.post('/api/fedapay/webhook', async (req, res) => {
 
           console.log('[FEDAPAY_WEBHOOK] ✅ Paiement créé:', paymentData);
 
-          // 2. Mettre à jour le statut du prêt
-          console.log('[FEDAPAY_WEBHOOK] 🔄 Mise à jour prêt:', { loanId, newStatus: 'completed' });
+          // 2. Vérifier que le montant payé couvre bien capital + intérêts + pénalités
+          console.log('[FEDAPAY_WEBHOOK] 🔍 Vérification montant payé vs montant dû...');
+          
+          // Récupérer le prêt avec toutes ses informations (pénalités incluses)
+          const { data: loanData, error: loanFetchError } = await supabase
+            .from('loans')
+            .select('id, amount, interest_rate, total_penalty_amount, status, approved_at, duration, duration_months')
+            .eq('id', loanId)
+            .single();
+
+          if (loanFetchError) {
+            console.error('[FEDAPAY_WEBHOOK] ❌ Erreur récupération prêt:', loanFetchError);
+            throw loanFetchError;
+          }
+
+          // Calculer le montant total attendu : capital + intérêts + pénalités
+          const principalAmount = parseFloat(loanData.amount) || 0;
+          const interestAmount = principalAmount * ((loanData.interest_rate || 0) / 100);
+          const penaltyAmount = parseFloat(loanData.total_penalty_amount || 0);
+          const totalExpectedAmount = principalAmount + interestAmount + penaltyAmount;
+          
+          // Récupérer le total déjà payé (somme de tous les paiements pour ce prêt)
+          const { data: allPayments, error: paymentsError } = await supabase
+            .from('payments')
+            .select('amount')
+            .eq('loan_id', loanId)
+            .eq('status', 'completed');
+          
+          if (paymentsError) {
+            console.error('[FEDAPAY_WEBHOOK] ❌ Erreur récupération paiements:', paymentsError);
+            throw paymentsError;
+          }
+          
+          const totalPaidAmount = allPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+          const remainingAmount = Math.max(0, totalExpectedAmount - totalPaidAmount);
+          
+          console.log('[FEDAPAY_WEBHOOK] 💰 Calcul montant:', {
+            principalAmount,
+            interestAmount,
+            penaltyAmount,
+            totalExpectedAmount,
+            totalPaidAmount,
+            remainingAmount,
+            currentPayment: transaction.amount
+          });
+
+          // 3. Mettre à jour le statut du prêt
+          // Si le montant payé couvre le reste dû (avec une petite marge d'erreur de 1 FCFA pour arrondis)
+          const isFullyPaid = remainingAmount <= 1 || totalPaidAmount >= totalExpectedAmount - 1;
+          
+          console.log('[FEDAPAY_WEBHOOK] 🔄 Mise à jour prêt:', { 
+            loanId, 
+            newStatus: isFullyPaid ? 'completed' : 'active',
+            isFullyPaid,
+            remainingAmount
+          });
+          
+          const updateData = {
+            status: isFullyPaid ? 'completed' : 'active',
+            updated_at: new Date().toISOString()
+          };
+          
+          // Si le prêt est complètement payé, réinitialiser les pénalités
+          if (isFullyPaid) {
+            updateData.total_penalty_amount = 0;
+            updateData.last_penalty_calculation = null;
+          }
           
           const { data: updatedLoan, error: loanError } = await supabase
             .from('loans')
-            .update({
-              status: 'completed',
-              updated_at: new Date().toISOString()
-            })
+            .update(updateData)
             .eq('id', loanId)
             .select()
             .single();
@@ -1175,6 +1245,10 @@ app.post('/api/fedapay/webhook', async (req, res) => {
           }
 
           console.log('[FEDAPAY_WEBHOOK] ✅ Prêt mis à jour:', updatedLoan);
+          
+          if (!isFullyPaid) {
+            console.log(`[FEDAPAY_WEBHOOK] ⚠️ Prêt partiellement remboursé. Reste à payer: ${remainingAmount.toLocaleString()} FCFA`);
+          }
 
           // 1. NOTIFIER LE CLIENT (TOUJOURS créer dans la DB)
           try {
@@ -1263,6 +1337,9 @@ app.post('/api/fedapay/webhook', async (req, res) => {
           
         } catch (error) {
           console.error('[FEDAPAY_WEBHOOK] ❌ Erreur lors du traitement du remboursement:', error);
+          console.error('[FEDAPAY_WEBHOOK] ❌ Stack trace:', error.stack);
+          // Ne pas retourner d'erreur HTTP pour éviter que FedaPay réessaie indéfiniment
+          // Mais logger l'erreur pour investigation manuelle
         }
       } else if (paymentType === 'savings_plan_creation' && userId) {
         console.log(`[FEDAPAY_WEBHOOK] 🎯 Paiement confirmé pour création plan d'épargne - User: ${userId}`);
@@ -1619,8 +1696,30 @@ app.post('/api/fedapay/webhook', async (req, res) => {
           console.error('[FEDAPAY_WEBHOOK] ❌ Erreur lors du traitement du dépôt:', error);
         }
       } else {
-        console.log('[FEDAPAY_WEBHOOK] ⚠️ Paiement confirmé mais pas de metadata valide - Webhook de test FedaPay');
-        console.log('[FEDAPAY_WEBHOOK] Détails:', { loanId, userId, paymentType });
+        console.log('[FEDAPAY_WEBHOOK] ⚠️ Paiement confirmé mais conditions non remplies');
+        console.log('[FEDAPAY_WEBHOOK] Détails:', { 
+          loanId, 
+          userId, 
+          paymentType,
+          status: transaction.status,
+          hasLoanId: !!loanId,
+          hasUserId: !!userId,
+          isLoanRepayment: paymentType === 'loan_repayment',
+          metadata: transaction.metadata,
+          custom_metadata: transaction.custom_metadata,
+          description: transaction.description
+        });
+        
+        // Si c'est un remboursement mais qu'il manque des infos, logger pour investigation
+        if (transaction.description?.includes('Remboursement') || transaction.description?.includes('remboursement')) {
+          console.error('[FEDAPAY_WEBHOOK] 🚨 ALERTE: Remboursement détecté mais non traité !', {
+            transaction_id: transaction.id,
+            amount: transaction.amount,
+            description: transaction.description,
+            metadata: transaction.metadata,
+            custom_metadata: transaction.custom_metadata
+          });
+        }
       }
     } else if (transaction.status === 'failed') {
       console.log('[FEDAPAY_WEBHOOK] ❌ Transaction échouée');
@@ -1632,8 +1731,409 @@ app.post('/api/fedapay/webhook', async (req, res) => {
 
     return res.status(200).json({ success: true });
   } catch (error) {
-    console.error('[FEDAPAY_WEBHOOK] Erreur :', error);
-    return res.status(500).json({ success: false, error: 'Erreur serveur' });
+    console.error('[FEDAPAY_WEBHOOK] ❌ Erreur générale webhook:', error);
+    console.error('[FEDAPAY_WEBHOOK] ❌ Stack trace:', error.stack);
+    // Retourner 200 pour éviter que FedaPay réessaie indéfiniment
+    // Mais logger l'erreur pour investigation
+    return res.status(200).json({ success: false, error: 'Erreur serveur (loggée)' });
+  }
+});
+
+// Route GET pour obtenir des infos sur les paiements manquants (sans les traiter)
+app.get('/api/fedapay/process-all-missing-payments', async (req, res) => {
+  try {
+    const { supabase } = require('./utils/supabaseClient-server');
+    
+    // Compter les paiements complétés avec des prêts encore actifs/overdue
+    const { data: payments, error } = await supabase
+      .from('payments')
+      .select('id, loan_id, status')
+      .eq('status', 'completed')
+      .not('transaction_id', 'is', null)
+      .limit(100);
+    
+    if (error) {
+      return res.status(500).json({ success: false, error: error.message });
+    }
+    
+    let missingCount = 0;
+    const missingLoans = [];
+    
+    for (const payment of payments || []) {
+      if (!payment.loan_id) continue;
+      
+      const { data: loan } = await supabase
+        .from('loans')
+        .select('id, status')
+        .eq('id', payment.loan_id)
+        .single();
+      
+      if (loan && loan.status !== 'completed') {
+        missingCount++;
+        if (missingLoans.length < 10) {
+          missingLoans.push({ loan_id: loan.id, status: loan.status });
+        }
+      }
+    }
+    
+    return res.json({
+      info: 'Utilisez POST pour traiter les paiements manquants',
+      missing_payments_count: missingCount,
+      sample_missing_loans: missingLoans,
+      endpoint: 'POST /api/fedapay/process-all-missing-payments'
+    });
+    
+  } catch (error) {
+    return res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Route pour traiter tous les paiements existants non traités (récupère depuis la DB)
+app.post('/api/fedapay/process-all-missing-payments', async (req, res) => {
+  try {
+    console.log('[PROCESS_MISSING] 🔍 Recherche des paiements non traités...');
+    
+    const { supabase } = require('./utils/supabaseClient-server');
+    
+    // Récupérer tous les paiements complétés qui ont un transaction_id FedaPay
+    const { data: payments, error: paymentsError } = await supabase
+      .from('payments')
+      .select('id, loan_id, user_id, amount, transaction_id, status, created_at')
+      .eq('status', 'completed')
+      .not('transaction_id', 'is', null)
+      .order('created_at', { ascending: false });
+    
+    if (paymentsError) {
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Erreur récupération paiements: ' + paymentsError.message 
+      });
+    }
+    
+    console.log(`[PROCESS_MISSING] 📊 ${payments.length} paiement(s) trouvé(s)`);
+    
+    let processed = 0;
+    let errors = 0;
+    const results = [];
+    
+    for (const payment of payments) {
+      try {
+        const transactionId = payment.transaction_id;
+        const loanId = payment.loan_id;
+        const userId = payment.user_id;
+        
+        if (!loanId || !userId) {
+          console.log(`[PROCESS_MISSING] ⚠️ Paiement #${payment.id} ignoré: loan_id ou user_id manquant`);
+          continue;
+        }
+        
+        // Vérifier si le prêt est toujours actif/overdue (donc non traité)
+        const { data: loan } = await supabase
+          .from('loans')
+          .select('id, status, amount, interest_rate, total_penalty_amount')
+          .eq('id', loanId)
+          .single();
+        
+        if (!loan) {
+          console.log(`[PROCESS_MISSING] ⚠️ Prêt #${loanId} non trouvé pour paiement #${payment.id}`);
+          continue;
+        }
+        
+        // Si le prêt est déjà complété, passer au suivant
+        if (loan.status === 'completed') {
+          continue;
+        }
+        
+        // Traiter ce paiement
+        console.log(`[PROCESS_MISSING] 🔄 Traitement paiement #${payment.id} pour prêt #${loanId}`);
+        
+        // Calculer le montant total attendu
+        const principalAmount = parseFloat(loan.amount) || 0;
+        const interestAmount = principalAmount * ((loan.interest_rate || 0) / 100);
+        const penaltyAmount = parseFloat(loan.total_penalty_amount || 0);
+        const totalExpectedAmount = principalAmount + interestAmount + penaltyAmount;
+        
+        // Récupérer tous les paiements pour ce prêt
+        const { data: allPayments } = await supabase
+          .from('payments')
+          .select('amount')
+          .eq('loan_id', loanId)
+          .eq('status', 'completed');
+        
+        const totalPaidAmount = allPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+        const remainingAmount = Math.max(0, totalExpectedAmount - totalPaidAmount);
+        const isFullyPaid = remainingAmount <= 1 || totalPaidAmount >= totalExpectedAmount - 1;
+        
+        // Mettre à jour le prêt
+        const updateData = {
+          status: isFullyPaid ? 'completed' : 'active',
+          updated_at: new Date().toISOString()
+        };
+        
+        if (isFullyPaid) {
+          updateData.total_penalty_amount = 0;
+          updateData.last_penalty_calculation = null;
+        }
+        
+        const { error: loanError } = await supabase
+          .from('loans')
+          .update(updateData)
+          .eq('id', loanId);
+        
+        if (loanError) {
+          console.error(`[PROCESS_MISSING] ❌ Erreur mise à jour prêt #${loanId}:`, loanError);
+          errors++;
+          results.push({ payment_id: payment.id, loan_id: loanId, status: 'error', error: loanError.message });
+        } else {
+          processed++;
+          results.push({ 
+            payment_id: payment.id, 
+            loan_id: loanId, 
+            status: 'processed', 
+            loan_status: isFullyPaid ? 'completed' : 'active',
+            remaining_amount: remainingAmount
+          });
+          console.log(`[PROCESS_MISSING] ✅ Paiement #${payment.id} traité - Prêt #${loanId} → ${isFullyPaid ? 'completed' : 'active'}`);
+        }
+        
+      } catch (error) {
+        console.error(`[PROCESS_MISSING] ❌ Erreur traitement paiement #${payment.id}:`, error);
+        errors++;
+        results.push({ payment_id: payment.id, status: 'error', error: error.message });
+      }
+    }
+    
+    console.log(`[PROCESS_MISSING] ✅ Terminé: ${processed} traité(s), ${errors} erreur(s)`);
+    
+    return res.json({ 
+      success: true, 
+      message: `${processed} paiement(s) traité(s), ${errors} erreur(s)`,
+      processed,
+      errors,
+      results
+    });
+    
+  } catch (error) {
+    console.error('[PROCESS_MISSING] ❌ Erreur:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Erreur serveur: ' + error.message 
+    });
+  }
+});
+
+// Route pour traiter manuellement un paiement FedaPay qui n'a pas été traité par le webhook
+app.post('/api/fedapay/process-payment-manually', async (req, res) => {
+  try {
+    const { transaction_id, loan_id, user_id } = req.body;
+    
+    if (!transaction_id) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'transaction_id requis' 
+      });
+    }
+
+    console.log('[MANUAL_PAYMENT] 🔧 Traitement manuel paiement:', { transaction_id, loan_id, user_id });
+
+    const { supabase } = require('./utils/supabaseClient-server');
+    
+    // Récupérer la transaction depuis FedaPay
+    let baseUrl = FEDAPAY_CONFIG.baseUrl || '';
+    if (baseUrl.includes('/transactions')) {
+      baseUrl = baseUrl.split('/transactions')[0];
+    }
+    if (!baseUrl.endsWith('/v1')) {
+      baseUrl = baseUrl.endsWith('/v1') ? baseUrl : `${baseUrl.replace(/\/+$/, '')}/v1`;
+    }
+    const fedapayBaseUrl = baseUrl 
+      ? baseUrl
+      : (process.env.FEDAPAY_ENVIRONMENT === 'live' 
+          ? 'https://api.fedapay.com/v1' 
+          : 'https://sandbox-api.fedapay.com/v1');
+
+    const transactionResponse = await fetch(`${fedapayBaseUrl}/transactions/${transaction_id}`, {
+      headers: {
+        'Authorization': `Bearer ${process.env.FEDAPAY_SECRET_KEY}`
+      }
+    });
+
+    if (!transactionResponse.ok) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Transaction non trouvée dans FedaPay' 
+      });
+    }
+
+    const transactionData = await transactionResponse.json();
+    const transaction = transactionData.entity || transactionData;
+
+    if (transaction.status !== 'transferred' && transaction.status !== 'approved') {
+      return res.status(400).json({ 
+        success: false, 
+        error: `Transaction non confirmée (statut: ${transaction.status})` 
+      });
+    }
+
+    // Extraire les IDs si non fournis
+    let finalLoanId = loan_id || transaction.metadata?.loan_id || transaction.custom_metadata?.loan_id;
+    let finalUserId = user_id || transaction.metadata?.user_id || transaction.custom_metadata?.user_id;
+
+    // Si toujours pas d'IDs, essayer depuis la description
+    if (!finalLoanId && transaction.description) {
+      const match = transaction.description.match(/Remboursement prêt #([a-f0-9-]+)/);
+      if (match) finalLoanId = match[1];
+    }
+
+    if (!finalLoanId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Impossible de déterminer l\'ID du prêt. Fournissez loan_id dans le body.' 
+      });
+    }
+
+    // Récupérer le prêt pour obtenir user_id si nécessaire
+    if (!finalUserId) {
+      const { data: loanData } = await supabase
+        .from('loans')
+        .select('user_id')
+        .eq('id', finalLoanId)
+        .single();
+      
+      if (loanData) {
+        finalUserId = loanData.user_id;
+      }
+    }
+
+    if (!finalUserId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'Impossible de déterminer l\'ID utilisateur. Fournissez user_id dans le body.' 
+      });
+    }
+
+    // Vérifier si le paiement existe déjà
+    const { data: existingPayment } = await supabase
+      .from('payments')
+      .select('id')
+      .eq('transaction_id', transaction_id)
+      .maybeSingle();
+
+    if (existingPayment) {
+      return res.json({ 
+        success: true, 
+        message: 'Paiement déjà traité',
+        payment_id: existingPayment.id
+      });
+    }
+
+    // Créer le paiement (réutiliser la logique du webhook)
+    const { data: newPaymentData, error: paymentError } = await supabase
+      .from('payments')
+      .insert([{
+        loan_id: finalLoanId,
+        user_id: finalUserId,
+        amount: transaction.amount,
+        method: 'mobile_money',
+        status: 'completed',
+        transaction_id: transaction_id,
+        payment_date: new Date().toISOString(),
+        description: `Remboursement complet du prêt #${finalLoanId}`,
+        metadata: {
+          fedapay_data: {
+            transaction_id: transaction_id,
+            amount: transaction.amount,
+            payment_date: new Date().toISOString(),
+            payment_method: transaction.payment_method
+          },
+          payment_type: 'loan_repayment',
+          app_source: 'manual_processing'
+        }
+      }])
+      .select()
+      .single();
+
+    if (paymentError) {
+      console.error('[MANUAL_PAYMENT] ❌ Erreur création paiement:', paymentError);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Erreur création paiement: ' + paymentError.message 
+      });
+    }
+
+    // Calculer le montant total attendu et mettre à jour le prêt
+    const { data: loanData } = await supabase
+      .from('loans')
+      .select('id, amount, interest_rate, total_penalty_amount, status')
+      .eq('id', finalLoanId)
+      .single();
+
+    if (!loanData) {
+      return res.status(404).json({ 
+        success: false, 
+        error: 'Prêt non trouvé' 
+      });
+    }
+
+    const principalAmount = parseFloat(loanData.amount) || 0;
+    const interestAmount = principalAmount * ((loanData.interest_rate || 0) / 100);
+    const penaltyAmount = parseFloat(loanData.total_penalty_amount || 0);
+    const totalExpectedAmount = principalAmount + interestAmount + penaltyAmount;
+
+    const { data: allPayments } = await supabase
+      .from('payments')
+      .select('amount')
+      .eq('loan_id', finalLoanId)
+      .eq('status', 'completed');
+
+    const totalPaidAmount = allPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+    const remainingAmount = Math.max(0, totalExpectedAmount - totalPaidAmount);
+    const isFullyPaid = remainingAmount <= 1 || totalPaidAmount >= totalExpectedAmount - 1;
+
+    const updateData = {
+      status: isFullyPaid ? 'completed' : 'active',
+      updated_at: new Date().toISOString()
+    };
+
+    if (isFullyPaid) {
+      updateData.total_penalty_amount = 0;
+      updateData.last_penalty_calculation = null;
+    }
+
+    const { error: loanError } = await supabase
+      .from('loans')
+      .update(updateData)
+      .eq('id', finalLoanId);
+
+    if (loanError) {
+      console.error('[MANUAL_PAYMENT] ❌ Erreur mise à jour prêt:', loanError);
+      return res.status(500).json({ 
+        success: false, 
+        error: 'Erreur mise à jour prêt: ' + loanError.message 
+      });
+    }
+
+    console.log('[MANUAL_PAYMENT] ✅ Paiement traité avec succès:', {
+      payment_id: newPaymentData.id,
+      loan_id: finalLoanId,
+      is_fully_paid: isFullyPaid,
+      remaining_amount: remainingAmount
+    });
+
+    return res.json({ 
+      success: true, 
+      message: 'Paiement traité avec succès',
+      payment_id: newPaymentData.id,
+      loan_status: isFullyPaid ? 'completed' : 'active',
+      remaining_amount: remainingAmount
+    });
+
+  } catch (error) {
+    console.error('[MANUAL_PAYMENT] ❌ Erreur:', error);
+    return res.status(500).json({ 
+      success: false, 
+      error: 'Erreur serveur: ' + error.message 
+    });
   }
 });
 
@@ -2657,9 +3157,9 @@ async function sendLoanReminderNotifications() {
     
     for (const loan of loans) {
       try {
-        // Calculer la date d'échéance (duration en jours : duration_months * 30 ou duration)
+        // Calculer la date d'échéance (duration_months contient déjà des jours, pas des mois !)
         const durationDays = loan.duration_months != null
-          ? Math.round(Number(loan.duration_months) * 30)
+          ? Number(loan.duration_months) // Déjà en jours, pas besoin de multiplier
           : (loan.duration != null ? Number(loan.duration) : 30);
         const approvedDate = new Date(loan.approved_at);
         const dueDate = new Date(approvedDate);
@@ -3702,7 +4202,8 @@ async function manageOverdueLoans() {
         status,
         daily_penalty_rate,
         total_penalty_amount,
-        last_penalty_calculation
+        last_penalty_calculation,
+        users!inner(first_name, last_name)
       `)
       .in('status', ['active', 'overdue'])
       .not('approved_at', 'is', null);
@@ -3722,9 +4223,9 @@ async function manageOverdueLoans() {
     
     for (const loan of activeLoans) {
       try {
-        // Durée en jours : duration_months * 30 si duration en mois, sinon duration (déjà en jours)
+        // Durée en jours : duration_months contient déjà des jours (pas des mois !)
         const durationDays = loan.duration_months != null
-          ? Math.round(Number(loan.duration_months) * 30)
+          ? Number(loan.duration_months) // Déjà en jours, pas besoin de multiplier
           : (loan.duration != null ? Number(loan.duration) : 30);
         const approvedDate = new Date(loan.approved_at);
         const dueDate = new Date(approvedDate);
@@ -3733,13 +4234,23 @@ async function manageOverdueLoans() {
         const daysOverdue = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
 
         if (daysOverdue > 0) {
-          // Prêt en retard - calculer les pénalités (2% par jour sur le montant dû)
+          // Prêt en retard - calculer les pénalités (2% tous les 5 jours complets, composées)
           const penaltyRate = loan.daily_penalty_rate != null ? Number(loan.daily_penalty_rate) : 2.0;
           const principalAmount = parseFloat(loan.amount) || 0;
           const interestAmount = principalAmount * ((loan.interest_rate || 0) / 100);
           const totalOriginalAmount = principalAmount + interestAmount;
 
-          const totalPenalty = totalOriginalAmount * (penaltyRate / 100) * daysOverdue;
+          // Calculer le nombre de périodes complètes de 5 jours
+          const periodsOf5Days = Math.floor(daysOverdue / 5);
+          
+          // Calculer les pénalités composées : 2% tous les 5 jours sur le solde actuel
+          // Formule : montant × (1.02 ^ nombre_periodes) - montant
+          let totalPenalty = 0;
+          if (periodsOf5Days > 0) {
+            const amountWithPenalties = totalOriginalAmount * Math.pow(1 + (penaltyRate / 100), periodsOf5Days);
+            totalPenalty = amountWithPenalties - totalOriginalAmount;
+          }
+          
           const wasOverdue = loan.status === 'overdue';
 
           // Mettre à jour le prêt : pénalités + statut overdue (nécessite que la contrainte DB inclue 'overdue')
@@ -3760,6 +4271,118 @@ async function manageOverdueLoans() {
             if (!wasOverdue) {
               newOverdueLoans++;
               console.log(`[OVERDUE_MANAGEMENT] 🚨 Nouveau prêt en retard #${loan.id}: ${daysOverdue} jour(s), pénalité: ${totalPenalty.toLocaleString()} FCFA`);
+              
+              // Notification au client ET à l'admin pour nouveau prêt en retard
+              try {
+                const clientName = loan.users ? `${loan.users.first_name} ${loan.users.last_name}` : 'Client';
+                const amountFormatted = `${parseInt(loan.amount).toLocaleString()} FCFA`;
+                const penaltyFormatted = `${(Math.round(totalPenalty * 100) / 100).toLocaleString()} FCFA`;
+                const daysText = daysOverdue === 1 ? '1 jour' : `${daysOverdue} jours`;
+                
+                // 1. Notification au client
+                const clientTitle = "⚠️ AB Campus Finance - Prêt en retard";
+                const periodsText = periodsOf5Days === 1 ? '1 période de 5 jours' : `${periodsOf5Days} périodes de 5 jours`;
+                const clientBody = `Bonjour ${clientName}, votre prêt de ${amountFormatted} est en retard de ${daysText}. Des pénalités de ${penaltyFormatted} s'appliquent (2% tous les 5 jours, ${periodsText} complétée${periodsOf5Days > 1 ? 's' : ''}). Remboursez rapidement pour éviter que les pénalités continuent d'augmenter.`;
+                
+                await supabase
+                  .from('notifications')
+                  .insert({
+                    user_id: loan.user_id,
+                    title: clientTitle,
+                    message: clientBody,
+                    type: 'loan_overdue',
+                    priority: 'high',
+                    read: false,
+                    data: {
+                      loan_id: loan.id,
+                      days_overdue: daysOverdue,
+                      penalty_amount: totalPenalty,
+                      amount: loan.amount,
+                      url: '/repayment'
+                    }
+                  });
+                
+                console.log(`[OVERDUE_MANAGEMENT] ✅ Notification client créée pour prêt #${loan.id}`);
+                
+                // Push notification au client (si abonné)
+                const { data: clientSubscriptions } = await supabase
+                  .from('push_subscriptions')
+                  .select('subscription')
+                  .eq('user_id', loan.user_id);
+                
+                if (clientSubscriptions && clientSubscriptions.length > 0 && webPush) {
+                  for (const sub of clientSubscriptions) {
+                    try {
+                      await webPush.sendNotification(sub.subscription, JSON.stringify({
+                        title: clientTitle,
+                        body: `Votre prêt est en retard de ${daysText}. Pénalités: ${penaltyFormatted}`,
+                        data: { url: '/repayment', type: 'loan_overdue', loanId: loan.id },
+                        vibrate: [200, 50, 100]
+                      }));
+                    } catch (e) {
+                      console.error('[OVERDUE_MANAGEMENT] Erreur push client:', e.message);
+                    }
+                  }
+                }
+                
+                // 2. Notification à l'admin
+                const { data: adminData } = await supabase
+                  .from('users')
+                  .select('id')
+                  .eq('role', 'admin')
+                  .limit(1)
+                  .single();
+                
+                if (adminData) {
+                  const adminTitle = "🚨 Prêt en retard";
+                  const adminBody = `Le prêt de ${amountFormatted} de ${clientName} est en retard de ${daysText}. Pénalités: ${penaltyFormatted}`;
+                  
+                  await supabase
+                    .from('notifications')
+                    .insert({
+                      user_id: adminData.id,
+                      title: adminTitle,
+                      message: adminBody,
+                      type: 'loan_overdue_admin',
+                      priority: 'high',
+                      read: false,
+                      data: {
+                        loan_id: loan.id,
+                        client_name: clientName,
+                        client_id: loan.user_id,
+                        days_overdue: daysOverdue,
+                        penalty_amount: totalPenalty,
+                        amount: loan.amount,
+                        url: '/admin/loans'
+                      }
+                    });
+                  
+                  console.log(`[OVERDUE_MANAGEMENT] ✅ Notification admin créée pour prêt #${loan.id}`);
+                  
+                  // Push notification à l'admin (si abonné)
+                  const { data: adminSubscriptions } = await supabase
+                    .from('push_subscriptions')
+                    .select('subscription')
+                    .eq('user_id', adminData.id);
+                  
+                  if (adminSubscriptions && adminSubscriptions.length > 0 && webPush) {
+                    for (const sub of adminSubscriptions) {
+                      try {
+                        await webPush.sendNotification(sub.subscription, JSON.stringify({
+                          title: adminTitle,
+                          body: `${clientName}: prêt en retard de ${daysText}`,
+                          data: { url: '/admin/loans', type: 'loan_overdue_admin', loanId: loan.id },
+                          vibrate: [200, 50, 100]
+                        }));
+                      } catch (e) {
+                        console.error('[OVERDUE_MANAGEMENT] Erreur push admin:', e.message);
+                      }
+                    }
+                  }
+                }
+              } catch (notifError) {
+                console.error(`[OVERDUE_MANAGEMENT] Erreur notifications prêt #${loan.id}:`, notifError);
+              }
             } else {
               console.log(`[OVERDUE_MANAGEMENT] ⚠️ Prêt en retard #${loan.id}: ${daysOverdue} jour(s), pénalité: ${totalPenalty.toLocaleString()} FCFA`);
             }
@@ -4567,6 +5190,106 @@ setInterval(notifyAdminForPendingWithdrawals, 2 * 60 * 1000);
 // Rattrapage des plans ayant atteint leur objectif : toutes les 5 min + une fois au démarrage (délai 60s)
 setTimeout(() => notifyAdminForPlansGoalReached(), 60 * 1000);
 setInterval(notifyAdminForPlansGoalReached, 5 * 60 * 1000);
+
+// Job toutes les 10 minutes : vérifier et traiter les paiements manquants
+async function processMissingPayments() {
+  try {
+    console.log('[PAYMENT_CHECK_JOB] 🔍 Vérification des paiements non traités...');
+    
+    const { supabase } = require('./utils/supabaseClient-server');
+    
+    // Récupérer les paiements complétés des dernières 24h qui ont un transaction_id
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+    
+    const { data: payments, error } = await supabase
+      .from('payments')
+      .select('id, loan_id, user_id, amount, transaction_id, status, created_at')
+      .eq('status', 'completed')
+      .not('transaction_id', 'is', null)
+      .gte('created_at', yesterday.toISOString())
+      .order('created_at', { ascending: false })
+      .limit(50); // Limiter à 50 pour éviter la surcharge
+    
+    if (error) {
+      console.error('[PAYMENT_CHECK_JOB] ❌ Erreur récupération paiements:', error);
+      return;
+    }
+    
+    if (!payments || payments.length === 0) {
+      console.log('[PAYMENT_CHECK_JOB] ✅ Aucun paiement récent à vérifier');
+      return;
+    }
+    
+    let processed = 0;
+    
+    for (const payment of payments) {
+      try {
+        const loanId = payment.loan_id;
+        if (!loanId) continue;
+        
+        // Vérifier si le prêt est toujours actif/overdue
+        const { data: loan } = await supabase
+          .from('loans')
+          .select('id, status, amount, interest_rate, total_penalty_amount')
+          .eq('id', loanId)
+          .single();
+        
+        if (!loan || loan.status === 'completed') {
+          continue; // Prêt déjà complété ou introuvable
+        }
+        
+        // Calculer et mettre à jour le statut
+        const principalAmount = parseFloat(loan.amount) || 0;
+        const interestAmount = principalAmount * ((loan.interest_rate || 0) / 100);
+        const penaltyAmount = parseFloat(loan.total_penalty_amount || 0);
+        const totalExpectedAmount = principalAmount + interestAmount + penaltyAmount;
+        
+        const { data: allPayments } = await supabase
+          .from('payments')
+          .select('amount')
+          .eq('loan_id', loanId)
+          .eq('status', 'completed');
+        
+        const totalPaidAmount = allPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
+        const remainingAmount = Math.max(0, totalExpectedAmount - totalPaidAmount);
+        const isFullyPaid = remainingAmount <= 1 || totalPaidAmount >= totalExpectedAmount - 1;
+        
+        if (isFullyPaid && loan.status !== 'completed') {
+          const updateData = {
+            status: 'completed',
+            total_penalty_amount: 0,
+            last_penalty_calculation: null,
+            updated_at: new Date().toISOString()
+          };
+          
+          await supabase
+            .from('loans')
+            .update(updateData)
+            .eq('id', loanId);
+          
+          processed++;
+          console.log(`[PAYMENT_CHECK_JOB] ✅ Prêt #${loanId} marqué comme complété`);
+        }
+        
+      } catch (error) {
+        console.error(`[PAYMENT_CHECK_JOB] ❌ Erreur traitement paiement #${payment.id}:`, error.message);
+      }
+    }
+    
+    if (processed > 0) {
+      console.log(`[PAYMENT_CHECK_JOB] ✅ ${processed} prêt(s) mis à jour`);
+    }
+    
+  } catch (error) {
+    console.error('[PAYMENT_CHECK_JOB] ❌ Erreur générale:', error);
+  }
+}
+
+// Démarrer le job de vérification des paiements manquants toutes les 10 minutes
+setInterval(processMissingPayments, 10 * 60 * 1000);
+// Exécuter une première fois au démarrage (après 30 secondes pour laisser le serveur démarrer)
+setTimeout(processMissingPayments, 30 * 1000);
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

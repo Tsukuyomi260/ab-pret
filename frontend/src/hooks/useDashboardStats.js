@@ -33,14 +33,22 @@ async function fetchDashboardData(userId) {
   let nextPayment = 0;
   let daysUntilNextPayment = 0;
   let dueDate = null;
-  const activeLoan = loans.find(l => l.status === 'active');
+  // Chercher le prêt actif ou overdue (pas seulement active)
+  const activeLoan = loans.find(l => l.status === 'active' || l.status === 'overdue');
   if (activeLoan) {
     const principalAmount = parseFloat(activeLoan.amount) || 0;
     const interestRate = parseFloat(activeLoan.interest_rate) || 0;
     if (principalAmount > 0) nextPayment = Math.round(principalAmount * (1 + interestRate / 100));
     if (activeLoan.approved_at) {
       const approvedDate = new Date(activeLoan.approved_at);
-      const durationDays = parseInt(activeLoan.duration_months || activeLoan.duration, 10) || 30;
+      // IMPORTANT: duration_months contient déjà des jours (pas des mois !)
+      // Si duration existe directement, c'est aussi en jours
+      let durationDays = 30; // Par défaut
+      if (activeLoan.duration_months != null && activeLoan.duration_months !== undefined) {
+        durationDays = Number(activeLoan.duration_months); // Déjà en jours, pas besoin de multiplier
+      } else if (activeLoan.duration != null && activeLoan.duration !== undefined) {
+        durationDays = Number(activeLoan.duration);
+      }
       dueDate = new Date(approvedDate);
       dueDate.setDate(dueDate.getDate() + durationDays);
       const now = new Date();

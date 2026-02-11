@@ -64,24 +64,63 @@ const Repayment = () => {
           const interestAmount = principalAmount * (activeLoan.interest_rate || 0) / 100;
           const totalOriginalAmount = principalAmount + interestAmount;
           
-          // Durée en jours : duration_months * 30 ou duration (jours) ou 30
-          const durationDays = activeLoan.duration_months != null
-            ? Math.round(Number(activeLoan.duration_months) * 30)
-            : (activeLoan.duration != null ? Number(activeLoan.duration) : 30);
+          // Durée en jours : duration_months contient déjà des jours (pas des mois !)
+          // Si duration existe directement, c'est aussi en jours
+          let durationDays = 30; // Par défaut
+          if (activeLoan.duration_months != null && activeLoan.duration_months !== undefined) {
+            durationDays = Number(activeLoan.duration_months); // Déjà en jours, pas besoin de multiplier
+          } else if (activeLoan.duration != null && activeLoan.duration !== undefined) {
+            durationDays = Number(activeLoan.duration);
+          }
+          
           let dueDate = null;
           let nextPaymentDate = null;
 
           if (activeLoan.approved_at) {
             const approvedDate = new Date(activeLoan.approved_at);
-            dueDate = new Date(approvedDate.getTime() + (durationDays * 24 * 60 * 60 * 1000));
+            // Utiliser setDate pour éviter les problèmes de dépassement de mois
+            dueDate = new Date(approvedDate);
+            dueDate.setDate(dueDate.getDate() + durationDays);
           }
 
-          // Pénalités : utiliser celles du serveur ou calculer côté client si prêt en retard et serveur pas à jour
+          // Pénalités : vérifier le statut overdue ET calculer les jours de retard
           let penaltyAmount = parseFloat(activeLoan.total_penalty_amount || 0);
-          if (dueDate && new Date() > dueDate && penaltyAmount === 0) {
-            const daysOverdue = Math.floor((new Date() - dueDate) / (1000 * 60 * 60 * 24));
-            const penaltyRate = parseFloat(activeLoan.daily_penalty_rate) || 2.0;
-            penaltyAmount = totalOriginalAmount * (penaltyRate / 100) * daysOverdue;
+          let daysOverdue = 0;
+          const isOverdue = activeLoan.status === 'overdue';
+          
+          if (dueDate) {
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            const dueDateOnly = new Date(dueDate);
+            dueDateOnly.setHours(0, 0, 0, 0);
+            daysOverdue = Math.max(0, Math.floor((today - dueDateOnly) / (1000 * 60 * 60 * 24)));
+            
+            // Si le prêt est marqué overdue OU si on est en retard, calculer les pénalités
+            // Système de pénalités : 2% tous les 5 jours complets, composées
+            if ((isOverdue || daysOverdue > 0) && penaltyAmount === 0) {
+              const penaltyRate = parseFloat(activeLoan.daily_penalty_rate) || 2.0;
+              
+              // Calculer le nombre de périodes complètes de 5 jours
+              const periodsOf5Days = Math.floor(daysOverdue / 5);
+              
+              // Calculer les pénalités composées : 2% tous les 5 jours sur le solde actuel
+              if (periodsOf5Days > 0) {
+                const amountWithPenalties = totalOriginalAmount * Math.pow(1 + (penaltyRate / 100), periodsOf5Days);
+                penaltyAmount = amountWithPenalties - totalOriginalAmount;
+              } else {
+                penaltyAmount = 0; // Pas encore 5 jours complets, pas de pénalité
+              }
+            }
+            
+            // Si le prêt est overdue mais qu'on n'a pas encore de pénalités calculées, utiliser le statut
+            if (isOverdue && penaltyAmount === 0 && daysOverdue === 0) {
+              // Le prêt est overdue mais la date d'échéance calculée ne montre pas de retard
+              // Utiliser au moins 5 jours pour afficher les pénalités (première période)
+              daysOverdue = 5;
+              const penaltyRate = parseFloat(activeLoan.daily_penalty_rate) || 2.0;
+              const amountWithPenalties = totalOriginalAmount * (1 + (penaltyRate / 100));
+              penaltyAmount = amountWithPenalties - totalOriginalAmount;
+            }
           }
           const totalAmountWithPenalty = totalOriginalAmount + penaltyAmount;
           const remainingAmount = Math.max(0, totalAmountWithPenalty - paidAmount);
@@ -116,6 +155,7 @@ const Repayment = () => {
             paidAmount: Math.round(paidAmount),
             remainingAmount: Math.round(remainingAmount),
             penaltyAmount: Math.round(penaltyAmount),
+            daysOverdue: daysOverdue,
             totalAmountWithPenalty: Math.round(totalAmountWithPenalty),
             dueDate: dueDate ? dueDate.toISOString().split('T')[0] : null,
             nextPaymentDate: nextPaymentDate ? nextPaymentDate.toISOString().split('T')[0] : null,
@@ -219,7 +259,7 @@ const Repayment = () => {
 
               {/* Stats détaillées */}
               <div className="p-8">
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-4 mb-6">
                   {/* Montant initial */}
                   <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-2xl p-5 border border-blue-200">
                     <div className="flex items-center gap-3 mb-3">
@@ -254,6 +294,46 @@ const Repayment = () => {
                     <p className="text-xs text-primary-700 mt-1">Taux: {currentLoan.interest_rate}%</p>
                   </div>
 
+                  {/* Pénalités */}
+                  {(() => {
+                    const hasPenalty = currentLoan.penaltyAmount > 0 || currentLoan.daysOverdue > 0 || currentLoan.status === 'overdue';
+                    return (
+                      <div className={`rounded-2xl p-5 border ${
+                        hasPenalty 
+                          ? 'bg-gradient-to-br from-red-50 to-orange-100 border-red-200' 
+                          : 'bg-gradient-to-br from-gray-50 to-gray-100 border-gray-200'
+                      }`}>
+                        <div className="flex items-center gap-3 mb-3">
+                          <div className={`p-2 rounded-lg ${
+                            hasPenalty ? 'bg-red-200' : 'bg-gray-200'
+                          }`}>
+                            <AlertTriangle size={20} className={hasPenalty ? 'text-red-700' : 'text-gray-700'} />
+                          </div>
+                          <p className={`font-medium text-sm ${
+                            hasPenalty ? 'text-red-900' : 'text-gray-900'
+                          }`}>Pénalités</p>
+                        </div>
+                        {hasPenalty ? (
+                          <>
+                            <p className="text-2xl font-bold text-red-900">{formatCurrency(currentLoan.penaltyAmount || 0)}</p>
+                            <p className="text-xs text-red-700 mt-1">
+                              {currentLoan.daysOverdue === 1 
+                                ? '1 jour de retard' 
+                                : currentLoan.daysOverdue > 1
+                                ? `${currentLoan.daysOverdue} jours de retard`
+                                : 'En retard'}
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <p className="text-2xl font-bold text-gray-900">0 FCFA</p>
+                            <p className="text-xs text-gray-700 mt-1">Aucun retard</p>
+                          </>
+                        )}
+                      </div>
+                    );
+                  })()}
+
                   {/* Date d'échéance */}
                   <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-2xl p-5 border border-purple-200">
                     <div className="flex items-center gap-3 mb-3">
@@ -283,7 +363,7 @@ const Repayment = () => {
                       <div className="flex-1">
                         <h3 className="font-bold text-red-900 text-lg mb-2">⚠️ Prêt en retard</h3>
                         <p className="text-red-800 mb-3">
-                          Votre prêt a dépassé la date d'échéance. Des pénalités de <strong>2% par jour</strong> sont appliquées.
+                          Votre prêt a dépassé la date d'échéance. Des pénalités de <strong>2% tous les 5 jours</strong> sont appliquées (composées sur le solde total).
                         </p>
                         <div className="bg-white/50 rounded-xl p-4 border border-red-200">
                           <div className="flex items-center justify-between">
