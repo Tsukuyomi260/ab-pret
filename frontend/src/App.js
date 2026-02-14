@@ -3,13 +3,10 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { testAllConnections } from './utils/supabaseAPI';
-import './utils/testPWA'; // Import des fonctions de test PWA
-import './utils/testNotificationPrompt'; // Import des utilitaires de test notifications
 import { Toaster } from 'react-hot-toast';
 import { useAppUpdate } from './hooks/useAppUpdate';
 import UpdatePrompt from './components/UI/UpdatePrompt';
 import { initCacheManagement } from './utils/clearCache';
-import './utils/resetUserPrompts'; // Charger les utilitaires de reset des prompts // Gestion du cache
 import Layout from './components/Common/Layout';
 import PushNotificationPrompt from './components/UI/PushNotificationPrompt';
 import PWAInstallPrompt from './components/UI/PWAInstallPrompt';
@@ -19,7 +16,6 @@ import CreateAccount from './components/Auth/CreateAccount';
 import PendingApproval from './components/Auth/PendingApproval';
 import ForgotPassword from './components/Auth/ForgotPassword';
 import ResetPassword from './components/Auth/ResetPassword';
-
 import ClientDashboard from './components/Client/Dashboard';
 import AdminDashboard from './components/Admin/AdminDashboard';
 import LoanRequests from './components/Admin/LoanRequests';
@@ -30,7 +26,6 @@ import Settings from './components/Admin/Settings';
 import AdminABEpargne from './components/Admin/ABEpargne';
 import TestNotifications from './components/Admin/TestNotifications';
 import Transactions from './components/Admin/Transactions';
-
 import LoanRequest from './components/Client/LoanRequest';
 import LoanHistory from './components/Client/LoanHistory';
 import Repayment from './components/Client/Repayment';
@@ -49,12 +44,37 @@ import DepotRetour from './components/Client/DepotRetour';
 import RemboursementRetour from './components/Client/RemboursementRetour';
 import TestPlanEpargne from './components/Client/TestPlanEpargne';
 import CoachingFinance from './components/Client/CoachingFinance';
-
 import LoyaltyScore from './components/Client/LoyaltyScore';
 import TestOTP from './components/TestOTP';
 import TestHealth from './components/TestHealth';
 import TestFedaPay from './components/TestFedaPay';
 import './styles/globals.css';
+
+// Imports optionnels - chargés de manière asynchrone pour ne pas bloquer
+// Ces fichiers sont des utilitaires de test/dev, pas critiques pour le fonctionnement
+setTimeout(() => {
+  try {
+    require('./utils/testPWA');
+  } catch (e) {
+    // Ignorer silencieusement si le fichier n'existe pas ou a une erreur
+  }
+}, 100);
+
+setTimeout(() => {
+  try {
+    require('./utils/testNotificationPrompt');
+  } catch (e) {
+    // Ignorer silencieusement
+  }
+}, 100);
+
+setTimeout(() => {
+  try {
+    require('./utils/resetUserPrompts');
+  } catch (e) {
+    // Ignorer silencieusement
+  }
+}, 100);
 
 const AdminDetailedStatistics = lazy(() => import('./components/Admin/AdminDetailedStatistics'));
 
@@ -329,6 +349,14 @@ const AppContent = () => {
               </Layout>
             </ProtectedRoute>
           } />
+          {/* URL utilisée par le backend après redirection FedaPay — même page qui met à jour le prêt en "completed" */}
+          <Route path="/remboursement/success" element={
+            <ProtectedRoute>
+              <Layout>
+                <RepaymentSuccess />
+              </Layout>
+            </ProtectedRoute>
+          } />
           
           <Route path="/repayment/failure" element={
             <ProtectedRoute>
@@ -337,8 +365,22 @@ const AppContent = () => {
               </Layout>
             </ProtectedRoute>
           } />
+          <Route path="/remboursement/failure" element={
+            <ProtectedRoute>
+              <Layout>
+                <RepaymentFailure />
+              </Layout>
+            </ProtectedRoute>
+          } />
           
           <Route path="/repayment/cancel" element={
+            <ProtectedRoute>
+              <Layout>
+                <RepaymentCancel />
+              </Layout>
+            </ProtectedRoute>
+          } />
+          <Route path="/remboursement/cancel" element={
             <ProtectedRoute>
               <Layout>
                 <RepaymentCancel />
@@ -491,22 +533,38 @@ const App = () => {
         if (configured) {
           console.log('[APP] ✅ Configuration détectée, démarrage de l\'application');
         } else {
-          console.log('[APP] ❌ Configuration manquante, affichage de la page de configuration');
+          console.error('[APP] ❌ Configuration manquante, affichage de la page de configuration');
+          console.error('[APP] Variables manquantes:', {
+            url: !hasSupabaseUrl,
+            key: !hasSupabaseKey,
+            backend: !hasBackendUrl
+          });
         }
       } catch (error) {
-        console.error('[APP] Erreur lors de la vérification de la configuration:', error);
+        console.error('[APP] ❌ Erreur lors de la vérification de la configuration:', error);
+        console.error('[APP] Stack:', error.stack);
         setIsConfigured(false);
       } finally {
         setIsChecking(false);
       }
     };
 
-    // Vérification immédiate sans délai
-    checkConfiguration();
+    // Délai minimal pour iOS pour s'assurer que tout est chargé
+    const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+    const delay = isIOS ? 100 : 0;
     
-    // Initialiser la gestion du cache
-    console.log('[APP] Initialisation de la gestion du cache...');
-    initCacheManagement();
+    setTimeout(() => {
+      checkConfiguration();
+      
+      // Initialiser la gestion du cache après vérification
+      try {
+        console.log('[APP] Initialisation de la gestion du cache...');
+        initCacheManagement();
+      } catch (error) {
+        console.error('[APP] Erreur lors de l\'initialisation du cache:', error);
+        // Ne pas bloquer l'application si le cache échoue
+      }
+    }, delay);
   }, []);
 
   // Afficher un loader pendant la vérification

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../context/AuthContext';
 
 // Configuration du backend selon l'environnement
@@ -19,6 +20,7 @@ const RemboursementRetour = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
+  const queryClient = useQueryClient();
   const [status, setStatus] = useState('loading');
   const [message, setMessage] = useState('Vérification du remboursement...');
 
@@ -34,11 +36,9 @@ const RemboursementRetour = () => {
     });
 
     if (!transactionId) {
-      // Si pas d'ID de transaction, considérer comme succès car le paiement a probablement été effectué
       setStatus('success');
       setMessage('Remboursement confirmé ! Votre prêt sera mis à jour sous peu.');
-      
-      // Redirection vers la page des prêts
+      if (user?.id) queryClient.invalidateQueries({ queryKey: ['dashboardStats', user.id] });
       setTimeout(() => {
         navigate('/dashboard');
       }, 3000);
@@ -74,6 +74,7 @@ const RemboursementRetour = () => {
           if (result.success && result.loan) {
             setStatus('success');
             setMessage('Remboursement confirmé, prêt mis à jour !');
+            queryClient.invalidateQueries({ queryKey: ['dashboardStats', user?.id] });
             
             // Redirection automatique vers le dashboard après 3 secondes
             setTimeout(() => {

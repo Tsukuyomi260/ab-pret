@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNotifications } from '../../context/NotificationContext';
 import { useAuth } from '../../context/AuthContext';
 import FedaPayRemboursementButton from '../UI/FedaPayRemboursementButton';
@@ -24,6 +25,7 @@ const Repayment = () => {
   const { showSuccess, showError } = useNotifications();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [currentLoan, setCurrentLoan] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -165,7 +167,14 @@ const Repayment = () => {
             status: activeLoan.status
           };
 
-          setCurrentLoan(formattedLoan);
+          // Si le prêt est entièrement remboursé (solde <= 0), ne pas l'afficher :
+          // on considère qu'il n'y a plus de prêt à rembourser (statut peut être encore "active" avant mise à jour backend)
+          if (formattedLoan.remainingAmount <= 0) {
+            setCurrentLoan(null);
+            queryClient.invalidateQueries({ queryKey: ['dashboardStats', user?.id] });
+          } else {
+            setCurrentLoan(formattedLoan);
+          }
         } else {
           // Aucun prêt actif trouvé
           setCurrentLoan(null);
@@ -193,7 +202,7 @@ const Repayment = () => {
 
   const handleRepaymentSuccess = (message) => {
     showSuccess(message);
-    // Recharger les données après un remboursement réussi
+    queryClient.invalidateQueries({ queryKey: ['dashboardStats', user?.id] });
     setTimeout(() => {
       loadActiveLoan();
     }, 1000);

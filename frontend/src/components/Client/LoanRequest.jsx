@@ -21,7 +21,7 @@ import {
 } from 'lucide-react';
 import { LOAN_CONFIG } from '../../utils/loanConfig';
 import { formatCurrency } from '../../utils/helpers';
-import { getLoans, createLoan } from '../../utils/supabaseAPI';
+import { getLoans, getPayments, createLoan } from '../../utils/supabaseAPI';
 import { BACKEND_URL } from '../../config/backend';
 import { supabase } from '../../utils/supabaseClient';
 
@@ -62,26 +62,34 @@ const LoanRequest = () => {
     const checkExistingLoans = async () => {
       try {
         setCheckingLoans(true);
-        const loansResult = await getLoans(user.id);
-        
-        if (loansResult.success) {
-          const userLoans = loansResult.data || [];
-          const activeLoan = userLoans.find(loan => 
-            loan.status === 'active' || loan.status === 'approved' || loan.status === 'overdue'
-          );
-          
-          setHasActiveLoan(!!activeLoan);
-          
-          if (activeLoan) {
-            if (activeLoan.status === 'overdue') {
+        const [loansResult, paymentsResult] = await Promise.all([
+          getLoans(user.id),
+          getPayments(user.id)
+        ]);
+        if (!loansResult.success) return;
+        const userLoans = loansResult.data || [];
+        const payments = paymentsResult.success ? (paymentsResult.data || []) : [];
+        const getRemaining = (loan) => {
+          const principal = parseFloat(loan.amount) || 0;
+          const rate = parseFloat(loan.interest_rate) || 0;
+          const totalDue = principal * (1 + rate / 100) + (parseFloat(loan.total_penalty_amount) || 0);
+          const paid = payments.filter(p => p.loan_id === loan.id).reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
+          return Math.max(0, totalDue - paid);
+        };
+        const activeLoan = userLoans.find(loan => {
+          if (loan.status !== 'active' && loan.status !== 'approved' && loan.status !== 'overdue') return false;
+          return getRemaining(loan) > 0;
+        });
+        setHasActiveLoan(!!activeLoan);
+        if (activeLoan) {
+          if (activeLoan.status === 'overdue') {
             showError('Vous ne pouvez pas demander un nouveau prêt tant que votre prêt en retard n\'est pas remboursé.');
-            } else {
-              showError('Vous avez déjà un prêt en cours. Vous devez le rembourser avant de faire une nouvelle demande.');
-            }
+          } else {
+            showError('Vous avez déjà un prêt en cours. Vous devez le rembourser avant de faire une nouvelle demande.');
           }
         }
       } catch (error) {
-      console.error('[LOAN_REQUEST] Erreur:', error);
+        console.error('[LOAN_REQUEST] Erreur:', error);
       } finally {
         setCheckingLoans(false);
       }

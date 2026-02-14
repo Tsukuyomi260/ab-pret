@@ -205,15 +205,17 @@ const ClientDashboard = () => {
             <p className="text-sm text-gray-600 font-montserrat">Solde disponible</p>
       </div>
 
-          {/* Prochain paiement */}
+          {/* Prochain paiement (affiche 0 FCFA quand aucun prêt en cours) */}
           <div className="bg-gradient-to-br from-orange-500 to-red-600 text-white rounded-2xl shadow-lg border border-orange-400/50 p-4 sm:p-6 flex flex-col justify-between hover:shadow-xl transition-all duration-300">
             <div className="flex items-center justify-between mb-3">
               <div className="p-2 sm:p-3 bg-white/20 rounded-xl">
                 <Clock size={20} />
               </div>
+              {stats.activeLoans > 0 && (
               <span className="text-xs font-medium text-orange-100">
                 {stats.daysUntilNextPayment < 0 ? 'Retard' : stats.daysUntilNextPayment === 0 ? 'Aujourd\'hui' : `${stats.daysUntilNextPayment}j`}
               </span>
+              )}
             </div>
             <p className="text-2xl sm:text-3xl font-bold font-montserrat mb-1">
               {formatCurrency(stats.nextPayment)}

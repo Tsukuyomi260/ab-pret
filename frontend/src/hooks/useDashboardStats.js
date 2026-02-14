@@ -27,14 +27,30 @@ async function fetchDashboardData(userId) {
 
   const totalLoaned = loans.reduce((sum, l) => sum + (l.amount || 0), 0);
   const totalRepaid = payments.reduce((sum, p) => sum + (p.amount || 0), 0);
-  const activeLoans = loans.filter(l => l.status === 'active').length;
+
+  // Solde restant par prêt (comme page Remboursement) : ne compter que les prêts vraiment à rembourser
+  const getRemainingForLoan = (loan) => {
+    const principal = parseFloat(loan.amount) || 0;
+    const rate = parseFloat(loan.interest_rate) || 0;
+    const totalWithInterest = principal * (1 + rate / 100);
+    const penalty = parseFloat(loan.total_penalty_amount) || 0;
+    const totalDue = totalWithInterest + penalty;
+    const paid = payments
+      .filter(p => p.loan_id === loan.id)
+      .reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
+    return Math.max(0, totalDue - paid);
+  };
+  const loansToRepay = loans.filter(l => {
+    if (l.status !== 'active' && l.status !== 'overdue' && l.status !== 'approved') return false;
+    return getRemainingForLoan(l) > 0;
+  });
+  const activeLoans = loansToRepay.length;
   const amountToRepay = totalLoaned - totalRepaid;
 
   let nextPayment = 0;
   let daysUntilNextPayment = 0;
   let dueDate = null;
-  // Chercher le prêt actif ou overdue (pas seulement active)
-  const activeLoan = loans.find(l => l.status === 'active' || l.status === 'overdue');
+  const activeLoan = loansToRepay[0] || null;
   if (activeLoan) {
     const principalAmount = parseFloat(activeLoan.amount) || 0;
     const interestRate = parseFloat(activeLoan.interest_rate) || 0;
@@ -77,12 +93,15 @@ async function fetchDashboardData(userId) {
     if ((s === 'completed' || s === 'remboursé') && !onTimeLoanIds.has(l.id)) onTimeLoanIds.add(l.id);
   });
   const loyaltyScore = Math.max(0, Math.min(5, onTimeLoanIds.size));
+  // Prêt(s) à rembourser : seulement si solde restant > 0 (aligné avec la page Remboursement)
+  const hasLoanToRepay = loansToRepay.length > 0;
 
   return {
     totalLoaned,
     totalRepaid,
     amountToRepay,
     activeLoans,
+    hasLoanToRepay,
     nextPayment,
     daysUntilNextPayment,
     dueDate,
@@ -106,6 +125,7 @@ export function useDashboardStats(userId) {
       totalRepaid: 0,
       amountToRepay: 0,
       activeLoans: 0,
+      hasLoanToRepay: false,
       nextPayment: 0,
       daysUntilNextPayment: 0,
       dueDate: null,

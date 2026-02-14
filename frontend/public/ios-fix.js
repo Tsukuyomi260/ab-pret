@@ -19,11 +19,24 @@
       lastTouchEnd = now;
     }, false);
     
-    // Fix 2: Empêcher le scroll élastique (bounce)
+    // Fix 2: Empêcher le scroll élastique (bounce) - version améliorée
+    let touchStartY = 0;
+    document.addEventListener('touchstart', function(e) {
+      touchStartY = e.touches[0].clientY;
+    }, { passive: true });
+    
     document.addEventListener('touchmove', function(e) {
-      if (e.target.tagName !== 'INPUT' && e.target.tagName !== 'TEXTAREA') {
-        const scrollable = e.target.closest('.overflow-auto, .overflow-y-auto, .overflow-scroll');
-        if (!scrollable) {
+      const target = e.target;
+      const isInput = target.tagName === 'INPUT' || target.tagName === 'TEXTAREA';
+      const scrollable = target.closest('.overflow-auto, .overflow-y-auto, .overflow-scroll, [data-scrollable]');
+      
+      if (!isInput && !scrollable) {
+        const touchY = e.touches[0].clientY;
+        const scrollTop = document.documentElement.scrollTop || document.body.scrollTop;
+        const isAtTop = scrollTop === 0 && touchY > touchStartY;
+        const isAtBottom = scrollTop + window.innerHeight >= document.documentElement.scrollHeight && touchY < touchStartY;
+        
+        if (isAtTop || isAtBottom) {
           e.preventDefault();
         }
       }
@@ -39,12 +52,31 @@
     window.addEventListener('resize', setViewportHeight);
     window.addEventListener('orientationchange', setViewportHeight);
     
-    // Fix 4: Forcer le rendu après chargement
-    window.addEventListener('load', function() {
+    // Fix 4: Forcer le rendu après chargement et corriger le viewport
+    function forceRender() {
+      // Forcer le recalcul du layout
+      document.body.style.display = 'none';
+      document.body.offsetHeight; // Trigger reflow
+      document.body.style.display = '';
+      
+      // Scroll trick pour iOS
       setTimeout(function() {
         window.scrollTo(0, 1);
-        window.scrollTo(0, 0);
+        setTimeout(function() {
+          window.scrollTo(0, 0);
+        }, 10);
       }, 100);
+    }
+    
+    if (document.readyState === 'loading') {
+      document.addEventListener('DOMContentLoaded', forceRender);
+    } else {
+      forceRender();
+    }
+    
+    window.addEventListener('load', forceRender);
+    window.addEventListener('orientationchange', function() {
+      setTimeout(forceRender, 200);
     });
     
     // Fix 5: Gérer les erreurs non capturées
@@ -61,7 +93,31 @@
       e.preventDefault();
     });
     
-    console.log('[iOS Fix] Correctifs appliqués avec succès');
+    // Fix 7: Désactiver le service worker problématique sur iOS
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.getRegistrations().then(function(registrations) {
+        for (let registration of registrations) {
+          registration.unregister().then(function(success) {
+            if (success) {
+              console.log('[iOS Fix] Service Worker désenregistré');
+            }
+          });
+        }
+      });
+    }
+    
+    // Fix 8: Vider le cache si nécessaire
+    if ('caches' in window) {
+      caches.keys().then(function(names) {
+        names.forEach(function(name) {
+          caches.delete(name);
+        });
+      });
+    }
+    
+    console.log('[iOS Fix] ✅ Correctifs appliqués avec succès');
+  } else {
+    console.log('[iOS Fix] ℹ️ Pas iOS/Safari, correctifs non appliqués');
   }
 })();
 

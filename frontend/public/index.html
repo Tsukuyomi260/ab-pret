@@ -3,20 +3,29 @@
   <head>
     <meta charset="utf-8" />
     <link rel="icon" href="%PUBLIC_URL%/favicon.ico" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
     <meta name="theme-color" content="#C8AC44" />
     <meta
       name="description"
       content="AB CAMPUS FINANCE - Votre succès, notre mission. Application de financement et d'épargne pour étudiants du Bénin. Made in Bénin."
     />
     
-    <!-- PWA Meta Tags -->
+    <!-- PWA Meta Tags iOS -->
     <meta name="apple-mobile-web-app-capable" content="yes" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="apple-mobile-web-app-title" content="AB CAMPUS FINANCE" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="msapplication-TileColor" content="#C8AC44" />
     <meta name="msapplication-tap-highlight" content="no" />
+    
+    <!-- Meta tags pour éviter le cache sur iOS -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
+    
+    <!-- Meta pour améliorer le rendu sur iOS -->
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="apple-touch-fullscreen" content="yes" />
     
     <!-- Apple Touch Icons -->
     <link rel="apple-touch-icon" href="%PUBLIC_URL%/logo192.png" />
@@ -39,25 +48,52 @@
     <title>AB CAMPUS FINANCE</title>
     
     <!-- Meta pour forcer le rechargement du cache -->
-    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate, max-age=0" />
     <meta http-equiv="Pragma" content="no-cache" />
     <meta http-equiv="Expires" content="0" />
     
-    <!-- Script de compatibilité iOS/Safari -->
-    <script src="%PUBLIC_URL%/ios-fix.js?v=2.0.0"></script>
+    <!-- Meta pour améliorer le rendu sur iOS -->
+    <meta name="format-detection" content="telephone=no" />
+    <meta name="apple-touch-fullscreen" content="yes" />
+    
+    <!-- Script de compatibilité iOS/Safari (chargé en premier) -->
+    <script src="%PUBLIC_URL%/ios-fix.js?v=2.1.0"></script>
     
     <style>
       /* Fix pour le bug 100vh sur iOS */
-      html, body {
+      html {
+        height: 100%;
+        height: calc(var(--vh, 1vh) * 100);
+        -webkit-text-size-adjust: 100%;
+        -webkit-tap-highlight-color: transparent;
+      }
+      
+      body {
         height: 100%;
         height: calc(var(--vh, 1vh) * 100);
         overflow: hidden;
+        margin: 0;
+        padding: 0;
+        -webkit-font-smoothing: antialiased;
+        -moz-osx-font-smoothing: grayscale;
+        position: fixed;
+        width: 100%;
       }
       
       #root {
         height: 100%;
+        height: calc(var(--vh, 1vh) * 100);
         overflow: auto;
         -webkit-overflow-scrolling: touch;
+        position: relative;
+        width: 100%;
+      }
+      
+      /* Fix pour éviter le zoom sur focus input iOS */
+      @media screen and (max-width: 768px) {
+        input, select, textarea {
+          font-size: 16px !important;
+        }
       }
       
       /* Message de chargement */
@@ -173,39 +209,148 @@
     <div id="root"></div>
     
     <script>
+      // Détecter iOS
+      const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) && !window.MSStream;
+      console.log('[INIT] Détection iOS:', isIOS);
+      console.log('[INIT] User Agent:', navigator.userAgent);
+      
       // Masquer l'écran de chargement après le chargement de React
-      window.addEventListener('load', function() {
-        setTimeout(function() {
-          const loadingScreen = document.getElementById('loading-screen');
-          if (loadingScreen) {
-            loadingScreen.style.opacity = '0';
-            loadingScreen.style.transition = 'opacity 0.3s';
-            setTimeout(function() {
-              loadingScreen.style.display = 'none';
-            }, 300);
-          }
-        }, 1000);
-      });
-      
-      // Afficher l'écran d'erreur si React ne se charge pas
-      setTimeout(function() {
-        const root = document.getElementById('root');
-        if (!root || !root.hasChildNodes()) {
-          const loadingScreen = document.getElementById('loading-screen');
-          const errorScreen = document.getElementById('error-screen');
-          if (loadingScreen) loadingScreen.style.display = 'none';
-          if (errorScreen) errorScreen.classList.add('show');
+      function hideLoadingScreen() {
+        const loadingScreen = document.getElementById('loading-screen');
+        if (loadingScreen) {
+          loadingScreen.style.opacity = '0';
+          loadingScreen.style.transition = 'opacity 0.3s';
+          setTimeout(function() {
+            loadingScreen.style.display = 'none';
+          }, 300);
         }
-      }, 10000); // 10 secondes timeout
+      }
       
-      // Gérer les erreurs globales
-      window.addEventListener('error', function(e) {
-        console.error('Erreur globale:', e.message);
+      // Vérifier si React s'est chargé
+      function checkReactLoaded() {
+        const root = document.getElementById('root');
+        if (root && root.hasChildNodes()) {
+          const firstChild = root.firstChild;
+          // Vérifier que c'est bien React (pas juste du HTML statique)
+          if (firstChild && (firstChild.nodeType === 1 || firstChild._reactInternalFiber || firstChild._reactInternalInstance)) {
+            console.log('[INIT] ✅ React chargé et monté');
+            hideLoadingScreen();
+            return true;
+          }
+        }
+        return false;
+      }
+      
+      // Afficher l'écran d'erreur avec diagnostic
+      function showErrorScreen(message) {
+        console.error('[INIT] ❌ Affichage de l\'écran d\'erreur:', message);
+        const loadingScreen = document.getElementById('loading-screen');
+        const errorScreen = document.getElementById('error-screen');
+        if (loadingScreen) loadingScreen.style.display = 'none';
+        if (errorScreen) {
+          if (message) {
+            const errorMessage = errorScreen.querySelector('.error-message');
+            if (errorMessage) {
+              errorMessage.textContent = message;
+            }
+          }
+          errorScreen.classList.add('show');
+        }
+      }
+      
+      // Vérification périodique du chargement
+      let checkCount = 0;
+      const maxChecks = 30; // 15 secondes max (30 * 500ms)
+      
+      function startChecking() {
+        const checkInterval = setInterval(function() {
+          checkCount++;
+          console.log('[INIT] Vérification React...', checkCount);
+          
+          if (checkReactLoaded()) {
+            clearInterval(checkInterval);
+            return;
+          }
+          
+          if (checkCount >= maxChecks) {
+            clearInterval(checkInterval);
+            const root = document.getElementById('root');
+            const diagnostic = {
+              rootExists: !!root,
+              rootHasChildren: root ? root.hasChildNodes() : false,
+              scriptsLoaded: document.scripts.length,
+              errors: window.lastError || 'Aucune erreur capturée'
+            };
+            console.error('[INIT] ❌ Timeout - React ne s\'est pas chargé:', diagnostic);
+            showErrorScreen('L\'application n\'a pas pu se charger. Vérifiez votre connexion internet et réessayez.');
+          }
+        }, 500);
+      }
+      
+      // Attendre le chargement complet
+      if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+          console.log('[INIT] DOM chargé');
+          setTimeout(startChecking, isIOS ? 2000 : 1000);
+        });
+      } else {
+        console.log('[INIT] DOM déjà chargé');
+        setTimeout(startChecking, isIOS ? 2000 : 1000);
+      }
+      
+      window.addEventListener('load', function() {
+        console.log('[INIT] Window load event');
+        setTimeout(function() {
+          if (!checkReactLoaded()) {
+            console.warn('[INIT] ⚠️ React pas encore chargé après window.load');
+          }
+        }, isIOS ? 3000 : 2000);
       });
+      
+      // Gérer les erreurs globales AVANT que React ne charge
+      window.lastError = null;
+      window.addEventListener('error', function(e) {
+        window.lastError = {
+          message: e.message,
+          filename: e.filename,
+          lineno: e.lineno,
+          colno: e.colno,
+          error: e.error
+        };
+        console.error('[GLOBAL ERROR]', e.message, e.filename, e.lineno, e.colno);
+        console.error('[GLOBAL ERROR] Stack:', e.error ? e.error.stack : 'N/A');
+        
+        // Ne pas bloquer l'exécution sur iOS
+        if (isIOS) {
+          return false;
+        }
+      }, true);
       
       window.addEventListener('unhandledrejection', function(e) {
-        console.error('Promise rejetée:', e.reason);
+        window.lastError = {
+          message: 'Unhandled Promise Rejection',
+          reason: e.reason
+        };
+        console.error('[GLOBAL REJECTION]', e.reason);
+        
+        // Ne pas bloquer l'exécution sur iOS
+        if (isIOS) {
+          e.preventDefault();
+        }
       });
+      
+      console.log('[INIT] ✅ Script d\'initialisation chargé');
+      
+      // Fix pour iOS : forcer le reflow après chargement
+      if (isIOS) {
+        window.addEventListener('load', function() {
+          setTimeout(function() {
+            document.body.style.display = 'none';
+            document.body.offsetHeight; // Trigger reflow
+            document.body.style.display = '';
+          }, 100);
+        });
+      }
     </script>
     <!--
       This HTML file is a template.

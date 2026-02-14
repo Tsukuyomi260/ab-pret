@@ -829,7 +829,9 @@ function verifyFedaPaySignature(rawBody, receivedSignature, secretKey) {
   }
 }
 
+const fedapayMode = (process.env.FEDAPAY_ENVIRONMENT || 'live').toLowerCase() === 'sandbox' ? 'SANDBOX' : 'LIVE';
 console.log('[FEDAPAY_SERVER] Configuration chargée:', {
+  mode: fedapayMode,
   secretKey: FEDAPAY_CONFIG.secretKey ? `${FEDAPAY_CONFIG.secretKey.substring(0, 10)}...` : 'NON CONFIGURÉE',
   publicKey: FEDAPAY_CONFIG.publicKey ? `${FEDAPAY_CONFIG.publicKey.substring(0, 10)}...` : 'NON CONFIGURÉE',
   baseUrl: FEDAPAY_CONFIG.baseUrl,
@@ -968,6 +970,89 @@ app.post('/api/fedapay/create-transaction', async (req, res) => {
     });
   }
 });
+
+/**
+ * Met à jour le statut d'un prêt à "completed" dans la table loans.
+ * À appeler dès que le prêt est entièrement remboursé.
+ * Nécessite SUPABASE_SERVICE_ROLE_KEY dans .env pour contourner les politiques RLS.
+ */
+async function setLoanStatusToCompleted(supabaseClient, loanId) {
+  if (!supabaseClient || !loanId) return { ok: false, error: 'Paramètres manquants' };
+  const { data, error } = await supabaseClient
+    .from('loans')
+    .update({
+      status: 'completed',
+      updated_at: new Date().toISOString(),
+      total_penalty_amount: 0,
+      last_penalty_calculation: null
+    })
+    .eq('id', loanId)
+    .select('id, status')
+    .single();
+  if (error) {
+    console.error('[LOAN_STATUS] ❌ Erreur mise à jour table loans (status=completed):', error.message, error.code);
+    return { ok: false, error };
+  }
+  console.log('[LOAN_STATUS] ✅ Table loans: statut mis à "completed" pour prêt', loanId, '→', data?.status);
+  return { ok: true, data };
+}
+
+/**
+ * Recalcule depuis la DB si le prêt est entièrement remboursé et met à jour le statut en "completed" si oui.
+ * Appelé après chaque paiement enregistré pour ce prêt (montants non modifiés, recalcul uniquement).
+ */
+async function syncLoanStatusToCompletedIfFullyPaid(supabaseClient, loanId) {
+  if (!supabaseClient || !loanId) return { ok: false, updated: false };
+  const { data: loan, error: loanErr } = await supabaseClient
+    .from('loans')
+    .select('id, amount, interest_rate, total_penalty_amount, status, approved_at, duration, duration_months, daily_penalty_rate')
+    .eq('id', loanId)
+    .single();
+  if (loanErr || !loan) {
+    console.warn('[LOAN_STATUS] sync: prêt introuvable', loanId, loanErr?.message);
+    return { ok: false, updated: false };
+  }
+  if ((loan.status || '').toLowerCase() === 'completed') {
+    return { ok: true, updated: false };
+  }
+  const principal = parseFloat(loan.amount) || 0;
+  const interest = principal * ((loan.interest_rate || 0) / 100);
+  let penalty = parseFloat(loan.total_penalty_amount || 0) || 0;
+  if (penalty === 0 && loan.approved_at) {
+    const durationDays = loan.duration_months != null ? Number(loan.duration_months) : (loan.duration != null ? Number(loan.duration) : 30);
+    const due = new Date(loan.approved_at);
+    due.setDate(due.getDate() + durationDays);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    due.setHours(0, 0, 0, 0);
+    const daysOverdue = Math.floor((today - due) / (1000 * 60 * 60 * 24));
+    if (daysOverdue > 0) {
+      const rate = loan.daily_penalty_rate != null ? Number(loan.daily_penalty_rate) : 2.0;
+      const periods5 = Math.floor(daysOverdue / 5);
+      if (periods5 > 0) {
+        const withPenalties = (principal + interest) * Math.pow(1 + rate / 100, periods5);
+        penalty = withPenalties - (principal + interest);
+      }
+    }
+  }
+  const totalExpected = principal + interest + penalty;
+  const { data: payments, error: payErr } = await supabaseClient
+    .from('payments')
+    .select('amount')
+    .eq('loan_id', loanId)
+    .eq('status', 'completed');
+  if (payErr) {
+    console.warn('[LOAN_STATUS] sync: erreur paiements', payErr.message);
+    return { ok: false, updated: false };
+  }
+  const totalPaid = (payments || []).reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
+  const tolerance = 10;
+  const fullyPaid = totalPaid >= totalExpected - tolerance;
+  console.log('[LOAN_STATUS] sync:', { loanId, totalExpected, totalPaid, fullyPaid });
+  if (!fullyPaid) return { ok: true, updated: false };
+  const result = await setLoanStatusToCompleted(supabaseClient, loanId);
+  return { ok: result.ok, updated: result.ok };
+}
 
 // Webhook FedaPay pour recevoir les confirmations de paiement
 app.post('/api/fedapay/webhook', async (req, res) => {
@@ -1170,7 +1255,7 @@ app.post('/api/fedapay/webhook', async (req, res) => {
           // Récupérer le prêt avec toutes ses informations (pénalités incluses)
           const { data: loanData, error: loanFetchError } = await supabase
             .from('loans')
-            .select('id, amount, interest_rate, total_penalty_amount, status, approved_at, duration, duration_months')
+            .select('id, amount, interest_rate, total_penalty_amount, status, approved_at, duration, duration_months, daily_penalty_rate')
             .eq('id', loanId)
             .single();
 
@@ -1182,8 +1267,40 @@ app.post('/api/fedapay/webhook', async (req, res) => {
           // Calculer le montant total attendu : capital + intérêts + pénalités
           const principalAmount = parseFloat(loanData.amount) || 0;
           const interestAmount = principalAmount * ((loanData.interest_rate || 0) / 100);
-          const penaltyAmount = parseFloat(loanData.total_penalty_amount || 0);
-          const totalExpectedAmount = principalAmount + interestAmount + penaltyAmount;
+          const totalOriginalAmount = principalAmount + interestAmount;
+          
+          // Calculer les pénalités si le prêt est en retard mais qu'elles ne sont pas encore calculées
+          let penaltyAmount = parseFloat(loanData.total_penalty_amount || 0);
+          
+          // Si pénalités à 0 mais prêt en retard, recalculer
+          if (penaltyAmount === 0 && loanData.approved_at) {
+            const durationDays = loanData.duration_months != null
+              ? Number(loanData.duration_months)
+              : (loanData.duration != null ? Number(loanData.duration) : 30);
+            
+            const approvedDate = new Date(loanData.approved_at);
+            const dueDate = new Date(approvedDate);
+            dueDate.setDate(dueDate.getDate() + durationDays);
+            
+            const today = new Date();
+            today.setHours(0, 0, 0, 0);
+            dueDate.setHours(0, 0, 0, 0);
+            const daysOverdue = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
+            
+            if (daysOverdue > 0) {
+              // Calculer les pénalités selon le nouveau système (2% tous les 5 jours complets)
+              const penaltyRate = loanData.daily_penalty_rate != null ? Number(loanData.daily_penalty_rate) : 2.0;
+              const periodsOf5Days = Math.floor(daysOverdue / 5);
+              
+              if (periodsOf5Days > 0) {
+                const amountWithPenalties = totalOriginalAmount * Math.pow(1 + (penaltyRate / 100), periodsOf5Days);
+                penaltyAmount = amountWithPenalties - totalOriginalAmount;
+                console.log(`[FEDAPAY_WEBHOOK] 💰 Pénalités recalculées: ${penaltyAmount.toFixed(2)} FCFA (${periodsOf5Days} périodes de 5 jours)`);
+              }
+            }
+          }
+          
+          const totalExpectedAmount = totalOriginalAmount + penaltyAmount;
           
           // Récupérer le total déjà payé (somme de tous les paiements pour ce prêt)
           const { data: allPayments, error: paymentsError } = await supabase
@@ -1210,44 +1327,44 @@ app.post('/api/fedapay/webhook', async (req, res) => {
             currentPayment: transaction.amount
           });
 
-          // 3. Mettre à jour le statut du prêt
-          // Si le montant payé couvre le reste dû (avec une petite marge d'erreur de 1 FCFA pour arrondis)
+          // 3. Mettre à jour le statut du prêt dans la table loans (obligatoire : completed quand remboursé entièrement)
           const isFullyPaid = remainingAmount <= 1 || totalPaidAmount >= totalExpectedAmount - 1;
+          const newStatus = isFullyPaid ? 'completed' : 'active';
           
-          console.log('[FEDAPAY_WEBHOOK] 🔄 Mise à jour prêt:', { 
+          console.log('[FEDAPAY_WEBHOOK] 🔄 Mise à jour table loans:', { 
             loanId, 
-            newStatus: isFullyPaid ? 'completed' : 'active',
+            newStatus,
             isFullyPaid,
             remainingAmount
           });
-          
-          const updateData = {
-            status: isFullyPaid ? 'completed' : 'active',
-            updated_at: new Date().toISOString()
-          };
-          
-          // Si le prêt est complètement payé, réinitialiser les pénalités
+
           if (isFullyPaid) {
-            updateData.total_penalty_amount = 0;
-            updateData.last_penalty_calculation = null;
+            const result = await setLoanStatusToCompleted(supabase, loanId);
+            if (!result.ok) {
+              console.error('[FEDAPAY_WEBHOOK] ❌ La table loans n’a pas pu être mise à jour. Ajoutez SUPABASE_SERVICE_ROLE_KEY dans backend/.env (Supabase → Paramètres → API → clé service_role) pour que le statut passe à "completed".');
+            }
+          } else {
+            const { data: updatedLoan, error: loanError } = await supabase
+              .from('loans')
+              .update({ status: 'active', updated_at: new Date().toISOString() })
+              .eq('id', loanId)
+              .select()
+              .single();
+            if (loanError) {
+              console.error('[FEDAPAY_WEBHOOK] ❌ Erreur mise à jour prêt (table loans):', loanError);
+              throw loanError;
+            }
+            console.log('[FEDAPAY_WEBHOOK] ✅ Table loans: statut maintenu → active');
           }
-          
-          const { data: updatedLoan, error: loanError } = await supabase
-            .from('loans')
-            .update(updateData)
-            .eq('id', loanId)
-            .select()
-            .single();
-
-          if (loanError) {
-            console.error('[FEDAPAY_WEBHOOK] ❌ Erreur mise à jour prêt:', loanError);
-            throw loanError;
-          }
-
-          console.log('[FEDAPAY_WEBHOOK] ✅ Prêt mis à jour:', updatedLoan);
           
           if (!isFullyPaid) {
             console.log(`[FEDAPAY_WEBHOOK] ⚠️ Prêt partiellement remboursé. Reste à payer: ${remainingAmount.toLocaleString()} FCFA`);
+          }
+
+          // 4. Sync statut depuis la DB : recalcul total payé vs total dû, passer à "completed" si remboursé
+          const syncResult = await syncLoanStatusToCompletedIfFullyPaid(supabase, loanId);
+          if (syncResult.updated) {
+            console.log('[FEDAPAY_WEBHOOK] ✅ Statut prêt synchronisé → completed');
           }
 
           // 1. NOTIFIER LE CLIENT (TOUJOURS créer dans la DB)
@@ -2227,22 +2344,13 @@ app.post('/api/create-loan-repayment', async (req, res) => {
       });
     }
 
-    // Appel à FedaPay API (utilise la variable d'environnement)
-    // Extraire la base URL (sans /transactions/ID)
-    let baseUrl = FEDAPAY_CONFIG.baseUrl || '';
-    if (baseUrl.includes('/transactions')) {
-      baseUrl = baseUrl.split('/transactions')[0];
-    }
-    // S'assurer que la base URL se termine par /v1
-    if (!baseUrl.endsWith('/v1')) {
-      baseUrl = baseUrl.endsWith('/v1') ? baseUrl : `${baseUrl.replace(/\/+$/, '')}/v1`;
-    }
-    const fedapayApiUrl = baseUrl 
-      ? `${baseUrl}/transactions`
-      : (process.env.FEDAPAY_ENVIRONMENT === 'live' 
-          ? 'https://api.fedapay.com/v1/transactions' 
-          : 'https://sandbox-api.fedapay.com/v1/transactions');
-    
+    // FedaPay API : sandbox si FEDAPAY_ENVIRONMENT=sandbox, sinon live
+    const isSandbox = (process.env.FEDAPAY_ENVIRONMENT || '').toLowerCase() === 'sandbox';
+    const fedapayApiUrl = isSandbox
+      ? 'https://sandbox-api.fedapay.com/v1/transactions'
+      : 'https://api.fedapay.com/v1/transactions';
+    console.log('[LOAN_REPAYMENT] 🌐 Mode FedaPay:', isSandbox ? 'SANDBOX' : 'LIVE', '→', fedapayApiUrl);
+
     const response = await fetch(fedapayApiUrl, {
       method: "POST",
       headers: {
