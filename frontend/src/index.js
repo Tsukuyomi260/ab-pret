@@ -4,6 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { queryClient } from './queryClient';
 import './index.css';
 import App from './App';
+import AppErrorBoundary from './components/UI/AppErrorBoundary';
 import reportWebVitals from './reportWebVitals';
 
 // Détecter iOS pour désactiver StrictMode (peut causer des problèmes)
@@ -20,10 +21,13 @@ function renderApp() {
     const root = ReactDOM.createRoot(rootElement);
     
     // Désactiver StrictMode sur iOS pour éviter les problèmes de double rendu
+    // AppErrorBoundary évite l'écran bloqué (ex. logo seul) si une erreur se produit au rendu
     const appContent = (
-      <QueryClientProvider client={queryClient}>
-        <App />
-      </QueryClientProvider>
+      <AppErrorBoundary>
+        <QueryClientProvider client={queryClient}>
+          <App />
+        </QueryClientProvider>
+      </AppErrorBoundary>
     );
 
     if (isIOS) {
@@ -38,6 +42,12 @@ function renderApp() {
       );
     }
 
+    // Masquer l'écran de chargement (logo) dès que React a monté — évite le blocage "logo seul" chez certains utilisateurs
+    if (typeof window.hideAppLoadingScreen === 'function') {
+      requestAnimationFrame(() => {
+        setTimeout(window.hideAppLoadingScreen, 100);
+      });
+    }
     console.log('[REACT] ✅ Application React montée avec succès');
   } catch (error) {
     console.error('[REACT] ❌ Erreur lors du montage de React:', error);

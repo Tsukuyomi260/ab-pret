@@ -217,26 +217,31 @@
       // Masquer l'écran de chargement après le chargement de React
       function hideLoadingScreen() {
         const loadingScreen = document.getElementById('loading-screen');
-        if (loadingScreen) {
+        if (loadingScreen && loadingScreen.style.display !== 'none') {
           loadingScreen.style.opacity = '0';
           loadingScreen.style.transition = 'opacity 0.3s';
           setTimeout(function() {
             loadingScreen.style.display = 'none';
           }, 300);
+          console.log('[INIT] ✅ Écran de chargement masqué');
         }
       }
+      // Exposer pour que React puisse masquer l'écran dès le montage (fiable)
+      window.hideAppLoadingScreen = hideLoadingScreen;
       
-      // Vérifier si React s'est chargé
+      // Vérifier si React s'est chargé (détection simple : contenu dans #root)
       function checkReactLoaded() {
         const root = document.getElementById('root');
-        if (root && root.hasChildNodes()) {
-          const firstChild = root.firstChild;
-          // Vérifier que c'est bien React (pas juste du HTML statique)
-          if (firstChild && (firstChild.nodeType === 1 || firstChild._reactInternalFiber || firstChild._reactInternalInstance)) {
-            console.log('[INIT] ✅ React chargé et monté');
-            hideLoadingScreen();
-            return true;
-          }
+        if (!root) return false;
+        if (root.hasChildNodes() && root.children.length > 0) {
+          console.log('[INIT] ✅ React chargé et monté (détection DOM)');
+          hideLoadingScreen();
+          return true;
+        }
+        if (root.hasChildNodes() && root.firstChild && root.firstChild.nodeType === 1) {
+          console.log('[INIT] ✅ React chargé et monté (détection nodeType)');
+          hideLoadingScreen();
+          return true;
         }
         return false;
       }
@@ -258,31 +263,40 @@
         }
       }
       
-      // Vérification périodique du chargement
+      // Vérification périodique du chargement + timeout de secours (toujours masquer le loader)
       let checkCount = 0;
-      const maxChecks = 30; // 15 secondes max (30 * 500ms)
+      const maxChecks = 60; // 30 secondes max (60 * 500ms)
+      const forceHideAfterMs = 8000; // Après 8s, toujours masquer le loader pour ne pas bloquer l'utilisateur
       
       function startChecking() {
+        var forceHideTimer = setTimeout(function() {
+          var root = document.getElementById('root');
+          if (root && !root.hasChildNodes()) {
+            console.warn('[INIT] ⚠️ Timeout 8s - React pas monté, affichage message d\'erreur');
+            showErrorScreen('Le chargement prend trop de temps. Vérifiez votre connexion et réessayez.');
+          }
+          hideLoadingScreen();
+        }, forceHideAfterMs);
+        
         const checkInterval = setInterval(function() {
           checkCount++;
-          console.log('[INIT] Vérification React...', checkCount);
+          if (checkCount % 4 === 0) console.log('[INIT] Vérification React...', checkCount);
           
           if (checkReactLoaded()) {
             clearInterval(checkInterval);
+            clearTimeout(forceHideTimer);
             return;
           }
           
           if (checkCount >= maxChecks) {
             clearInterval(checkInterval);
+            clearTimeout(forceHideTimer);
             const root = document.getElementById('root');
-            const diagnostic = {
-              rootExists: !!root,
-              rootHasChildren: root ? root.hasChildNodes() : false,
-              scriptsLoaded: document.scripts.length,
-              errors: window.lastError || 'Aucune erreur capturée'
-            };
-            console.error('[INIT] ❌ Timeout - React ne s\'est pas chargé:', diagnostic);
-            showErrorScreen('L\'application n\'a pas pu se charger. Vérifiez votre connexion internet et réessayez.');
+            if (!root || !root.hasChildNodes()) {
+              console.error('[INIT] ❌ Timeout 30s - React ne s\'est pas chargé');
+              showErrorScreen('L\'application n\'a pas pu se charger. Vérifiez votre connexion internet et réessayez.');
+            }
+            hideLoadingScreen();
           }
         }, 500);
       }
