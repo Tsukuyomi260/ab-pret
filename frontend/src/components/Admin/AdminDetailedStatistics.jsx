@@ -213,14 +213,14 @@ const AdminDetailedStatistics = () => {
   }
 
   function getStatusDistribution(loanList) {
-    const statuses = { pending: 0, active: 0, approved: 0, completed: 0, rejected: 0 };
+    const statuses = { pending: 0, active: 0, approved: 0, overdue: 0, completed: 0, rejected: 0 };
     loanList.forEach(l => {
       const s = l.status || 'pending';
       if (statuses[s] !== undefined) statuses[s] += 1;
     });
     return [
       { name: 'En attente', value: statuses.pending, color: '#eab308' },
-      { name: 'Actifs', value: statuses.active + statuses.approved, color: '#3b82f6' },
+      { name: 'Actifs', value: statuses.active + statuses.approved + statuses.overdue, color: '#3b82f6' },
       { name: 'Remboursés', value: statuses.completed, color: '#22c55e' },
       { name: 'Rejetés', value: statuses.rejected, color: '#ef4444' }
     ].filter(d => d.value > 0);

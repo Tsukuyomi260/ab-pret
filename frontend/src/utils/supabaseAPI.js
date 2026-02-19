@@ -722,9 +722,14 @@ export const createLoan = async (loanData) => {
     // Notifier l'admin de la nouvelle demande de prêt
     if (data && data.users) {
       try {
-        console.log('[ADMIN_NOTIFICATION] Envoi notification à l\'admin...');
-        
         const clientName = `${data.users.first_name} ${data.users.last_name}`;
+        
+        console.log('[ADMIN_NOTIFICATION] 📢 Envoi notification à l\'admin...', {
+          backendUrl: BACKEND_URL,
+          loanId: data.id,
+          loanAmount: data.amount,
+          clientName: clientName
+        });
         
         const notificationResponse = await fetch(`${BACKEND_URL}/api/notify-admin-new-loan`, {
           method: 'POST',
@@ -736,15 +741,24 @@ export const createLoan = async (loanData) => {
           })
         });
 
+        const responseData = await notificationResponse.json();
+        
         if (notificationResponse.ok) {
-          console.log('[ADMIN_NOTIFICATION] ✅ Notification envoyée à l\'admin avec succès');
+          console.log('[ADMIN_NOTIFICATION] ✅ Réponse backend:', responseData);
+          if (responseData.fcmSent) {
+            console.log('[ADMIN_NOTIFICATION] ✅ Notification FCM envoyée à l\'admin');
+          } else {
+            console.warn('[ADMIN_NOTIFICATION] ⚠️ Notification créée dans la DB mais FCM non envoyé:', responseData.fcmError || 'Admin sans token FCM');
+          }
         } else {
-          console.error('[ADMIN_NOTIFICATION] ❌ Erreur envoi notification:', await notificationResponse.text());
+          console.error('[ADMIN_NOTIFICATION] ❌ Erreur backend:', responseData);
         }
       } catch (notificationError) {
         console.error('[ADMIN_NOTIFICATION] ❌ Erreur lors de l\'envoi de la notification:', notificationError);
         // Ne pas faire échouer la création du prêt si la notification échoue
       }
+    } else {
+      console.warn('[ADMIN_NOTIFICATION] ⚠️ Données utilisateur manquantes, notification admin non envoyée');
     }
 
     return { success: true, data };

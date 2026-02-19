@@ -79,23 +79,70 @@ const RepaymentSuccess = () => {
 
       console.log('[REPAYMENT_SUCCESS] Prêt mis à jour:', loanUpdateResult.data);
       
-      // Créer une notification pour l'admin
-      const adminNotification = {
-        title: 'Remboursement de prêt effectué',
-        message: `Le client ${user.first_name || user.fullName} a remboursé son prêt #${data.loanId} d'un montant de ${data.amount} FCFA`,
-        type: 'success',
-        priority: 'high',
-        data: {
-          loanId: data.loanId,
-          userId: user.id,
-          amount: data.amount,
-          transactionId: data.transactionId,
-          action: 'view_loan_details'
+      // 2.5. Synchroniser le statut depuis le backend (vérifie si vraiment complètement remboursé)
+      try {
+        let backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+        const syncResponse = await fetch(`${backendUrl}/api/sync-loan-status`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            loanId: data.loanId
+          })
+        });
+        
+        if (syncResponse.ok) {
+          const syncResult = await syncResponse.json();
+          if (syncResult.updated) {
+            console.log('[REPAYMENT_SUCCESS] ✅ Statut synchronisé et corrigé par le backend');
+          } else {
+            console.log('[REPAYMENT_SUCCESS] ℹ️ Statut vérifié - prêt pas encore entièrement remboursé');
+          }
         }
-      };
+      } catch (syncError) {
+        console.warn('[REPAYMENT_SUCCESS] ⚠️ Erreur synchronisation statut:', syncError);
+        // Ne pas bloquer le processus
+      }
       
-      // Ajouter la notification (sera visible par l'admin)
-      addNotification(adminNotification);
+      // 3. Déclencher immédiatement les notifications (client + admin) via FCM
+      // Note: Le webhook FedaPay devrait aussi envoyer les notifications, mais on les envoie ici pour être sûr
+      try {
+        // Essayer d'utiliser l'URL ngrok si disponible (détectée depuis window.location si on est sur ngrok)
+        let backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+        
+        // Si on est sur ngrok (détecté depuis l'URL actuelle), utiliser la même base pour le backend
+        const currentHost = window.location.hostname;
+        if (currentHost.includes('ngrok') || currentHost.includes('ngrok-free')) {
+          // Essayer de construire l'URL ngrok backend depuis l'URL frontend
+          const protocol = window.location.protocol;
+          const port = '5000'; // Port backend par défaut
+          // Si le frontend est sur ngrok, le backend devrait être sur le même tunnel ou un autre tunnel
+          // Pour l'instant, on essaie avec localhost et on laisse le webhook gérer
+          console.log('[REPAYMENT_SUCCESS] ⚠️ Détection ngrok, notifications gérées par webhook');
+        }
+        
+        console.log('[REPAYMENT_SUCCESS] 📢 Tentative envoi notifications via:', backendUrl);
+        const notifyResponse = await fetch(`${backendUrl}/api/notify-repayment`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            loanId: data.loanId,
+            userId: user.id,
+            amount: data.amount
+          })
+        });
+        
+        if (notifyResponse.ok) {
+          console.log('[REPAYMENT_SUCCESS] ✅ Notifications envoyées immédiatement');
+        } else {
+          const errorText = await notifyResponse.text();
+          console.warn('[REPAYMENT_SUCCESS] ⚠️ Erreur envoi notifications:', errorText);
+          console.log('[REPAYMENT_SUCCESS] ℹ️ Les notifications seront gérées par le webhook FedaPay');
+        }
+      } catch (notifyError) {
+        console.error('[REPAYMENT_SUCCESS] ⚠️ Erreur déclenchement notifications:', notifyError);
+        console.log('[REPAYMENT_SUCCESS] ℹ️ Les notifications seront gérées par le webhook FedaPay (toutes les 30 secondes max)');
+        // Ne pas bloquer le processus si les notifications échouent
+      }
       
       showSuccess('Remboursement traité avec succès ! Le prêt a été marqué comme remboursé.');
       

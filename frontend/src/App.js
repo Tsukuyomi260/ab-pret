@@ -5,6 +5,7 @@ import { NotificationProvider } from './context/NotificationContext';
 import { testAllConnections } from './utils/supabaseAPI';
 import { Toaster } from 'react-hot-toast';
 import { useAppUpdate } from './hooks/useAppUpdate';
+import { useNotifications } from './useNotifications';
 import UpdatePrompt from './components/UI/UpdatePrompt';
 import { initCacheManagement } from './utils/clearCache';
 import Layout from './components/Common/Layout';
@@ -206,6 +207,7 @@ const AppContent = () => {
     applyUpdate,
     ignoreUpdate
   } = useAppUpdate();
+  const { token, notification } = useNotifications();
 
   return (
     <>

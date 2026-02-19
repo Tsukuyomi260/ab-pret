@@ -159,12 +159,12 @@ const TransactionDrawer = ({ transaction, isOpen, onClose }) => {
                   <p className="text-xs text-gray-500">Statut du prêt</p>
                   <span className={`inline-block px-2 py-1 rounded-lg text-xs font-medium ${
                     loan.status === 'completed' ? 'bg-green-100 text-green-700' :
-                    loan.status === 'active' || loan.status === 'approved' ? 'bg-blue-100 text-blue-700' :
+                    loan.status === 'active' || loan.status === 'approved' || loan.status === 'overdue' ? 'bg-blue-100 text-blue-700' :
                     loan.status === 'pending' ? 'bg-yellow-100 text-yellow-700' :
                     'bg-red-100 text-red-700'
                   }`}>
                     {loan.status === 'completed' ? 'Remboursé' :
-                     loan.status === 'active' || loan.status === 'approved' ? 'Actif' :
+                     loan.status === 'active' || loan.status === 'approved' || loan.status === 'overdue' ? 'Actif' :
                      loan.status === 'pending' ? 'En attente' : 'Rejeté'}
                   </span>
                 </div>

@@ -189,7 +189,7 @@ const AdminDashboard = () => {
   const getActivityIcon = (activity) => {
     if (activity.type === 'loan') {
       if (activity.status === 'pending') return <Clock size={16} className="text-yellow-600" />;
-      if (activity.status === 'active' || activity.status === 'approved') return <Activity size={16} className="text-blue-600" />;
+      if (activity.status === 'active' || activity.status === 'approved' || activity.status === 'overdue') return <Activity size={16} className="text-blue-600" />;
       if (activity.status === 'completed') return <CheckCircle size={16} className="text-green-600" />;
     }
     if (activity.type === 'savings') {
@@ -203,7 +203,7 @@ const AdminDashboard = () => {
       if (activity.status === 'pending') {
         return <span className="px-2 py-0.5 bg-yellow-100 text-yellow-700 rounded-full text-[10px] font-semibold">En attente</span>;
       }
-      if (activity.status === 'active' || activity.status === 'approved') {
+      if (activity.status === 'active' || activity.status === 'approved' || activity.status === 'overdue') {
         return <span className="px-2 py-0.5 bg-blue-100 text-blue-700 rounded-full text-[10px] font-semibold">Actif</span>;
       }
       if (activity.status === 'completed') {

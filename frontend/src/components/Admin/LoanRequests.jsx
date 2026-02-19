@@ -26,6 +26,24 @@ import {
 } from 'lucide-react';
 import { formatCurrency } from '../../utils/helpers';
 
+/** Calcule les jours de retard et la pénalité (2% tous les 5 jours, composé) comme le backend */
+function computeOverduePenalty(loan) {
+  if (!loan.approved_at || !loan.amount) return { daysOverdue: 0, penaltyAmount: 0 };
+  const startDate = new Date(loan.approved_at);
+  const durationDays = loan.duration_months || loan.duration || 30;
+  const dueDate = new Date(startDate.getTime() + durationDays * 24 * 60 * 60 * 1000);
+  const now = new Date();
+  if (now <= dueDate) return { daysOverdue: 0, penaltyAmount: 0 };
+  const daysOverdue = Math.floor((now - dueDate) / (24 * 60 * 60 * 1000));
+  const interestAmount = (loan.amount || 0) * ((loan.interest_rate || 0) / 100);
+  const totalOriginalAmount = (loan.amount || 0) + interestAmount;
+  const periodsOf5Days = Math.floor(daysOverdue / 5);
+  if (periodsOf5Days <= 0) return { daysOverdue, penaltyAmount: 0 };
+  const amountWithPenalties = totalOriginalAmount * Math.pow(1 + 2 / 100, periodsOf5Days);
+  const penaltyAmount = amountWithPenalties - totalOriginalAmount;
+  return { daysOverdue, penaltyAmount: Math.round(penaltyAmount * 100) / 100 };
+}
+
 const LoanRequests = () => {
   const { showSuccess, showError } = useNotifications();
   const [loanRequests, setLoanRequests] = useState([]);
@@ -38,7 +56,9 @@ const LoanRequests = () => {
     totalRequests: 0,
     pending: 0,
     active: 0,
+    overdue: 0,
     completed: 0,
+    rejected: 0,
     totalAmount: 0
   });
 
@@ -76,6 +96,13 @@ const LoanRequests = () => {
           const startDate = loan.approved_at ? new Date(loan.approved_at) : null;
           const durationDays = loan.duration_months || 30;
           const dueDate = startDate ? new Date(startDate.getTime() + (durationDays * 24 * 60 * 60 * 1000)) : null;
+          const { daysOverdue, penaltyAmount } = computeOverduePenalty({
+            approved_at: loan.approved_at,
+            duration_months: loan.duration_months,
+            duration: loan.duration,
+            amount: loan.amount,
+            interest_rate: loan.interest_rate
+          });
           
           return {
             id: loan.id,
@@ -123,7 +150,9 @@ const LoanRequests = () => {
             interest_rate: loan.interest_rate || 0,
             monthly_payment: loan.monthly_payment || 0,
             approved_by: loan.approved_by,
-            approved_at: loan.approved_at
+            approved_at: loan.approved_at,
+            daysOverdue,
+            penaltyAmount
           };
         });
         
@@ -131,15 +160,19 @@ const LoanRequests = () => {
         
         // Calculer les statistiques
         const pending = formattedRequests.filter(r => r.status === 'pending').length;
-        const active = formattedRequests.filter(r => r.status === 'active' || r.status === 'approved').length;
+        const active = formattedRequests.filter(r => r.status === 'active' || r.status === 'approved' || r.status === 'overdue').length;
+        const overdue = formattedRequests.filter(r => r.status === 'overdue').length;
         const completed = formattedRequests.filter(r => r.status === 'completed').length;
+        const rejected = formattedRequests.filter(r => r.status === 'rejected').length;
         const totalAmount = formattedRequests.reduce((sum, r) => sum + r.amount, 0);
         
         setStats({
           totalRequests: formattedRequests.length,
           pending,
           active,
+          overdue,
           completed,
+          rejected,
           totalAmount
         });
         
@@ -218,22 +251,31 @@ const LoanRequests = () => {
         stats: {
           newRequests: 0,
           activeLoans: 0,
+          overdueLoans: 0,
           completedLoans: 0,
+          rejectedLoans: 0,
           totalBorrowed: 0,
           totalPaid: 0,
           activeLoanAmount: 0,
           activeLoanInterest: 0,
-          dueDate: null
+          dueDate: null,
+          totalOverduePenalty: 0,
+          maxDaysOverdue: 0
         }
       };
     }
     
     acc[userId].loans.push(loan);
     
-    // Calculer les stats de l'utilisateur
+    // Calculer les stats de l'utilisateur (overdue = prêt actif en retard, pas rejeté)
     if (loan.status === 'pending') acc[userId].stats.newRequests++;
-    if (loan.status === 'active' || loan.status === 'approved') {
+    if (loan.status === 'active' || loan.status === 'approved' || loan.status === 'overdue') {
       acc[userId].stats.activeLoans++;
+      if (loan.status === 'overdue' || (loan.daysOverdue > 0 && loan.status !== 'completed')) {
+        acc[userId].stats.overdueLoans++;
+        acc[userId].stats.totalOverduePenalty += loan.penaltyAmount || 0;
+        acc[userId].stats.maxDaysOverdue = Math.max(acc[userId].stats.maxDaysOverdue || 0, loan.daysOverdue || 0);
+      }
       acc[userId].stats.activeLoanAmount += loan.amount || 0;
       acc[userId].stats.activeLoanInterest += Math.round((loan.amount || 0) * ((loan.interest_rate || 0) / 100));
       // Garder la date d'échéance du prêt actif (le plus récent si plusieurs)
@@ -242,6 +284,7 @@ const LoanRequests = () => {
       }
     }
     if (loan.status === 'completed') acc[userId].stats.completedLoans++;
+    if (loan.status === 'rejected') acc[userId].stats.rejectedLoans++;
     acc[userId].stats.totalBorrowed += loan.amount;
     acc[userId].stats.totalPaid += loan.paidAmount;
     
@@ -267,7 +310,9 @@ const LoanRequests = () => {
     const matchesStatus = statusFilter === 'all' || (() => {
       if (statusFilter === 'pending') return profile.stats.newRequests > 0;
       if (statusFilter === 'active') return profile.stats.activeLoans > 0;
+      if (statusFilter === 'overdue') return profile.stats.overdueLoans > 0;
       if (statusFilter === 'completed') return profile.stats.completedLoans > 0 && profile.stats.newRequests === 0 && profile.stats.activeLoans === 0;
+      if (statusFilter === 'rejected') return profile.stats.rejectedLoans > 0;
       return true;
     })();
 
@@ -281,6 +326,15 @@ const LoanRequests = () => {
           <Clock size={12} className="sm:w-3.5 sm:h-3.5 flex-shrink-0" />
           <span className="hidden sm:inline">{stats.newRequests} Nouvelle{stats.newRequests > 1 ? 's' : ''} demande{stats.newRequests > 1 ? 's' : ''}</span>
           <span className="sm:hidden">{stats.newRequests} Nouv.</span>
+        </span>
+      );
+    }
+    if (stats.overdueLoans > 0) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-semibold bg-orange-100 text-orange-700 whitespace-nowrap">
+          <AlertTriangle size={12} className="sm:w-3.5 sm:h-3.5 flex-shrink-0" />
+          <span className="hidden sm:inline">{stats.overdueLoans} Prêt{stats.overdueLoans > 1 ? 's' : ''} en retard</span>
+          <span className="sm:hidden">{stats.overdueLoans} Retard</span>
         </span>
       );
     }
@@ -299,6 +353,15 @@ const LoanRequests = () => {
           <CheckCircle size={12} className="sm:w-3.5 sm:h-3.5 flex-shrink-0" />
           <span className="hidden sm:inline">{stats.completedLoans} Prêt{stats.completedLoans > 1 ? 's' : ''} remboursé{stats.completedLoans > 1 ? 's' : ''}</span>
           <span className="sm:hidden">{stats.completedLoans} OK</span>
+        </span>
+      );
+    }
+    if (stats.rejectedLoans > 0) {
+      return (
+        <span className="inline-flex items-center gap-1 px-2 sm:px-3 py-1 rounded-full text-[10px] sm:text-xs font-semibold bg-red-100 text-red-700 whitespace-nowrap">
+          <XCircle size={12} className="sm:w-3.5 sm:h-3.5 flex-shrink-0" />
+          <span className="hidden sm:inline">{stats.rejectedLoans} Rejeté{stats.rejectedLoans > 1 ? 's' : ''}</span>
+          <span className="sm:hidden">{stats.rejectedLoans} Rej.</span>
         </span>
       );
     }
@@ -362,7 +425,7 @@ const LoanRequests = () => {
           </div>
         )}
         {/* Stats Cards */}
-        <div className={`grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8 transition-opacity duration-200 ${loading ? 'opacity-75' : ''}`}>
+        <div className={`grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-8 transition-opacity duration-200 ${loading ? 'opacity-75' : ''}`}>
           {/* Nouvelles demandes */}
           <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 group">
             <div className="flex items-start justify-between mb-4">
@@ -396,6 +459,22 @@ const LoanRequests = () => {
             </div>
           </div>
 
+          {/* Prêts en retard */}
+          <div className="bg-orange-50 rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-orange-200 group">
+            <div className="flex items-start justify-between mb-4">
+              <div className="p-3 bg-orange-100 rounded-xl group-hover:scale-110 transition-transform duration-300">
+                <AlertTriangle size={24} className="text-orange-600" />
+              </div>
+              <div className="text-right">
+                <p className="text-sm text-orange-700 font-medium">En retard</p>
+                <p className="text-3xl font-bold text-orange-900 mt-1">{stats.overdue}</p>
+              </div>
+            </div>
+            <div className="pt-4 border-t border-orange-200">
+              <span className="text-xs text-orange-700">Avec pénalités</span>
+            </div>
+          </div>
+
           {/* Prêts remboursés */}
           <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 group">
             <div className="flex items-start justify-between mb-4">
@@ -412,19 +491,17 @@ const LoanRequests = () => {
             </div>
           </div>
 
-          {/* Montant total */}
+          {/* Montant total : capital total prêté (tous les prêts) */}
           <div className="bg-white rounded-2xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 border border-gray-100 group">
-            <div className="flex items-start justify-between mb-4">
-              <div className="p-3 bg-purple-100 rounded-xl group-hover:scale-110 transition-transform duration-300">
+            <div className="flex flex-col items-center text-center mb-4">
+              <div className="p-3 bg-purple-100 rounded-xl group-hover:scale-110 transition-transform duration-300 mb-3">
                 <Wallet size={24} className="text-purple-600" />
               </div>
-              <div className="text-right">
-                <p className="text-sm text-gray-600 font-medium">Montant total</p>
-                <p className="text-xl font-bold text-gray-900 mt-1">{formatCurrency(stats.totalAmount)}</p>
-              </div>
+              <p className="text-sm text-gray-600 font-medium">Montant total</p>
+              <p className="text-xl font-bold text-gray-900 mt-1 w-full text-center">{formatCurrency(stats.totalAmount)}</p>
             </div>
-            <div className="pt-4 border-t border-gray-100">
-              <span className="text-xs text-gray-500">Tous les prêts</span>
+            <div className="pt-4 border-t border-gray-100 text-center">
+              <span className="text-xs text-gray-500">Capital total des prêts</span>
             </div>
           </div>
         </div>
@@ -453,9 +530,11 @@ const LoanRequests = () => {
                 className="flex-1 px-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent font-montserrat bg-white cursor-pointer"
               >
                 <option value="all">Tous les statuts</option>
-                <option value="pending">🟡 Demandes en attente</option>
-                <option value="active">🔵 Prêts en cours</option>
-                <option value="completed">🟢 Prêts remboursés</option>
+                <option value="pending">🟡 En attente</option>
+                <option value="active">🔵 En cours</option>
+                <option value="overdue">🟠 En retard</option>
+                <option value="completed">🟢 Remboursés</option>
+                <option value="rejected">🔴 Rejetés</option>
               </select>
             </div>
           </div>
@@ -480,7 +559,8 @@ const LoanRequests = () => {
                   Statut: {
                     statusFilter === 'pending' ? 'En attente' :
                     statusFilter === 'active' ? 'En cours' :
-                    'Remboursés'
+                    statusFilter === 'overdue' ? 'En retard' :
+                    statusFilter === 'completed' ? 'Remboursés' : 'Rejetés'
                   }
                   <button
                     onClick={() => setStatusFilter('all')}
@@ -592,6 +672,15 @@ const LoanRequests = () => {
                               <span className="truncate flex items-center gap-1">
                                 <Calendar size={14} className="text-purple-600" />
                                 Date d'échéance: <span className="font-bold text-purple-700">{new Date(profile.stats.dueDate).toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
+                              </span>
+                            )}
+                            {profile.stats.overdueLoans > 0 && (
+                              <span className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-orange-100 text-orange-800 border border-orange-200 text-xs font-semibold">
+                                <AlertTriangle size={14} />
+                                En retard — {profile.stats.maxDaysOverdue} jour{profile.stats.maxDaysOverdue > 1 ? 's' : ''}
+                                {profile.stats.totalOverduePenalty > 0 && (
+                                  <span className="font-bold">• Pénalité : {formatCurrency(Math.round(profile.stats.totalOverduePenalty * 100) / 100)}</span>
+                                )}
                               </span>
                             )}
                           </>
@@ -805,18 +894,27 @@ const LoanRequests = () => {
                             <div className="text-3xl font-bold text-gray-900">{formatCurrency(loan.amount)}</div>
                             <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${
                               loan.status === 'pending' ? 'bg-yellow-100 text-yellow-700 border border-yellow-200' :
-                              loan.status === 'active' || loan.status === 'approved' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
+                              loan.status === 'active' || loan.status === 'approved' || loan.status === 'overdue' ? 'bg-blue-100 text-blue-700 border border-blue-200' :
                               loan.status === 'completed' ? 'bg-green-100 text-green-700 border border-green-200' :
                               'bg-red-100 text-red-700 border border-red-200'
                             }`}>
                               {loan.status === 'pending' && <Clock size={16} />}
-                              {(loan.status === 'active' || loan.status === 'approved') && <Activity size={16} />}
+                              {(loan.status === 'active' || loan.status === 'approved' || loan.status === 'overdue') && <Activity size={16} />}
                               {loan.status === 'completed' && <CheckCircle size={16} />}
                               {loan.status === 'rejected' && <XCircle size={16} />}
                               {loan.status === 'pending' ? 'En attente' :
-                               loan.status === 'active' || loan.status === 'approved' ? 'En cours' :
+                               loan.status === 'active' || loan.status === 'approved' || loan.status === 'overdue' ? (loan.status === 'overdue' ? 'En cours (retard)' : 'En cours') :
                                loan.status === 'completed' ? 'Remboursé' : 'Rejeté'}
                             </span>
+                            {(loan.status === 'overdue' || (loan.daysOverdue > 0 && loan.status !== 'completed')) && (
+                              <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold bg-orange-100 text-orange-800 border-2 border-orange-300">
+                                <AlertTriangle size={16} />
+                                En retard — {loan.daysOverdue} jour{loan.daysOverdue > 1 ? 's' : ''}
+                                {loan.penaltyAmount > 0 && (
+                                  <span className="ml-1">• Pénalité : {formatCurrency(loan.penaltyAmount)}</span>
+                                )}
+                              </span>
+                            )}
                           </div>
                           <p className="text-gray-600 text-lg">{loan.purpose}</p>
                         </div>
@@ -843,6 +941,23 @@ const LoanRequests = () => {
                           <h5 className="font-semibold text-gray-900 mb-2">Payé</h5>
                           <p className="text-2xl font-bold text-emerald-600">{formatCurrency(loan.paidAmount)}</p>
                         </div>
+                        {(loan.status === 'active' || loan.status === 'approved' || loan.status === 'overdue') && (loan.interest_rate || 0) > 0 && (
+                          <div className="bg-amber-50 rounded-xl p-4 border border-amber-200 md:col-span-2 lg:col-span-4">
+                            <h5 className="font-semibold text-amber-900 mb-2">Intérêts à rembourser</h5>
+                            <p className="text-2xl font-bold text-amber-700">{formatCurrency(Math.round((loan.amount || 0) * ((loan.interest_rate || 0) / 100)))}</p>
+                            <p className="text-xs text-amber-700 mt-1">Taux du prêt : {loan.interest_rate}% sur le capital</p>
+                          </div>
+                        )}
+                        {(loan.status === 'overdue' || loan.daysOverdue > 0) && loan.penaltyAmount > 0 && (
+                          <div className="bg-orange-50 rounded-xl p-4 border border-orange-200 md:col-span-2 lg:col-span-4">
+                            <h5 className="font-semibold text-orange-900 mb-2 flex items-center gap-2">
+                              <AlertTriangle size={18} />
+                              Pénalité à rembourser (retard)
+                            </h5>
+                            <p className="text-2xl font-bold text-orange-700">{formatCurrency(loan.penaltyAmount)}</p>
+                            <p className="text-xs text-orange-700 mt-1">{loan.daysOverdue} jour{loan.daysOverdue > 1 ? 's' : ''} de retard — 2% tous les 5 jours</p>
+                          </div>
+                        )}
                       </div>
 
                       {/* Informations MoMo */}

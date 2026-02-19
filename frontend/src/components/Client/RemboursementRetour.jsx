@@ -26,7 +26,13 @@ const RemboursementRetour = () => {
 
   useEffect(() => {
     const urlParams = new URLSearchParams(location.search);
-    const transactionId = urlParams.get('id') || urlParams.get('reference') || urlParams.get('txId');
+    let transactionId = urlParams.get('id') || urlParams.get('reference') || urlParams.get('txId') || urlParams.get('transaction_id');
+    if (!transactionId) {
+      transactionId = sessionStorage.getItem('pending_repayment_transaction_id') || null;
+      if (transactionId) {
+        sessionStorage.removeItem('pending_repayment_transaction_id');
+      }
+    }
     const statusParam = urlParams.get('status');
 
     console.log('[REMBOURSEMENT_RETOUR] Paramètres URL:', { 
@@ -45,8 +51,11 @@ const RemboursementRetour = () => {
       return;
     }
 
-    if (statusParam === 'approved' || statusParam === 'transferred') {
-      // Remboursement approuvé, vérifier la mise à jour du prêt
+    if (statusParam === 'failure' || statusParam === 'cancel') {
+      setStatus('error');
+      setMessage(statusParam === 'cancel' ? 'Paiement annulé' : 'Remboursement non abouti');
+    } else if (statusParam === 'approved' || statusParam === 'transferred' || statusParam === 'success' || statusParam === null || statusParam === undefined) {
+      // Paiement approuvé : seul le webhook backend crée le paiement et met à jour le prêt. On vérifie juste que c'est fait (polling).
       checkRepaymentStatus(transactionId);
     } else {
       setStatus('error');
@@ -56,62 +65,40 @@ const RemboursementRetour = () => {
   }, [location.search, navigate, user]);
 
   const checkRepaymentStatus = async (transactionId) => {
+    const maxAttempts = 10;
+    const delayMs = 2000;
+
+    const checkOnce = async () => {
+      const response = await fetch(`${BACKEND_URL}/api/loans/repayment-status?id=${encodeURIComponent(transactionId)}`);
+      const result = await response.json();
+      return result.success && result.loan ? result : null;
+    };
+
     try {
       setMessage('Vérification du remboursement...');
-      
-      // Essayer plusieurs fois car le webhook peut prendre du temps
-      let attempts = 0;
-      const maxAttempts = 10;
-      
-      const pollForLoan = async () => {
-        attempts++;
-        console.log(`[REMBOURSEMENT_RETOUR] Tentative ${attempts}/${maxAttempts} pour transaction ID: ${transactionId}`);
-        
-        try {
-          const response = await fetch(`${BACKEND_URL}/api/loans/repayment-status?id=${transactionId}`);
-          const result = await response.json();
-
-          if (result.success && result.loan) {
-            setStatus('success');
-            setMessage('Remboursement confirmé, prêt mis à jour !');
-            queryClient.invalidateQueries({ queryKey: ['dashboardStats', user?.id] });
-            
-            // Redirection automatique vers le dashboard après 3 secondes
-            setTimeout(() => {
-              navigate('/dashboard');
-            }, 3000);
-            return;
-          } else if (attempts < maxAttempts) {
-            // Réessayer après 2 secondes
-            setMessage(`Vérification du remboursement... (${attempts}/${maxAttempts})`);
-            setTimeout(pollForLoan, 2000);
-            return;
-          } else {
-            // Après plusieurs tentatives, considérer comme succès car le webhook a probablement fonctionné
-            setStatus('success');
-            setMessage('Remboursement confirmé ! Votre prêt sera mis à jour sous peu.');
-            
-            // Redirection vers le dashboard
-            setTimeout(() => {
-              navigate('/dashboard');
-            }, 3000);
-          }
-        } catch (error) {
-          console.error(`[REMBOURSEMENT_RETOUR] ❌ Erreur tentative ${attempts}:`, error);
-          if (attempts < maxAttempts) {
-            setTimeout(pollForLoan, 2000);
-          } else {
-            setStatus('error');
-            setMessage('Erreur de connexion');
-          }
+      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+        const result = await checkOnce();
+        if (result && result.loan) {
+          setStatus('success');
+          setMessage('Remboursement confirmé, prêt mis à jour !');
+          queryClient.invalidateQueries({ queryKey: ['dashboardStats', user?.id] });
+          setTimeout(() => navigate('/dashboard'), 3000);
+          return;
         }
-      };
-      
-      pollForLoan();
+        if (attempt < maxAttempts) {
+          setMessage(`Vérification du remboursement... (${attempt}/${maxAttempts})`);
+          await new Promise(r => setTimeout(r, delayMs));
+        }
+      }
+
+      setStatus('success');
+      setMessage('Remboursement en cours de traitement. Rechargez la page d\'accueil dans quelques instants pour voir le prêt à jour.');
+      queryClient.invalidateQueries({ queryKey: ['dashboardStats', user?.id] });
+      setTimeout(() => navigate('/dashboard'), 4000);
     } catch (error) {
       console.error('[REMBOURSEMENT_RETOUR] ❌ Erreur:', error);
       setStatus('error');
-      setMessage('Erreur de connexion');
+      setMessage('Erreur de connexion au serveur. Vérifiez que le backend est démarré.');
     }
   };
 

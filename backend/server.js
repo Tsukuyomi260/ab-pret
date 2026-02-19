@@ -48,6 +48,425 @@ app.use('/api', pdfGenerator);
 // Route de test pour vérifier que l'API fonctionne
 app.get("/api/health", (req, res) => res.json({ ok: true }));
 
+// ===== FCM (Firebase Cloud Messaging) - Test =====
+
+// Helper pour initialiser Firebase Admin (réutilisable)
+function getFirebaseAdmin() {
+  let admin;
+  try {
+    admin = require('firebase-admin');
+  } catch (e) {
+    throw new Error('Firebase Admin non installé. Dans backend: npm install firebase-admin.');
+  }
+
+  if (!admin.apps.length) {
+    const path = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || './firebase-service-account.json';
+    const fs = require('fs');
+    if (!fs.existsSync(path)) {
+      throw new Error(`Fichier compte de service introuvable: ${path}. Téléchargez-le depuis Firebase Console > Paramètres > Comptes de service.`);
+    }
+    const serviceAccount = JSON.parse(fs.readFileSync(path, 'utf8'));
+    admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+  }
+
+  return admin;
+}
+
+/**
+ * ⚠️ FONCTION WRAPPER : Vérifie les doublons AVANT d'envoyer une notification FCM
+ * Cette fonction garantit qu'une notification n'est envoyée qu'une seule fois
+ * @param {string} userId - ID de l'utilisateur
+ * @param {string} title - Titre de la notification
+ * @param {string} body - Corps du message
+ * @param {object} data - Données additionnelles (url, type, loanId, payment_id, etc.)
+ * @returns {Promise<{success: boolean, error?: string, duplicate?: boolean}>}
+ */
+async function sendFCMNotificationWithDuplicateCheck(userId, title, body, data = {}) {
+  try {
+    // ⚠️ PROTECTION CONTRE LES DOUBLONS : Vérification rapide avec timeout
+    // Si la vérification prend trop de temps (> 2 secondes), on envoie quand même pour éviter de bloquer
+    const duplicateCheckPromise = (async () => {
+      try {
+        const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+        let existingNotif = null;
+        
+    if (data.transaction_id) {
+      // Vérifier par transaction_id (le plus fiable)
+      const { data: notif1, error: err1 } = await supabase
+        .from('notifications')
+        .select('id, created_at')
+        .eq('user_id', userId)
+        .eq('type', data.type || 'loan_repayment')
+        .filter('data->>transaction_id', 'eq', data.transaction_id)
+        .gte('created_at', tenMinutesAgo.toISOString())
+        .limit(1);
+      if (!err1) existingNotif = notif1;
+      
+      if (!existingNotif || existingNotif.length === 0) {
+        const { data: notif2, error: err2 } = await supabase
+          .from('notifications')
+          .select('id, created_at')
+          .eq('user_id', userId)
+          .eq('type', data.type || 'loan_repayment')
+          .contains('data', { transaction_id: data.transaction_id })
+          .gte('created_at', tenMinutesAgo.toISOString())
+          .limit(1);
+        if (!err2 && notif2 && notif2.length > 0) existingNotif = notif2;
+      }
+    } else if (data.payment_id) {
+      const { data: notif1, error: err1 } = await supabase
+        .from('notifications')
+        .select('id, created_at')
+        .eq('user_id', userId)
+        .eq('type', data.type || 'loan_repayment')
+        .filter('data->>payment_id', 'eq', data.payment_id)
+        .gte('created_at', tenMinutesAgo.toISOString())
+        .limit(1);
+      if (!err1) existingNotif = notif1;
+        } else if (data.loanId || data.loan_id) {
+          const loanId = data.loanId || data.loan_id;
+          const { data: notif1, error: err1 } = await supabase
+            .from('notifications')
+            .select('id, created_at')
+            .eq('user_id', userId)
+            .eq('type', data.type || 'loan_approval')
+            .filter('data->>loanId', 'eq', loanId)
+            .gte('created_at', tenMinutesAgo.toISOString())
+            .limit(1);
+          
+          if (!err1 && notif1 && notif1.length > 0) {
+            existingNotif = notif1;
+          } else {
+            const { data: notif2, error: err2 } = await supabase
+              .from('notifications')
+              .select('id, created_at')
+              .eq('user_id', userId)
+              .eq('type', data.type || 'loan_approval')
+              .filter('data->>loan_id', 'eq', loanId)
+              .gte('created_at', tenMinutesAgo.toISOString())
+              .limit(1);
+            if (!err2) existingNotif = notif2;
+          }
+        } else if (data.plan_id) {
+          const { data: notif1, error: err1 } = await supabase
+            .from('notifications')
+            .select('id, created_at')
+            .eq('user_id', userId)
+            .eq('type', data.type || 'savings_deposit')
+            .filter('data->>plan_id', 'eq', data.plan_id)
+            .gte('created_at', tenMinutesAgo.toISOString())
+            .limit(1);
+          if (!err1) existingNotif = notif1;
+        }
+        
+        return existingNotif;
+      } catch (checkError) {
+        console.error('[FCM] Erreur lors de la vérification doublon:', checkError);
+        return null; // En cas d'erreur, retourner null pour permettre l'envoi
+      }
+    })();
+    
+    // Timeout de 2 secondes pour la vérification
+    const timeoutPromise = new Promise((resolve) => setTimeout(() => resolve(null), 2000));
+    const existingNotif = await Promise.race([duplicateCheckPromise, timeoutPromise]);
+    
+    // Si une notification existe déjà, ne pas renvoyer
+    if (existingNotif && existingNotif.length > 0) {
+      console.log(`[FCM] ⚠️ Notification déjà envoyée récemment (évite doublon):`, {
+        userId,
+        type: data.type,
+        existingAt: existingNotif[0].created_at
+      });
+      return { success: false, error: 'Notification déjà envoyée', duplicate: true };
+    }
+    
+    // Si pas de doublon (ou timeout), appeler la fonction d'envoi originale
+    return await sendFCMNotification(userId, title, body, data);
+  } catch (error) {
+    console.error('[FCM] Erreur vérification doublon (envoi quand même):', error);
+    // En cas d'erreur de vérification, envoyer quand même (mieux vaut un doublon qu'une notification manquée)
+    return await sendFCMNotification(userId, title, body, data);
+  }
+}
+
+/**
+ * Envoie une notification FCM à un utilisateur spécifique (via fcm_token dans users).
+ * ⚠️ NE PAS APPELER DIRECTEMENT - Utiliser sendFCMNotificationWithDuplicateCheck() à la place
+ * @param {string} userId - ID de l'utilisateur
+ * @param {string} title - Titre de la notification
+ * @param {string} body - Corps du message
+ * @param {object} data - Données additionnelles (url, type, etc.)
+ * @returns {Promise<{success: boolean, error?: string}>}
+ */
+async function sendFCMNotification(userId, title, body, data = {}) {
+  try {
+    const { data: user, error } = await supabase
+      .from('users')
+      .select('fcm_token, first_name')
+      .eq('id', userId)
+      .single();
+
+    if (error || !user) {
+      console.warn(`[FCM] Utilisateur ${userId} non trouvé`);
+      return { success: false, error: 'Utilisateur non trouvé' };
+    }
+
+    if (!user.fcm_token) {
+      console.log(`[FCM] Utilisateur ${user.first_name || userId} n'a pas de token FCM`);
+      return { success: false, error: 'Pas de token FCM' };
+    }
+
+    const admin = getFirebaseAdmin();
+    const message = {
+      notification: { title, body },
+      webpush: {
+        notification: {
+          icon: '/logo192.png',
+          badge: '/logo192.png',
+          sound: 'default'
+        },
+        fcmOptions: {
+          link: data.url || '/dashboard'
+        }
+      },
+      android: {
+        notification: {
+          sound: 'default',
+          icon: 'logo192',
+          channelId: 'ab-campus-finance'
+        }
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default'
+          }
+        }
+      },
+      data: {
+        ...data,
+        click_action: data.url || '/dashboard'
+      },
+      token: user.fcm_token
+    };
+
+    await admin.messaging().send(message);
+    console.log(`[FCM] ✅ Notification envoyée à ${user.first_name || userId}`);
+    return { success: true };
+  } catch (err) {
+    console.error(`[FCM] ❌ Erreur pour ${userId}:`, err.message);
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * Envoie une notification FCM à plusieurs utilisateurs (liste de userIds).
+ * @param {string[]} userIds - Liste des IDs utilisateurs
+ * @param {string} title - Titre
+ * @param {string} body - Corps
+ * @param {object} data - Données additionnelles
+ * @returns {Promise<{sent: number, errors: number}>}
+ */
+async function sendFCMNotificationToUsers(userIds, title, body, data = {}) {
+  let sent = 0;
+  let errors = 0;
+  for (const userId of userIds) {
+    const result = await sendFCMNotificationWithDuplicateCheck(userId, title, body, data);
+    if (result.success) sent++;
+    else if (result.duplicate) {
+      // Doublon détecté, ne pas compter comme erreur
+      console.log(`[FCM] Doublon évité pour utilisateur ${userId}`);
+    } else {
+      errors++;
+    }
+  }
+  return { sent, errors };
+}
+
+/**
+ * Envoie une notification FCM à TOUS les utilisateurs avec fcm_token.
+ * @param {string} title - Titre
+ * @param {string} body - Corps
+ * @param {object} data - Données additionnelles
+ * @returns {Promise<{sent: number, errors: number}>}
+ */
+async function sendFCMNotificationToAllUsers(title, body, data = {}) {
+  try {
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('id, fcm_token')
+      .not('fcm_token', 'is', null);
+
+    if (error || !users || users.length === 0) {
+      console.log('[FCM] Aucun utilisateur avec token FCM');
+      return { sent: 0, errors: 0 };
+    }
+
+    const userIds = users.map(u => u.id);
+    return await sendFCMNotificationToUsers(userIds, title, body, data);
+  } catch (err) {
+    console.error('[FCM] Erreur sendFCMNotificationToAllUsers:', err);
+    return { sent: 0, errors: 0 };
+  }
+}
+
+// Envoyer une notification de test à un utilisateur (token FCM depuis users.fcm_token)
+app.post('/api/notifications/test-fcm', async (req, res) => {
+  try {
+    const { userId, fcmToken: tokenFromBody, title, body } = req.body || {};
+    let fcmToken = tokenFromBody;
+
+    if (!fcmToken && userId) {
+      const { data: user, error } = await supabase
+        .from('users')
+        .select('fcm_token, first_name')
+        .eq('id', userId)
+        .single();
+      if (error || !user) {
+        return res.status(404).json({ success: false, error: 'Utilisateur non trouvé' });
+      }
+      fcmToken = user?.fcm_token;
+    }
+
+    if (!fcmToken) {
+      return res.status(400).json({
+        success: false,
+        error: 'Aucun token FCM. Passez userId (et que users.fcm_token soit rempli) ou fcmToken dans le body.'
+      });
+    }
+
+    const admin = getFirebaseAdmin();
+
+    const message = {
+      notification: {
+        title: title || 'Test AB Campus Finance',
+        body: body || 'Ceci est une notification de test FCM.'
+      },
+      webpush: {
+        notification: {
+          icon: '/logo192.png',
+          badge: '/logo192.png',
+          sound: 'default'
+        },
+        fcmOptions: {
+          link: '/dashboard'
+        }
+      },
+      android: {
+        notification: {
+          sound: 'default',
+          icon: 'logo192',
+          channelId: 'ab-campus-finance'
+        }
+      },
+      apns: {
+        payload: {
+          aps: {
+            sound: 'default'
+          }
+        }
+      },
+      token: fcmToken
+    };
+
+    const response = await admin.messaging().send(message);
+    console.log('[FCM_TEST] Notification envoyée:', response);
+    res.json({ success: true, messageId: response });
+  } catch (err) {
+    console.error('[FCM_TEST] Erreur:', err);
+    const statusCode = err.message?.includes('non installé') || err.message?.includes('introuvable') ? 503 : 500;
+    res.status(statusCode).json({ success: false, error: err.message || 'Erreur envoi FCM' });
+  }
+});
+
+// Envoyer une notification de test à TOUS les utilisateurs avec leur nom personnalisé
+app.post('/api/notifications/test-fcm-all-users', async (req, res) => {
+  try {
+    const admin = getFirebaseAdmin();
+
+    // Récupérer tous les utilisateurs avec fcm_token et nom
+    const { data: users, error } = await supabase
+      .from('users')
+      .select('id, fcm_token, first_name, last_name')
+      .not('fcm_token', 'is', null);
+
+    if (error) {
+      console.error('[FCM_TEST_ALL] Erreur récupération users:', error);
+      return res.status(500).json({ success: false, error: 'Erreur récupération utilisateurs' });
+    }
+
+    if (!users || users.length === 0) {
+      return res.json({ success: true, sent: 0, message: 'Aucun utilisateur avec token FCM trouvé' });
+    }
+
+    console.log(`[FCM_TEST_ALL] Envoi à ${users.length} utilisateur(s)...`);
+
+    let successCount = 0;
+    let errorCount = 0;
+    const errors = [];
+
+    // Envoyer à chaque utilisateur avec son nom personnalisé
+    for (const user of users) {
+      try {
+        const userName = user.first_name || 'Utilisateur';
+        const message = {
+          notification: {
+            title: 'AB Campus Finance',
+            body: `Bonjour ${userName}, ceci est un test ne vous en faites pas, tout est OK!!!`
+          },
+          webpush: {
+            notification: {
+              icon: '/logo192.png',
+              badge: '/logo192.png',
+              sound: 'default'
+            },
+            fcmOptions: {
+              link: '/dashboard'
+            }
+          },
+          android: {
+            notification: {
+              sound: 'default',
+              icon: 'logo192',
+              channelId: 'ab-campus-finance'
+            }
+          },
+          apns: {
+            payload: {
+              aps: {
+                sound: 'default'
+              }
+            }
+          },
+          token: user.fcm_token
+        };
+
+        await admin.messaging().send(message);
+        successCount++;
+        console.log(`[FCM_TEST_ALL] ✅ Envoyé à ${userName} (${user.id})`);
+      } catch (err) {
+        errorCount++;
+        errors.push({ userId: user.id, name: user.first_name, error: err.message });
+        console.error(`[FCM_TEST_ALL] ❌ Erreur pour ${user.first_name || user.id}:`, err.message);
+      }
+    }
+
+    console.log(`[FCM_TEST_ALL] Terminé: ${successCount} succès, ${errorCount} erreur(s)`);
+
+    res.json({
+      success: true,
+      sent: successCount,
+      errors: errorCount,
+      total: users.length,
+      details: errors.length > 0 ? errors : undefined
+    });
+  } catch (err) {
+    console.error('[FCM_TEST_ALL] Erreur:', err);
+    const statusCode = err.message?.includes('non installé') || err.message?.includes('introuvable') ? 503 : 500;
+    res.status(statusCode).json({ success: false, error: err.message || 'Erreur envoi FCM à tous' });
+  }
+});
+
 // ===== WEB PUSH NOTIFICATIONS =====
 
 // Route pour s'abonner aux notifications push
@@ -125,55 +544,11 @@ app.post("/api/save-subscription", async (req, res) => {
 });
 
 // Fonction utilitaire pour envoyer une notification à tous les utilisateurs abonnés
-async function sendNotificationToAllUsers(title, body, data = {}) {
-  try {
-    // Récupérer tous les abonnements
-    const { data: subscriptions, error } = await supabase
-      .from('push_subscriptions')
-      .select('subscription, user_id');
-
-    if (error) {
-      console.error('[PUSH] Erreur lors de la récupération des abonnements:', error);
-      return false;
-    }
-
-    if (!subscriptions || subscriptions.length === 0) {
-      console.log('[PUSH] Aucun utilisateur abonné');
-      return false;
-    }
-
-    const payload = JSON.stringify({
-      title,
-      body,
-      data: {
-        ...data,
-        url: '/', // Ouvrir l'app au clic
-        icon: '/logo192.png',
-        badge: '/logo192.png'
-      }
-    });
-
-    let successCount = 0;
-    let errorCount = 0;
-
-    // Envoyer à tous les abonnements
-    for (let sub of subscriptions) {
-      try {
-        await webPush.sendNotification(sub.subscription, payload);
-        successCount++;
-        console.log(`[PUSH] Notification envoyée à l'utilisateur ${sub.user_id}`);
-      } catch (err) {
-        errorCount++;
-        console.error(`[PUSH] Erreur envoi à l'utilisateur ${sub.user_id}:`, err);
-      }
-    }
-
-    console.log(`[PUSH] Notifications envoyées: ${successCount} succès, ${errorCount} erreurs`);
-    return successCount > 0;
-  } catch (error) {
-    console.error('[PUSH] Erreur lors de l\'envoi des notifications:', error);
-    return false;
-  }
+// DEPRECATED: Utilisez sendFCMNotificationToAllUsers à la place
+async function sendNotificationToAllUsers(title, body, dgata = {}) {
+  console.warn('[DEPRECATED] sendNotificationToAllUsers est dépréciée. Utilisez sendFCMNotificationToAllUsers.');
+  const result = await sendFCMNotificationToAllUsers(title, body, dgata);
+  return result.sent > 0;
 }
 
 // Route pour tester la validité d'un abonnement
@@ -208,34 +583,30 @@ app.post('/api/test-subscription', async (req, res) => {
   }
 });
 
-// Route pour envoyer une notification push à un utilisateur spécifique
+// Route pour envoyer une notification push à un utilisateur spécifique (via FCM)
 app.post('/api/send-notification', async (req, res) => {
   try {
     const { title, body, userId } = req.body;
 
-    // Récupérer l'abonnement du user depuis la DB
-    const { data: subscriptions } = await supabase
-      .from('push_subscriptions')
-      .select('subscription')
-      .eq('user_id', userId);
-
-    for (let sub of subscriptions) {
-      await webPush.sendNotification(sub.subscription, JSON.stringify({
-        title,
-        body,
-        data: {
-          url: '/',
-          icon: '/logo192.png',
-          badge: '/logo192.png'
-        }
-      })).catch(err => console.error('[PUSH] Erreur envoi:', err));
+    if (!userId || !title || !body) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'userId, title et body sont requis' 
+      });
     }
 
-    console.log('[PUSH] Notification envoyée:', { userId, title, subscriptionsCount: subscriptions.length });
+    const result = await sendFCMNotification(userId, title, body, { url: '/' });
     
-    res.json({ success: true });
+    if (result.success) {
+      res.json({ success: true, message: 'Notification envoyée' });
+    } else {
+      res.status(500).json({ 
+        success: false, 
+        error: result.error || 'Erreur lors de l\'envoi' 
+      });
+    }
   } catch (error) {
-    console.error('[PUSH] Erreur lors de l\'envoi de la notification:', error);
+    console.error('[FCM] Erreur lors de l\'envoi de la notification:', error);
     res.status(500).json({ 
       success: false, 
       error: 'Erreur serveur lors de l\'envoi' 
@@ -336,40 +707,19 @@ app.post('/api/notify-savings-deposit', async (req, res) => {
       });
     }
 
-    let successCount = 0;
-    let errorCount = 0;
-
-    // Envoyer la notification à tous les appareils de l'utilisateur
-    for (let sub of subscriptions) {
-      try {
-        await webPush.sendNotification(sub.subscription, JSON.stringify({
-          title,
-          body,
-          data: {
-            url: '/ab-epargne',
-            icon: '/logo192.png',
-            badge: '/logo192.png',
-            type: 'savings_deposit',
-            amount: amount,
-            clientName: clientName,
-            plan_id: planId || null
-          },
-          vibrate: [200, 50, 100]
-        }));
-        successCount++;
-        console.log(`[PUSH] Notification de dépôt envoyée à l'utilisateur ${userId}`);
-      } catch (err) {
-        errorCount++;
-        console.error(`[PUSH] Erreur envoi à l'utilisateur ${userId}:`, err);
-      }
-    }
+    // FCM : notification push via Firebase
+    const fcmResult = await sendFCMNotificationWithDuplicateCheck(userId, title, body, {
+      url: '/ab-epargne',
+      type: 'savings_deposit',
+      amount: amount,
+      clientName: clientName,
+      plan_id: planId || ''
+    });
 
     res.json({ 
       success: true, 
-      message: `Notification créée (DB) et envoyée à ${successCount} appareil(s)`,
-      sent: successCount,
-      errors: errorCount,
-      push: successCount > 0
+      message: fcmResult.success ? 'Notification créée et envoyée' : 'Notification créée (utilisateur sans token FCM)',
+      push: fcmResult.success
     });
   } catch (error) {
     console.error('[PUSH] Erreur lors de l\'envoi de la notification de dépôt:', error);
@@ -462,46 +812,17 @@ app.post('/api/test-loan-notification', async (req, res) => {
 
     const notificationData = testData[testType] || testData.approval;
 
-    // Envoyer la notification à tous les abonnements de l'utilisateur
-    let successCount = 0;
-    let errorCount = 0;
-
-    for (const sub of subscriptions) {
-      try {
-        await webPush.sendNotification(sub.subscription, JSON.stringify({
-          title: notificationData.title,
-          body: notificationData.body,
-          data: {
-            url: '/dashboard',
-            icon: '/logo192.png',
-            badge: '/logo192.png',
-            type: 'loan_' + testType,
-            loanId: notificationData.loanId,
-            amount: notificationData.amount,
-            timestamp: new Date().toISOString()
-          },
-          vibrate: [200, 100, 200],
-          requireInteraction: true,
-          actions: [
-            {
-              action: 'view',
-              title: 'Voir le prêt',
-              icon: '/logo192.png'
-            },
-            {
-              action: 'dismiss',
-              title: 'Fermer'
-            }
-          ]
-        }));
-        
-        successCount++;
-        console.log('[TEST_LOAN_NOTIFICATION] ✅ Notification envoyée avec succès');
-      } catch (pushError) {
-        errorCount++;
-        console.error('[TEST_LOAN_NOTIFICATION] ❌ Erreur envoi notification:', pushError.message);
-      }
-    }
+    // FCM : notification push via Firebase
+    const fcmResult = await sendFCMNotification(userId, notificationData.title, notificationData.body, {
+      url: '/dashboard',
+      type: 'loan_' + testType,
+      loanId: notificationData.loanId,
+      amount: notificationData.amount.toString(),
+      timestamp: new Date().toISOString()
+    });
+    
+    const successCount = fcmResult.success ? 1 : 0;
+    const errorCount = fcmResult.success ? 0 : 1;
 
     // Sauvegarder la notification de test dans la base de données
     const { error: notifError } = await supabase
@@ -646,6 +967,41 @@ function formatBenin(phone) {
   if (clean.startsWith('0') && clean.length === 9) return `+229${clean.substring(1)}`;
   if (clean.length === 8) return `+229${clean}`;
   return null;
+}
+
+/**
+ * Envoie un SMS de notification (rappels, alertes) via Vonage.
+ * Alternative fiable aux push navigateur : les clients reçoivent le SMS même sans ouvrir l'app.
+ * Respecte SMS_MODE : 'echo' = log uniquement, 'live' = envoi réel.
+ * @param {string} phoneNumber - Numéro du destinataire (format Bénin accepté)
+ * @param {string} message - Texte du SMS (court recommandé pour coût)
+ * @returns {Promise<{ success: boolean, error?: string }>}
+ */
+async function sendNotificationSms(phoneNumber, message) {
+  const to = formatBenin(phoneNumber);
+  if (!to) {
+    console.warn('[SMS_NOTIF] Numéro invalide ou manquant:', phoneNumber ? 'présent' : 'manquant');
+    return { success: false, error: 'Numéro invalide' };
+  }
+  if (SMS_MODE === 'echo') {
+    console.log(`[SMS NOTIF ECHO] → ${to}: ${message.substring(0, 80)}${message.length > 80 ? '...' : ''}`);
+    return { success: true };
+  }
+  try {
+    const brandName = process.env.REACT_APP_VONAGE_BRAND_NAME || 'AB Campus Finance';
+    const client = getVonageClient();
+    const result = await client.sms.send(brandName, to, message);
+    if (result.messages[0].status === '0') {
+      console.log('[SMS_NOTIF] ✅ Envoyé à', to);
+      return { success: true };
+    }
+    const errText = result.messages[0]['error-text'] || 'Unknown';
+    console.error('[SMS_NOTIF] ❌ Échec Vonage:', errText);
+    return { success: false, error: errText };
+  } catch (err) {
+    console.error('[SMS_NOTIF] ❌ Erreur:', err.message);
+    return { success: false, error: err.message };
+  }
 }
 
 app.post('/api/sms/send-otp', async (req, res) => {
@@ -853,12 +1209,14 @@ app.post('/api/fedapay/create-transaction', async (req, res) => {
     }
 
     // Construire les URLs de callback
-    // Utiliser le port 3001 pour les redirections frontend
-    const baseUrl = '';
+    // BACKEND_URL pour le webhook (ngrok en local, URL prod en production)
+    // FRONTEND_URL pour les redirections après paiement
+    const backendUrl = process.env.BACKEND_URL || process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+    const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
     
-    const successUrl = `${baseUrl}/remboursement/success?transaction_id={transaction_id}&amount=${amount}&loan_id=${loanId}&user_id=${userId}`;
-    const failureUrl = `${baseUrl}/remboursement/failure?transaction_id={transaction_id}&amount=${amount}&loan_id=${loanId}&user_id=${userId}`;
-    const cancelUrl = `${baseUrl}/remboursement/cancel?transaction_id={transaction_id}&amount=${amount}&loan_id=${loanId}&user_id=${userId}`;
+    const successUrl = `${frontendUrl}/remboursement/success?transaction_id={transaction_id}&amount=${amount}&loan_id=${loanId}&user_id=${userId}`;
+    const failureUrl = `${frontendUrl}/remboursement/failure?transaction_id={transaction_id}&amount=${amount}&loan_id=${loanId}&user_id=${userId}`;
+    const cancelUrl = `${frontendUrl}/remboursement/cancel?transaction_id={transaction_id}&amount=${amount}&loan_id=${loanId}&user_id=${userId}`;
 
     // Préparer les données client
     const customer = {
@@ -936,7 +1294,7 @@ app.post('/api/fedapay/create-transaction', async (req, res) => {
           } : undefined
         },
         metadata,
-        callback_url: `${baseUrl}/api/fedapay/webhook`,
+        callback_url: `${backendUrl}/api/fedapay/webhook`,
         success_url: successUrl,
         failure_url: failureUrl,
         cancel_url: cancelUrl
@@ -978,13 +1336,12 @@ app.post('/api/fedapay/create-transaction', async (req, res) => {
  */
 async function setLoanStatusToCompleted(supabaseClient, loanId) {
   if (!supabaseClient || !loanId) return { ok: false, error: 'Paramètres manquants' };
+  // Ne mettre à jour que les colonnes qui existent (pas total_penalty_amount ni last_penalty_calculation)
   const { data, error } = await supabaseClient
     .from('loans')
     .update({
       status: 'completed',
-      updated_at: new Date().toISOString(),
-      total_penalty_amount: 0,
-      last_penalty_calculation: null
+      updated_at: new Date().toISOString()
     })
     .eq('id', loanId)
     .select('id, status')
@@ -1005,7 +1362,7 @@ async function syncLoanStatusToCompletedIfFullyPaid(supabaseClient, loanId) {
   if (!supabaseClient || !loanId) return { ok: false, updated: false };
   const { data: loan, error: loanErr } = await supabaseClient
     .from('loans')
-    .select('id, amount, interest_rate, total_penalty_amount, status, approved_at, duration, duration_months, daily_penalty_rate')
+    .select('id, amount, interest_rate, status, approved_at, duration, duration_months')
     .eq('id', loanId)
     .single();
   if (loanErr || !loan) {
@@ -1017,7 +1374,7 @@ async function syncLoanStatusToCompletedIfFullyPaid(supabaseClient, loanId) {
   }
   const principal = parseFloat(loan.amount) || 0;
   const interest = principal * ((loan.interest_rate || 0) / 100);
-  let penalty = parseFloat(loan.total_penalty_amount || 0) || 0;
+  let penalty = 0; // Les pénalités seront recalculées si nécessaire
   if (penalty === 0 && loan.approved_at) {
     const durationDays = loan.duration_months != null ? Number(loan.duration_months) : (loan.duration != null ? Number(loan.duration) : 30);
     const due = new Date(loan.approved_at);
@@ -1027,7 +1384,8 @@ async function syncLoanStatusToCompletedIfFullyPaid(supabaseClient, loanId) {
     due.setHours(0, 0, 0, 0);
     const daysOverdue = Math.floor((today - due) / (1000 * 60 * 60 * 24));
     if (daysOverdue > 0) {
-      const rate = loan.daily_penalty_rate != null ? Number(loan.daily_penalty_rate) : 2.0;
+      // Taux de pénalité par défaut: 2% tous les 5 jours
+      const rate = 2.0;
       const periods5 = Math.floor(daysOverdue / 5);
       if (periods5 > 0) {
         const withPenalties = (principal + interest) * Math.pow(1 + rate / 100, periods5);
@@ -1054,8 +1412,357 @@ async function syncLoanStatusToCompletedIfFullyPaid(supabaseClient, loanId) {
   return { ok: result.ok, updated: result.ok };
 }
 
+/**
+ * Fonction helper pour envoyer les notifications de remboursement (client + admin)
+ * Peut être appelée depuis le webhook ou depuis le job de vérification.
+ * @param {string} loanId - ID du prêt
+ * @param {string} userId - ID de l'utilisateur
+ * @param {number} amount - Montant
+ * @param {string} [paymentId] - ID du paiement dans la table payments (optionnel). Si fourni, on ne notifie qu'une seule fois par paiement.
+ * @param {string} [transactionId] - ID de la transaction FedaPay (optionnel). Plus fiable pour éviter les doublons.
+ */
+async function sendRepaymentNotifications(loanId, userId, amount, paymentId, transactionId = null) {
+  try {
+    // ⚠️ PROTECTION RENFORCÉE CONTRE LES DOUBLONS
+    
+    // PROTECTION 1 : Si transactionId fourni (le plus fiable), vérifier par transaction_id
+    if (transactionId) {
+      // Vérifier dans la table payments si un paiement avec ce transaction_id existe déjà
+      const { data: existingPayment } = await supabase
+        .from('payments')
+        .select('id')
+        .eq('transaction_id', transactionId)
+        .limit(1);
+      
+      if (existingPayment && existingPayment.length > 0) {
+        // Vérifier si une notification existe déjà pour ce paiement
+        const paymentDbId = existingPayment[0].id;
+        const { data: existingNotif1 } = await supabase
+          .from('notifications')
+          .select('id, created_at')
+          .eq('type', 'loan_repayment')
+          .eq('user_id', userId)
+          .filter('data->>payment_id', 'eq', paymentDbId)
+          .limit(1);
+        
+        const { data: existingNotif2 } = await supabase
+          .from('notifications')
+          .select('id, created_at')
+          .eq('type', 'loan_repayment')
+          .eq('user_id', userId)
+          .contains('data', { transaction_id: transactionId })
+          .limit(1);
+        
+        if ((existingNotif1 && existingNotif1.length > 0) || (existingNotif2 && existingNotif2.length > 0)) {
+          const found = existingNotif1?.[0] || existingNotif2?.[0];
+          console.log('[REPAYMENT_NOTIF] ⚠️ Notification déjà envoyée pour cette transaction (transaction_id)', transactionId.substring(0, 8), 'à', found?.created_at, '(évite doublon)');
+          return false;
+        }
+      }
+    }
+    
+    // PROTECTION 2 : Si paymentId fourni (ID de la table payments), vérifier de manière plus robuste
+    if (paymentId) {
+      // Méthode 1 : Vérifier avec contains (JSONB)
+      const { data: existingByPayment1 } = await supabase
+        .from('notifications')
+        .select('id, created_at')
+        .eq('type', 'loan_repayment')
+        .eq('user_id', userId)
+        .contains('data', { payment_id: paymentId })
+        .limit(1);
+      
+      // Méthode 2 : Vérifier aussi avec une requête textuelle sur le JSONB (plus robuste)
+      const { data: existingByPayment2 } = await supabase
+        .from('notifications')
+        .select('id, created_at')
+        .eq('type', 'loan_repayment')
+        .eq('user_id', userId)
+        .filter('data->>payment_id', 'eq', paymentId)
+        .limit(1);
+      
+      // Si l'une des deux méthodes trouve une notification, on skip
+      if ((existingByPayment1 && existingByPayment1.length > 0) || (existingByPayment2 && existingByPayment2.length > 0)) {
+        const found = existingByPayment1?.[0] || existingByPayment2?.[0];
+        console.log('[REPAYMENT_NOTIF] ⚠️ Notification déjà envoyée pour ce paiement (payment_id)', paymentId.substring(0, 8), 'à', found?.created_at, '(évite doublon)');
+        return false;
+      }
+    }
+    
+    // PROTECTION 2 : Sinon, vérifier qu'aucune notif pour ce prêt dans les 10 dernières minutes (augmenté de 5 à 10 min)
+    const tenMinutesAgo = new Date(Date.now() - 10 * 60 * 1000);
+    
+    // Vérifier pour le client
+    const { data: existingClientNotif } = await supabase
+      .from('notifications')
+      .select('id, created_at')
+      .eq('user_id', userId)
+      .eq('type', 'loan_repayment')
+      .filter('data->>loan_id', 'eq', loanId)
+      .gte('created_at', tenMinutesAgo.toISOString())
+      .limit(1);
+    
+    if (existingClientNotif && existingClientNotif.length > 0) {
+      console.log('[REPAYMENT_NOTIF] ⚠️ Notification client déjà envoyée récemment pour ce remboursement à', existingClientNotif[0].created_at, '(évite doublon)');
+      return false;
+    }
+    
+    const { data: clientData } = await supabase
+      .from('users')
+      .select('first_name, last_name')
+      .eq('id', userId)
+      .single();
+    
+    if (!clientData) {
+      console.log('[REPAYMENT_NOTIF] Client non trouvé pour userId:', userId);
+      return false;
+    }
+    
+    const clientName = `${clientData.first_name} ${clientData.last_name}`;
+    const amountFormatted = `${parseInt(amount).toLocaleString()} FCFA`;
+    const clientTitle = 'Remboursement confirmé ✅';
+    const clientMessage = `Votre remboursement de ${amountFormatted} pour le prêt #${loanId.substring(0, 8)}... a été confirmé. Merci pour votre confiance !`;
+    
+    // 1. Notification client (DB + FCM)
+    const clientNotifData = {
+      loan_id: loanId,
+      amount: amount,
+      status: 'completed'
+    };
+    if (paymentId) clientNotifData.payment_id = paymentId;
+    if (transactionId) clientNotifData.transaction_id = transactionId;
+    
+    await supabase
+      .from('notifications')
+      .insert({
+        user_id: userId,
+        title: clientTitle,
+        message: clientMessage,
+        type: 'loan_repayment',
+        data: clientNotifData,
+        read: false
+      });
+    
+    console.log('[REPAYMENT_NOTIF] ✅ Notification client créée dans la DB');
+    
+    // FCM pour le client
+    const clientFcmData = {
+      url: '/repayment',
+      type: 'loan_repayment',
+      loanId: loanId,
+      amount: amount.toString(),
+      status: 'completed'
+    };
+    if (paymentId) clientFcmData.payment_id = paymentId;
+    if (transactionId) clientFcmData.transaction_id = transactionId;
+    
+    const clientFcmResult = await sendFCMNotificationWithDuplicateCheck(userId, clientTitle, clientMessage, clientFcmData);
+    
+    if (clientFcmResult.success) {
+      console.log('[REPAYMENT_NOTIF] ✅ Notification FCM client envoyée');
+    } else {
+      console.log('[REPAYMENT_NOTIF] ⚠️ Client sans token FCM');
+    }
+    
+    // 2. Notification admin (DB + FCM)
+    const { data: adminData } = await supabase
+      .from('users')
+      .select('id, first_name')
+      .eq('role', 'admin')
+      .limit(1)
+      .single();
+    
+    if (adminData) {
+      // ⚠️ PROTECTION CONTRE LES DOUBLONS : Vérifier si l'admin a déjà reçu une notification pour ce remboursement
+      let existingAdminNotif = null;
+      if (paymentId) {
+        // Méthode 1 : Vérifier avec contains
+        const r1 = await supabase
+          .from('notifications')
+          .select('id, created_at')
+          .eq('user_id', adminData.id)
+          .eq('type', 'loan_repayment')
+          .contains('data', { payment_id: paymentId })
+          .limit(1);
+        
+        // Méthode 2 : Vérifier avec filter (plus robuste)
+        const r2 = await supabase
+          .from('notifications')
+          .select('id, created_at')
+          .eq('user_id', adminData.id)
+          .eq('type', 'loan_repayment')
+          .filter('data->>payment_id', 'eq', paymentId)
+          .limit(1);
+        
+        existingAdminNotif = r1.data?.length > 0 ? r1.data : (r2.data?.length > 0 ? r2.data : null);
+      } else {
+        const r = await supabase
+          .from('notifications')
+          .select('id, created_at')
+          .eq('user_id', adminData.id)
+          .eq('type', 'loan_repayment')
+          .filter('data->>loan_id', 'eq', loanId)
+          .filter('data->>user_id', 'eq', userId)
+          .gte('created_at', tenMinutesAgo.toISOString())
+          .limit(1);
+        existingAdminNotif = r.data;
+      }
+      
+      if (!existingAdminNotif || existingAdminNotif.length === 0) {
+        const adminTitle = "Remboursement reçu ✅";
+        const adminBody = `${clientName} vient d'effectuer un remboursement de ${amountFormatted}. Prêt #${loanId.substring(0, 8)}...`;
+        
+        // ⚠️ CRÉER LA NOTIFICATION DANS LA DB AVANT D'ENVOYER FCM (pour éviter les race conditions)
+        const adminNotifData = {
+          loan_id: loanId,
+          client_name: clientName,
+          amount: amount,
+          user_id: userId
+        };
+        if (paymentId) adminNotifData.payment_id = paymentId;
+        if (transactionId) adminNotifData.transaction_id = transactionId;
+        
+        // ⚠️ VÉRIFICATION FINALE AVANT INSERTION (protection contre race condition)
+        let finalCheck = null;
+        if (transactionId) {
+          // Si transaction_id disponible, vérifier par transaction_id (le plus fiable)
+          const { data: check1 } = await supabase
+            .from('notifications')
+            .select('id, created_at')
+            .eq('user_id', adminData.id)
+            .eq('type', 'loan_repayment')
+            .filter('data->>transaction_id', 'eq', transactionId)
+            .limit(1);
+          finalCheck = check1;
+          
+          if (!finalCheck || finalCheck.length === 0) {
+            const { data: check2 } = await supabase
+              .from('notifications')
+              .select('id, created_at')
+              .eq('user_id', adminData.id)
+              .eq('type', 'loan_repayment')
+              .contains('data', { transaction_id: transactionId })
+              .limit(1);
+            if (check2 && check2.length > 0) finalCheck = check2;
+          }
+        } else if (paymentId) {
+          // Si payment_id disponible, vérifier par payment_id
+          const { data: check1 } = await supabase
+            .from('notifications')
+            .select('id, created_at')
+            .eq('user_id', adminData.id)
+            .eq('type', 'loan_repayment')
+            .filter('data->>payment_id', 'eq', paymentId)
+            .limit(1);
+          finalCheck = check1;
+          
+          if (!finalCheck || finalCheck.length === 0) {
+            const { data: check2 } = await supabase
+              .from('notifications')
+              .select('id, created_at')
+              .eq('user_id', adminData.id)
+              .eq('type', 'loan_repayment')
+              .contains('data', { payment_id: paymentId })
+              .limit(1);
+            if (check2 && check2.length > 0) finalCheck = check2;
+          }
+        } else {
+          // Sinon vérifier par loan_id + user_id
+          const { data: check1 } = await supabase
+            .from('notifications')
+            .select('id, created_at')
+            .eq('user_id', adminData.id)
+            .eq('type', 'loan_repayment')
+            .filter('data->>loan_id', 'eq', loanId)
+            .filter('data->>user_id', 'eq', userId)
+            .limit(1);
+          finalCheck = check1;
+        }
+        
+        if (finalCheck && finalCheck.length > 0) {
+          console.log('[REPAYMENT_NOTIF] ⚠️ Notification admin déjà créée (race condition évitée) à', finalCheck[0].created_at);
+          return true; // Ne pas créer de doublon
+        }
+        
+        const { data: insertedNotif, error: insertError } = await supabase
+          .from('notifications')
+          .insert({
+            user_id: adminData.id,
+            title: adminTitle,
+            message: adminBody,
+            type: 'loan_repayment',
+            data: adminNotifData,
+            read: false
+          })
+          .select()
+          .single();
+        
+        if (insertError) {
+          // Si erreur d'insertion (peut être un doublon), vérifier à nouveau
+          if (insertError.code === '23505') { // Violation de contrainte unique
+            console.log('[REPAYMENT_NOTIF] ⚠️ Notification admin déjà existante (contrainte unique)');
+            return true;
+          }
+          console.error('[REPAYMENT_NOTIF] ❌ Erreur création notification admin:', insertError);
+        } else {
+          console.log('[REPAYMENT_NOTIF] ✅ Notification admin créée dans la DB');
+        }
+        
+        const adminFcmData = {
+          url: '/admin/loan-requests',
+          type: 'loan_repayment',
+          loanId: loanId,
+          amount: amountFormatted,
+          clientName: clientName,
+          userId: userId
+        };
+        if (paymentId) adminFcmData.payment_id = paymentId;
+        if (transactionId) adminFcmData.transaction_id = transactionId;
+        
+        // Envoyer FCM (la fonction wrapper vérifie aussi les doublons)
+        const adminFcmResult = await sendFCMNotificationWithDuplicateCheck(adminData.id, adminTitle, adminBody, adminFcmData);
+        
+        if (adminFcmResult.success) {
+          console.log('[REPAYMENT_NOTIF] ✅ Notification FCM admin envoyée');
+        } else if (adminFcmResult.duplicate) {
+          console.log('[REPAYMENT_NOTIF] ⚠️ Notification FCM admin déjà envoyée (doublon évité)');
+        } else {
+          console.log('[REPAYMENT_NOTIF] ⚠️ Admin sans token FCM ou erreur:', adminFcmResult.error);
+        }
+      } else {
+        const found = existingAdminNotif[0];
+        console.log('[REPAYMENT_NOTIF] ⚠️ Notification admin déjà envoyée récemment pour ce remboursement à', found?.created_at, '(évite doublon)');
+      }
+    }
+    return true; // notifications envoyées
+  } catch (error) {
+    console.error('[REPAYMENT_NOTIF] ❌ Erreur envoi notifications:', error);
+    return false;
+  }
+}
+
+// Cache pour éviter de traiter plusieurs fois la même transaction webhook (en mémoire)
+const webhookProcessedCache = new Map();
+const WEBHOOK_CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+
+// Nettoyer le cache toutes les 10 minutes
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, timestamp] of webhookProcessedCache.entries()) {
+    if (now - timestamp > WEBHOOK_CACHE_DURATION) {
+      webhookProcessedCache.delete(key);
+    }
+  }
+}, 10 * 60 * 1000);
+
 // Webhook FedaPay pour recevoir les confirmations de paiement
 app.post('/api/fedapay/webhook', async (req, res) => {
+  // Log IMMÉDIATEMENT pour voir si la route est atteinte
+  console.log('[FEDAPAY_WEBHOOK] ========== WEBHOOK DÉCLENCHÉ ==========');
+  console.log('[FEDAPAY_WEBHOOK] Méthode:', req.method);
+  console.log('[FEDAPAY_WEBHOOK] URL:', req.url);
+  console.log('[FEDAPAY_WEBHOOK] Headers présents:', Object.keys(req.headers));
+  
   try {
     console.log('[FEDAPAY_WEBHOOK] 🔔 Webhook reçu');
     console.log('[FEDAPAY_WEBHOOK] Headers:', req.headers);
@@ -1091,6 +1798,58 @@ app.post('/api/fedapay/webhook', async (req, res) => {
       console.error('[FEDAPAY_WEBHOOK] Données de transaction manquantes ou invalides');
       return res.status(400).json({ success: false, error: 'Transaction invalide' });
     }
+    
+    // ⚠️ PROTECTION CONTRE LES DOUBLONS : Vérifier si cette transaction a déjà été traitée
+    const transactionKey = `webhook-${transaction.id}`;
+    const cachedTimestamp = webhookProcessedCache.get(transactionKey);
+    const now = Date.now();
+    
+    if (cachedTimestamp && (now - cachedTimestamp) < WEBHOOK_CACHE_DURATION) {
+      console.log('[FEDAPAY_WEBHOOK] ⚠️ Transaction déjà traitée récemment (cache), évite doublon:', transaction.id);
+      return res.status(200).json({ success: true, message: 'Transaction déjà traitée' });
+    }
+    
+    // Vérifier aussi dans la DB si un paiement existe déjà pour cette transaction_id
+    const { data: existingPayment } = await supabase
+      .from('payments')
+      .select('id, created_at, loan_id')
+      .eq('transaction_id', transaction.id)
+      .limit(1);
+    
+    if (existingPayment && existingPayment.length > 0) {
+      // Vérifier si une notification a déjà été envoyée pour ce paiement (par transaction_id)
+      const { data: existingNotif1 } = await supabase
+        .from('notifications')
+        .select('id, created_at')
+        .eq('type', 'loan_repayment')
+        .filter('data->>transaction_id', 'eq', transaction.id)
+        .limit(1);
+      
+      const { data: existingNotif2 } = await supabase
+        .from('notifications')
+        .select('id, created_at')
+        .eq('type', 'loan_repayment')
+        .filter('data->>payment_id', 'eq', existingPayment[0].id)
+        .limit(1);
+      
+      if ((existingNotif1 && existingNotif1.length > 0) || (existingNotif2 && existingNotif2.length > 0)) {
+        const found = existingNotif1?.[0] || existingNotif2?.[0];
+        console.log('[FEDAPAY_WEBHOOK] ⚠️ Transaction déjà traitée et notifiée, évite doublon:', transaction.id, 'Notif à', found?.created_at);
+        // Important : s'assurer que le prêt est bien passé à "completed" (au cas où la 1ère fois ça a échoué)
+        const loanIdFromPayment = existingPayment[0].loan_id;
+        if (loanIdFromPayment) {
+          const syncResult = await syncLoanStatusToCompletedIfFullyPaid(supabase, loanIdFromPayment);
+          if (syncResult.updated) {
+            console.log('[FEDAPAY_WEBHOOK] ✅ Statut prêt corrigé → completed (après détection doublon)');
+          }
+        }
+        webhookProcessedCache.set(transactionKey, now);
+        return res.status(200).json({ success: true, message: 'Transaction déjà traitée et notifiée' });
+      }
+    }
+    
+    // Ne pas mettre en cache ici : on mettra le cache uniquement après avoir créé le paiement avec succès.
+    // Sinon un premier échec (métadonnées manquantes, erreur DB) + retry FedaPay renverrait "déjà traité" sans rien en base.
 
     console.log('[FEDAPAY_WEBHOOK] 📊 Transaction reçue:', {
       id: transaction.id,
@@ -1104,6 +1863,14 @@ app.post('/api/fedapay/webhook', async (req, res) => {
     let loanId = transaction.metadata?.loan_id || transaction.custom_metadata?.loan_id;
     let userId = transaction.metadata?.user_id || transaction.custom_metadata?.user_id;
     let paymentType = transaction.metadata?.type || transaction.custom_metadata?.type || transaction.custom_metadata?.paymentType || transaction.custom_metadata?.payment_type;
+    
+    console.log('[FEDAPAY_WEBHOOK] 🔍 Extraction paymentType:', {
+      'metadata.type': transaction.metadata?.type,
+      'custom_metadata.type': transaction.custom_metadata?.type,
+      'custom_metadata.paymentType': transaction.custom_metadata?.paymentType,
+      'custom_metadata.payment_type': transaction.custom_metadata?.payment_type,
+      'paymentType final': paymentType
+    });
     
     // Si pas de metadata, essayer d'extraire depuis la description
     if (!loanId || !userId) {
@@ -1156,10 +1923,32 @@ app.post('/api/fedapay/webhook', async (req, res) => {
         loanId: !!loanId,
         userId: !!userId,
         hasLoanId: !!loanId,
-        hasUserId: !!userId
+        hasUserId: !!userId,
+        'paymentType === loan_repayment': paymentType === 'loan_repayment',
+        'paymentType === "loan_repayment"': paymentType === "loan_repayment"
       });
       
-      if (paymentType === 'loan_repayment' && loanId && userId) {
+      // Normaliser paymentType pour être sûr
+      const normalizedPaymentType = paymentType?.toLowerCase?.() || paymentType;
+      const isLoanRepayment = normalizedPaymentType === 'loan_repayment' || paymentType === 'loan_repayment';
+      
+      console.log(`[FEDAPAY_WEBHOOK] 🔍 Normalisation paymentType:`, {
+        original: paymentType,
+        normalized: normalizedPaymentType,
+        isLoanRepayment
+      });
+      
+      if (!isLoanRepayment || !loanId || !userId) {
+        console.warn('[FEDAPAY_WEBHOOK] ⚠️ Transaction ignorée (remboursement prêt): metadata manquantes ou type incorrect', {
+          isLoanRepayment,
+          loanId: loanId || '(manquant)',
+          userId: userId || '(manquant)',
+          paymentType: paymentType || '(manquant)',
+          description: transaction.description
+        });
+      }
+      
+      if (isLoanRepayment && loanId && userId) {
         console.log(`[FEDAPAY_WEBHOOK] 🎯 Paiement confirmé pour le prêt #${loanId}`);
         
         try {
@@ -1211,6 +2000,26 @@ app.post('/api/fedapay/webhook', async (req, res) => {
             
             paymentData = existingPaymentData;
             console.log('[FEDAPAY_WEBHOOK] ✅ Utilisation du paiement existant:', paymentData);
+            
+            // ⚠️ Vérifier si une notification a déjà été envoyée pour ce paiement
+            const { data: existingNotif } = await supabase
+              .from('notifications')
+              .select('id, created_at')
+              .eq('type', 'loan_repayment')
+              .eq('user_id', userId)
+              .filter('data->>payment_id', 'eq', existingPayment.id)
+              .limit(1);
+            
+            if (existingNotif && existingNotif.length > 0) {
+              console.log('[FEDAPAY_WEBHOOK] ⚠️ Notification déjà envoyée pour ce paiement, évite doublon. Notif créée à:', existingNotif[0].created_at);
+              // S'assurer que le prêt est bien à jour (au cas où la 1ère fois la mise à jour a échoué)
+              const syncResult = await syncLoanStatusToCompletedIfFullyPaid(supabase, loanId);
+              if (syncResult.updated) {
+                console.log('[FEDAPAY_WEBHOOK] ✅ Statut prêt corrigé → completed (paiement existant, notif déjà envoyée)');
+              }
+              return res.status(200).json({ success: true, message: 'Transaction déjà traitée et notifiée' });
+            }
+            // Si pas de notification, on continue pour l'envoyer
           } else {
             // Créer l'enregistrement de paiement seulement s'il n'existe pas
             const { data: newPaymentData, error: paymentError } = await supabase
@@ -1252,10 +2061,10 @@ app.post('/api/fedapay/webhook', async (req, res) => {
           // 2. Vérifier que le montant payé couvre bien capital + intérêts + pénalités
           console.log('[FEDAPAY_WEBHOOK] 🔍 Vérification montant payé vs montant dû...');
           
-          // Récupérer le prêt avec toutes ses informations (pénalités incluses)
+          // Récupérer le prêt avec toutes ses informations
           const { data: loanData, error: loanFetchError } = await supabase
             .from('loans')
-            .select('id, amount, interest_rate, total_penalty_amount, status, approved_at, duration, duration_months, daily_penalty_rate')
+            .select('id, amount, interest_rate, status, approved_at, duration, duration_months')
             .eq('id', loanId)
             .single();
 
@@ -1269,8 +2078,8 @@ app.post('/api/fedapay/webhook', async (req, res) => {
           const interestAmount = principalAmount * ((loanData.interest_rate || 0) / 100);
           const totalOriginalAmount = principalAmount + interestAmount;
           
-          // Calculer les pénalités si le prêt est en retard mais qu'elles ne sont pas encore calculées
-          let penaltyAmount = parseFloat(loanData.total_penalty_amount || 0);
+          // Calculer les pénalités si le prêt est en retard
+          let penaltyAmount = 0;
           
           // Si pénalités à 0 mais prêt en retard, recalculer
           if (penaltyAmount === 0 && loanData.approved_at) {
@@ -1289,7 +2098,7 @@ app.post('/api/fedapay/webhook', async (req, res) => {
             
             if (daysOverdue > 0) {
               // Calculer les pénalités selon le nouveau système (2% tous les 5 jours complets)
-              const penaltyRate = loanData.daily_penalty_rate != null ? Number(loanData.daily_penalty_rate) : 2.0;
+              const penaltyRate = 2.0; // Taux de pénalité par défaut
               const periodsOf5Days = Math.floor(daysOverdue / 5);
               
               if (periodsOf5Days > 0) {
@@ -1367,58 +2176,17 @@ app.post('/api/fedapay/webhook', async (req, res) => {
             console.log('[FEDAPAY_WEBHOOK] ✅ Statut prêt synchronisé → completed');
           }
 
-          // 1. NOTIFIER LE CLIENT (TOUJOURS créer dans la DB)
+          // 1. NOTIFIER LE CLIENT ET L'ADMIN (via fonction helper)
+          // ⚠️ IMPORTANT : Passer paymentData.id ET transaction.id pour éviter les doublons
           try {
-            const { data: clientData } = await supabase
-              .from('users')
-              .select('first_name, last_name')
-              .eq('id', userId)
-              .single();
-            
-            if (clientData) {
-              const clientName = `${clientData.first_name} ${clientData.last_name}`;
-              const amountFormatted = `${parseInt(transaction.amount).toLocaleString()} FCFA`;
-              
-              // Créer la notification pour le client dans la DB
-              await supabase
-                .from('notifications')
-                .insert({
-                  user_id: userId,
-                  title: 'Remboursement confirmé ✅',
-                  message: `Votre remboursement de ${amountFormatted} pour le prêt #${loanId.substring(0, 8)}... a été confirmé. Merci pour votre confiance !`,
-                  type: 'loan_repayment',
-                  data: {
-                    loan_id: loanId,
-                    amount: transaction.amount,
-                    status: 'completed'
-                  },
-                  read: false
-                });
-              
-              console.log('[FEDAPAY_WEBHOOK] ✅ Notification client créée dans la DB');
-              
-              // 2. Notifier l'admin du remboursement
-              console.log('[FEDAPAY_WEBHOOK] 📢 Envoi notification admin remboursement');
-              
-              const notifResponse = await fetch(`${process.env.BACKEND_URL || 'http://localhost:5000'}/api/notify-admin-repayment`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                  loanId: loanId,
-                  clientName: clientName,
-                  amount: transaction.amount,
-                  userId: userId
-                })
-              });
-              
-              if (notifResponse.ok) {
-                console.log('[FEDAPAY_WEBHOOK] ✅ Notification admin envoyée');
-              } else {
-                console.error('[FEDAPAY_WEBHOOK] ❌ Erreur notification admin:', await notifResponse.text());
-              }
-            }
+            console.log('[FEDAPAY_WEBHOOK] 📢 Envoi notifications remboursement');
+            const paymentIdForNotif = paymentData?.id || null;
+            const transactionIdForNotif = transaction.id || null; // transaction_id de FedaPay
+            await sendRepaymentNotifications(loanId, userId, transaction.amount, paymentIdForNotif, transactionIdForNotif);
+            console.log('[FEDAPAY_WEBHOOK] ✅ Notifications envoyées');
           } catch (notifError) {
             console.error('[FEDAPAY_WEBHOOK] ❌ Erreur lors de la notification:', notifError);
+            console.error('[FEDAPAY_WEBHOOK] ❌ Stack trace:', notifError.stack);
             // Ne pas faire échouer le webhook si la notification échoue
           }
 
@@ -1451,10 +2219,14 @@ app.post('/api/fedapay/webhook', async (req, res) => {
           }
 
           console.log('[FEDAPAY_WEBHOOK] ✅ Remboursement traité avec succès - Prêt mis à jour');
+          // Marquer comme traité seulement après succès (permet à FedaPay de retry si erreur avant)
+          webhookProcessedCache.set(transactionKey, Date.now());
           
         } catch (error) {
           console.error('[FEDAPAY_WEBHOOK] ❌ Erreur lors du traitement du remboursement:', error);
           console.error('[FEDAPAY_WEBHOOK] ❌ Stack trace:', error.stack);
+          // Supprimer le cache pour permettre à FedaPay de réessayer (évite "déjà traité" alors qu'aucun paiement en base)
+          webhookProcessedCache.delete(transactionKey);
           // Ne pas retourner d'erreur HTTP pour éviter que FedaPay réessaie indéfiniment
           // Mais logger l'erreur pour investigation manuelle
         }
@@ -1814,18 +2586,37 @@ app.post('/api/fedapay/webhook', async (req, res) => {
         }
       } else {
         console.log('[FEDAPAY_WEBHOOK] ⚠️ Paiement confirmé mais conditions non remplies');
+        
+        // Normaliser paymentType ici aussi pour vérifier
+        const normalizedPaymentType = paymentType?.toLowerCase?.() || paymentType;
+        const isLoanRepayment = normalizedPaymentType === 'loan_repayment' || paymentType === 'loan_repayment';
+        
         console.log('[FEDAPAY_WEBHOOK] Détails:', { 
           loanId, 
           userId, 
           paymentType,
+          normalizedPaymentType,
+          isLoanRepayment,
           status: transaction.status,
           hasLoanId: !!loanId,
           hasUserId: !!userId,
-          isLoanRepayment: paymentType === 'loan_repayment',
+          'paymentType === loan_repayment': paymentType === 'loan_repayment',
           metadata: transaction.metadata,
           custom_metadata: transaction.custom_metadata,
           description: transaction.description
         });
+        
+        // Si c'est un remboursement mais qu'il manque juste paymentType, essayer de le traiter quand même
+        if ((transaction.description?.includes('Remboursement') || transaction.description?.includes('remboursement')) && loanId && userId && !isLoanRepayment) {
+          console.log('[FEDAPAY_WEBHOOK] 🔧 Tentative de traitement avec paymentType forcé à "loan_repayment"');
+          // Forcer paymentType et traiter comme remboursement
+          try {
+            await sendRepaymentNotifications(loanId, userId, transaction.amount);
+            console.log('[FEDAPAY_WEBHOOK] ✅ Notifications envoyées avec paymentType forcé');
+          } catch (notifError) {
+            console.error('[FEDAPAY_WEBHOOK] ❌ Erreur notifications avec paymentType forcé:', notifError);
+          }
+        }
         
         // Si c'est un remboursement mais qu'il manque des infos, logger pour investigation
         if (transaction.description?.includes('Remboursement') || transaction.description?.includes('remboursement')) {
@@ -1846,10 +2637,12 @@ app.post('/api/fedapay/webhook', async (req, res) => {
       console.log(`[FEDAPAY_WEBHOOK] ℹ️ Statut non géré: ${transaction.status}`);
     }
 
+    console.log('[FEDAPAY_WEBHOOK] ✅ Webhook traité avec succès');
     return res.status(200).json({ success: true });
   } catch (error) {
     console.error('[FEDAPAY_WEBHOOK] ❌ Erreur générale webhook:', error);
     console.error('[FEDAPAY_WEBHOOK] ❌ Stack trace:', error.stack);
+    console.error('[FEDAPAY_WEBHOOK] ❌ Message:', error.message);
     // Retourner 200 pour éviter que FedaPay réessaie indéfiniment
     // Mais logger l'erreur pour investigation
     return res.status(200).json({ success: false, error: 'Erreur serveur (loggée)' });
@@ -1947,7 +2740,7 @@ app.post('/api/fedapay/process-all-missing-payments', async (req, res) => {
         // Vérifier si le prêt est toujours actif/overdue (donc non traité)
         const { data: loan } = await supabase
           .from('loans')
-          .select('id, status, amount, interest_rate, total_penalty_amount')
+          .select('id, status')
           .eq('id', loanId)
           .single();
         
@@ -1964,53 +2757,33 @@ app.post('/api/fedapay/process-all-missing-payments', async (req, res) => {
         // Traiter ce paiement
         console.log(`[PROCESS_MISSING] 🔄 Traitement paiement #${payment.id} pour prêt #${loanId}`);
         
-        // Calculer le montant total attendu
-        const principalAmount = parseFloat(loan.amount) || 0;
-        const interestAmount = principalAmount * ((loan.interest_rate || 0) / 100);
-        const penaltyAmount = parseFloat(loan.total_penalty_amount || 0);
-        const totalExpectedAmount = principalAmount + interestAmount + penaltyAmount;
+        // Utiliser la fonction syncLoanStatusToCompletedIfFullyPaid pour mettre à jour le statut
+        // Cette fonction gère correctement le calcul des pénalités et la mise à jour du statut
+        const syncResult = await syncLoanStatusToCompletedIfFullyPaid(supabase, loanId);
         
-        // Récupérer tous les paiements pour ce prêt
-        const { data: allPayments } = await supabase
-          .from('payments')
-          .select('amount')
-          .eq('loan_id', loanId)
-          .eq('status', 'completed');
-        
-        const totalPaidAmount = allPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
-        const remainingAmount = Math.max(0, totalExpectedAmount - totalPaidAmount);
-        const isFullyPaid = remainingAmount <= 1 || totalPaidAmount >= totalExpectedAmount - 1;
-        
-        // Mettre à jour le prêt
-        const updateData = {
-          status: isFullyPaid ? 'completed' : 'active',
-          updated_at: new Date().toISOString()
-        };
-        
-        if (isFullyPaid) {
-          updateData.total_penalty_amount = 0;
-          updateData.last_penalty_calculation = null;
-        }
-        
-        const { error: loanError } = await supabase
-          .from('loans')
-          .update(updateData)
-          .eq('id', loanId);
-        
-        if (loanError) {
-          console.error(`[PROCESS_MISSING] ❌ Erreur mise à jour prêt #${loanId}:`, loanError);
-          errors++;
-          results.push({ payment_id: payment.id, loan_id: loanId, status: 'error', error: loanError.message });
-        } else {
+        if (syncResult.updated) {
           processed++;
           results.push({ 
             payment_id: payment.id, 
             loan_id: loanId, 
             status: 'processed', 
-            loan_status: isFullyPaid ? 'completed' : 'active',
-            remaining_amount: remainingAmount
+            loan_status: 'completed'
           });
-          console.log(`[PROCESS_MISSING] ✅ Paiement #${payment.id} traité - Prêt #${loanId} → ${isFullyPaid ? 'completed' : 'active'}`);
+          console.log(`[PROCESS_MISSING] ✅ Paiement #${payment.id} traité - Prêt #${loanId} → completed`);
+        } else if (syncResult.ok) {
+          // Le prêt n'est pas encore complété, c'est normal
+          processed++;
+          results.push({ 
+            payment_id: payment.id, 
+            loan_id: loanId, 
+            status: 'processed', 
+            loan_status: 'active'
+          });
+          console.log(`[PROCESS_MISSING] ✅ Paiement #${payment.id} traité - Prêt #${loanId} reste actif`);
+        } else {
+          errors++;
+          results.push({ payment_id: payment.id, loan_id: loanId, status: 'error', error: 'Erreur synchronisation statut' });
+          console.error(`[PROCESS_MISSING] ❌ Erreur synchronisation prêt #${loanId}`);
         }
         
       } catch (error) {
@@ -2083,12 +2856,16 @@ app.post('/api/fedapay/process-payment-manually', async (req, res) => {
     }
 
     const transactionData = await transactionResponse.json();
-    const transaction = transactionData.entity || transactionData;
+    const transaction = transactionData.entity || transactionData.data || transactionData.transaction || transactionData;
+    const txStatus = (transaction && (transaction.status ?? transaction.state)) ?? transactionData.status ?? transactionData.state;
 
-    if (transaction.status !== 'transferred' && transaction.status !== 'approved') {
+    if (!transaction) {
+      return res.status(400).json({ success: false, error: 'Réponse FedaPay invalide' });
+    }
+    if (txStatus !== 'transferred' && txStatus !== 'approved') {
       return res.status(400).json({ 
         success: false, 
-        error: `Transaction non confirmée (statut: ${transaction.status})` 
+        error: txStatus != null ? `Transaction non confirmée (statut: ${txStatus})` : 'Transaction non confirmée. Si vous venez de payer, le webhook a peut-être déjà traité le paiement — rechargez l\'accueil.' 
       });
     }
 
@@ -2181,7 +2958,7 @@ app.post('/api/fedapay/process-payment-manually', async (req, res) => {
     // Calculer le montant total attendu et mettre à jour le prêt
     const { data: loanData } = await supabase
       .from('loans')
-      .select('id, amount, interest_rate, total_penalty_amount, status')
+      .select('id, amount, interest_rate, status')
       .eq('id', finalLoanId)
       .single();
 
@@ -2194,7 +2971,7 @@ app.post('/api/fedapay/process-payment-manually', async (req, res) => {
 
     const principalAmount = parseFloat(loanData.amount) || 0;
     const interestAmount = principalAmount * ((loanData.interest_rate || 0) / 100);
-    const penaltyAmount = parseFloat(loanData.total_penalty_amount || 0);
+    const penaltyAmount = 0; // Colonne total_penalty_amount non utilisée
     const totalExpectedAmount = principalAmount + interestAmount + penaltyAmount;
 
     const { data: allPayments } = await supabase
@@ -2211,11 +2988,6 @@ app.post('/api/fedapay/process-payment-manually', async (req, res) => {
       status: isFullyPaid ? 'completed' : 'active',
       updated_at: new Date().toISOString()
     };
-
-    if (isFullyPaid) {
-      updateData.total_penalty_amount = 0;
-      updateData.last_penalty_calculation = null;
-    }
 
     const { error: loanError } = await supabase
       .from('loans')
@@ -2344,6 +3116,12 @@ app.post('/api/create-loan-repayment', async (req, res) => {
       });
     }
 
+    const frontendUrl = getFrontendUrl();
+    // FedaPay utilise callback_url pour rediriger l'utilisateur après paiement. On envoie vers la page de retour.
+    // Le traitement du paiement (création en base + mise à jour du prêt) se fait soit par le webhook backend
+    // (si configuré dans le dashboard FedaPay), soit à l'arrivée sur cette page via process-payment-manually.
+    const callbackUrl = `${frontendUrl}/remboursement-retour`;
+
     // FedaPay API : sandbox si FEDAPAY_ENVIRONMENT=sandbox, sinon live
     const isSandbox = (process.env.FEDAPAY_ENVIRONMENT || '').toLowerCase() === 'sandbox';
     const fedapayApiUrl = isSandbox
@@ -2358,26 +3136,44 @@ app.post('/api/create-loan-repayment', async (req, res) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        description: `Remboursement prêt - ${amount} F`,
+        description: `Remboursement prêt #${loan_id} - User:${user_id}`,
         amount: parseInt(amount),
         currency: { iso: "XOF" },
-        callback_url: `${getFrontendUrl()}/remboursement-retour`,
+        callback_url: callbackUrl,
         custom_metadata: {
           paymentType: "loan_repayment",
+          type: "loan_repayment",
           user_id: user_id,
           loan_id: loan_id,
           amount: amount
+        },
+        metadata: {
+          loan_id: loan_id,
+          user_id: user_id,
+          type: "loan_repayment"
         },
       }),
     });
 
     const data = await response.json();
-    console.log("[LOAN_REPAYMENT] Réponse FedaPay:", data);
+    console.log("[LOAN_REPAYMENT] Réponse FedaPay (clés):", data ? Object.keys(data) : 'null');
 
-    if (data && data['v1/transaction'] && data['v1/transaction'].payment_url) {
-      return res.json({ success: true, transactionUrl: data['v1/transaction'].payment_url });
+    const tx = (data && (data['v1/transaction'] || data.transaction || data.data || (data.id != null || data.reference ? data : null))) || null;
+    const paymentUrl = tx && (tx.payment_url || tx.redirect_url || tx.url);
+    const transactionId = tx && (tx.id != null ? String(tx.id) : (tx.reference ? String(tx.reference) : ''));
+
+    if (paymentUrl) {
+      if (!transactionId) {
+        console.warn("[LOAN_REPAYMENT] ⚠️ Pas d'id/reference dans la réponse FedaPay — la page de retour ne pourra pas traiter le paiement. Réponse:", JSON.stringify(data).slice(0, 500));
+      }
+      return res.json({
+        success: true,
+        transactionUrl: paymentUrl,
+        transactionId: transactionId || undefined
+      });
     }
-    
+
+    console.error("[LOAN_REPAYMENT] ❌ Réponse FedaPay sans payment_url. Structure:", data);
     res.status(500).json({ success: false, error: data });
   } catch (err) {
     console.error("[LOAN_REPAYMENT] ❌ Erreur création transaction:", err);
@@ -2388,8 +3184,8 @@ app.post('/api/create-loan-repayment', async (req, res) => {
 // Endpoint pour vérifier le statut d'un remboursement
 app.get('/api/loans/repayment-status', async (req, res) => {
   try {
-    const { reference, id, txId } = req.query;
-    const transactionId = reference || id || txId;
+    const { reference, id, txId, transaction_id } = req.query;
+    const transactionId = reference || id || txId || transaction_id;
     
     if (!transactionId) {
       return res.status(400).json({ 
@@ -2819,10 +3615,29 @@ async function sendSavingsDepositReminderNotifications() {
         
         // Envoyer une notification si c'est exactement 3, 2, 1 jour(s) restant(s) ou aujourd'hui (0 jour)
         if (daysRemaining >= 0 && daysRemaining <= 3) {
-          // Récupérer les informations de l'utilisateur
+          // ⚠️ PROTECTION CONTRE LES DOUBLONS : Vérifier si une notification existe déjà pour ce plan et ce nombre de jours aujourd'hui
+          const todayStart = new Date(today);
+          todayStart.setHours(0, 0, 0, 0);
+          
+          const { data: existingReminder } = await supabase
+            .from('notifications')
+            .select('id')
+            .eq('user_id', plan.user_id)
+            .eq('type', 'savings_deposit_reminder')
+            .eq('data->plan_id', plan.id)
+            .eq('data->days_remaining', daysRemaining)
+            .gte('created_at', todayStart.toISOString())
+            .limit(1);
+          
+          if (existingReminder && existingReminder.length > 0) {
+            console.log(`[SAVINGS_REMINDER] ⚠️ Rappel déjà envoyé aujourd'hui pour plan #${plan.id.substring(0, 8)}... (${daysRemaining} jour(s) restant(s))`);
+            continue; // Passer au plan suivant
+          }
+          
+          // Récupérer les informations de l'utilisateur (dont téléphone pour SMS)
           const { data: userData, error: userError } = await supabase
             .from('users')
-            .select('first_name, last_name')
+            .select('first_name, last_name, phone_number')
             .eq('id', plan.user_id)
             .single();
 
@@ -2869,39 +3684,29 @@ async function sendSavingsDepositReminderNotifications() {
             notificationsSent++;
           }
           
-          // Push si abonné
-          const { data: subscriptions } = await supabase
-            .from('push_subscriptions')
-            .select('subscription')
-            .eq('user_id', plan.user_id);
-          
-          if (subscriptions && subscriptions.length > 0 && webPush) {
-            for (const sub of subscriptions) {
-              try {
-                await webPush.sendNotification(sub.subscription, JSON.stringify({
-                  title,
-                  body,
-                  data: {
-                    url: '/ab-epargne',
-                    icon: '/logo192.png',
-                    badge: '/logo192.png',
-                    type: 'savings_deposit_reminder',
-                    planId: plan.id,
-                    daysRemaining: daysRemaining,
-                    amount: amountFormatted,
-                    planName: plan.plan_name
-                  },
-                  vibrate: [200, 50, 100]
-                }));
-                const logText = daysRemaining === 0 ? 'aujourd\'hui' : `${daysRemaining === 1 ? '24h' : `${daysRemaining} jours`} restant(s)`;
-                console.log(`[SAVINGS_REMINDER] Push envoyé à ${clientName} - ${logText}`);
-              } catch (pushError) {
-                console.error(`[SAVINGS_REMINDER] Erreur push à ${clientName}:`, pushError);
-                errors++;
-              }
-            }
+          // FCM : notification push via Firebase
+          const fcmResult = await sendFCMNotificationWithDuplicateCheck(plan.user_id, title, body, {
+            url: '/ab-epargne',
+            type: 'savings_deposit_reminder',
+            planId: plan.id,
+            daysRemaining: daysRemaining.toString(),
+            amount: amountFormatted,
+            planName: plan.plan_name
+          });
+          if (fcmResult.success) {
+            const logText = daysRemaining === 0 ? 'aujourd\'hui' : `${daysRemaining === 1 ? '24h' : `${daysRemaining} jours`} restant(s)`;
+            console.log(`[SAVINGS_REMINDER] FCM envoyé à ${clientName} - ${logText}`);
           } else {
-            console.log(`[SAVINGS_REMINDER] Utilisateur ${clientName} non abonné aux push (notification en base créée)`);
+            console.log(`[SAVINGS_REMINDER] Utilisateur ${clientName} sans token FCM (notification en base créée)`);
+          }
+          
+          // SMS : rappel dépôt épargne même sans push
+          const phone = userData?.phone_number;
+          if (phone) {
+            const smsText = daysRemaining === 0
+              ? `CAMPUS FINANCE - Dépôt épargne aujourd'hui: ${amountFormatted}. Effectuez-le pour garder vos intérêts.`
+              : `CAMPUS FINANCE - Rappel: prochain dépôt épargne ${amountFormatted} dans ${daysRemaining === 1 ? '24h' : daysRemaining + ' jours'}.`;
+            await sendNotificationSms(phone, smsText);
           }
         }
       } catch (planError) {
@@ -2941,46 +3746,16 @@ async function notifyAdminLoyaltyAchievement(clientName, userId) {
     const title = "🏆 AB Campus Finance - Score de fidélité atteint";
     const body = `L'utilisateur ${clientName} a rempli son score de fidélité (5/5). Il attend sa récompense. Contactez-le pour organiser la remise de sa récompense.`;
 
-    // Récupérer les abonnements de l'admin
-    const { data: subscriptions } = await supabase
-      .from('push_subscriptions')
-      .select('subscription')
-      .eq('user_id', adminData.id);
-
-    if (!subscriptions || subscriptions.length === 0) {
-      console.log(`[ADMIN_LOYALTY] Admin ${adminName} non abonné aux notifications`);
-      return false;
-    }
-
-    let notificationsSent = 0;
-    let errors = 0;
-
-    for (const sub of subscriptions) {
-      try {
-        await webPush.sendNotification(sub.subscription, JSON.stringify({
-          title,
-          body,
-          data: {
-            url: '/admin/users',
-            icon: '/logo192.png',
-            badge: '/logo192.png',
-            type: 'loyalty_achievement_admin',
-            clientName: clientName,
-            userId: userId,
-            score: 5
-          },
-          vibrate: [200, 50, 100]
-        }));
-        notificationsSent++;
-        console.log(`[ADMIN_LOYALTY] ✅ Notification envoyée à l'admin ${adminName}`);
-      } catch (pushError) {
-        errors++;
-        console.error(`[ADMIN_LOYALTY] ❌ Erreur envoi notification à l'admin ${adminName}:`, pushError);
-      }
-    }
-
-    console.log(`[ADMIN_LOYALTY] Notifications admin envoyées: ${notificationsSent} succès, ${errors} erreurs`);
-    return notificationsSent > 0;
+    // FCM : notification push à l'admin via Firebase
+    const fcmResult = await sendFCMNotificationWithDuplicateCheck(adminData.id, title, body, {
+      url: '/admin/users',
+      type: 'loyalty_achievement_admin',
+      clientName: clientName,
+      userId: userId,
+      score: '5'
+    });
+    
+    return fcmResult.success;
 
   } catch (error) {
     console.error('[ADMIN_LOYALTY] Erreur lors de la notification admin:', error);
@@ -3165,41 +3940,13 @@ async function checkAndNotifyLoyaltyAchievement(userId) {
       const title = "🏆 AB Campus Finance - Félicitations !";
       const body = `Bravo ${clientName} ! Vous avez atteint le score de fidélité maximum (5/5) grâce à vos 5 remboursements ponctuels. Votre sérieux et votre fidélité sont remarquables ! Vous serez contacté très bientôt pour recevoir votre récompense.`;
 
-      // Récupérer les abonnements de l'utilisateur pour les notifications push
-      const { data: subscriptions } = await supabase
-        .from('push_subscriptions')
-        .select('subscription')
-        .eq('user_id', userId);
-
-      if (subscriptions && subscriptions.length > 0) {
-        let notificationsSent = 0;
-        let errors = 0;
-
-        for (const sub of subscriptions) {
-          try {
-            await webPush.sendNotification(sub.subscription, JSON.stringify({
-              title,
-              body,
-              data: {
-                url: '/loyalty-score',
-                icon: '/logo192.png',
-                badge: '/logo192.png',
-                type: 'loyalty_achievement',
-                score: 5,
-                clientName: clientName
-              },
-              vibrate: [200, 50, 100]
-            }));
-            notificationsSent++;
-            console.log(`[LOYALTY] ✅ Notification push envoyée à ${clientName}`);
-          } catch (pushError) {
-            errors++;
-            console.error(`[LOYALTY] ❌ Erreur envoi notification push à ${clientName}:`, pushError);
-          }
-        }
-
-        console.log(`[LOYALTY] Notifications push envoyées: ${notificationsSent} succès, ${errors} erreurs`);
-      }
+      // FCM : notification push via Firebase
+      await sendFCMNotificationWithDuplicateCheck(userId, title, body, {
+        url: '/loyalty-score',
+        type: 'loyalty_achievement',
+        score: '5',
+        clientName: clientName
+      });
       
       // Envoyer une notification push à l'admin
       try {
@@ -3232,7 +3979,7 @@ async function sendLoanReminderNotifications() {
     const threeDaysFromNow = new Date(today);
     threeDaysFromNow.setDate(threeDaysFromNow.getDate() + 3);
     
-    // Récupérer les prêts en cours
+    // Récupérer les prêts en cours (avec téléphone pour SMS)
     const { data: loans, error } = await supabase
       .from('loans')
       .select(`
@@ -3243,7 +3990,7 @@ async function sendLoanReminderNotifications() {
         duration_months,
         approved_at,
         status,
-        users!inner(first_name, last_name)
+        users!inner(first_name, last_name, phone_number)
       `)
       .eq('status', 'active')
       .not('approved_at', 'is', null);
@@ -3277,6 +4024,25 @@ async function sendLoanReminderNotifications() {
         
         // Envoyer une notification seulement si c'est exactement 3, 2 ou 1 jour(s) restant(s)
         if (daysRemaining >= 1 && daysRemaining <= 3) {
+          // ⚠️ PROTECTION CONTRE LES DOUBLONS : Vérifier si une notification existe déjà pour ce prêt et ce nombre de jours aujourd'hui
+          const todayStart = new Date(today);
+          todayStart.setHours(0, 0, 0, 0);
+          
+          const { data: existingReminder } = await supabase
+            .from('notifications')
+            .select('id')
+            .eq('user_id', loan.user_id)
+            .eq('type', 'loan_reminder')
+            .eq('data->loan_id', loan.id)
+            .eq('data->days_remaining', daysRemaining)
+            .gte('created_at', todayStart.toISOString())
+            .limit(1);
+          
+          if (existingReminder && existingReminder.length > 0) {
+            console.log(`[LOAN_REMINDER] ⚠️ Rappel déjà envoyé aujourd'hui pour prêt #${loan.id.substring(0, 8)}... (${daysRemaining} jour(s) restant(s))`);
+            continue; // Passer au prêt suivant
+          }
+          
           const clientName = `${loan.users.first_name} ${loan.users.last_name}`;
           const amountFormatted = `${parseInt(loan.amount).toLocaleString()} FCFA`;
           const daysText = daysRemaining === 1 ? '1 jour' : `${daysRemaining} jours`;
@@ -3307,37 +4073,25 @@ async function sendLoanReminderNotifications() {
             notificationsSent++;
           }
           
-          // Push si abonné
-          const { data: subscriptions } = await supabase
-            .from('push_subscriptions')
-            .select('subscription')
-            .eq('user_id', loan.user_id);
-          
-          if (subscriptions && subscriptions.length > 0 && webPush) {
-            for (const sub of subscriptions) {
-              try {
-                await webPush.sendNotification(sub.subscription, JSON.stringify({
-                  title,
-                  body,
-                  data: {
-                    url: '/repayment',
-                    icon: '/logo192.png',
-                    badge: '/logo192.png',
-                    type: 'loan_reminder',
-                    loanId: loan.id,
-                    daysRemaining: daysRemaining,
-                    amount: amountFormatted
-                  },
-                  vibrate: [200, 50, 100]
-                }));
-                console.log(`[LOAN_REMINDER] Push envoyé à ${clientName} - ${daysText} restant(s)`);
-              } catch (pushError) {
-                console.error(`[LOAN_REMINDER] Erreur push à ${clientName}:`, pushError);
-                errors++;
-              }
-            }
+          // FCM : notification push via Firebase
+          const fcmResult = await sendFCMNotificationWithDuplicateCheck(loan.user_id, title, body, {
+            url: '/repayment',
+            type: 'loan_reminder',
+            loanId: loan.id,
+            daysRemaining: daysRemaining.toString(),
+            amount: amountFormatted
+          });
+          if (fcmResult.success) {
+            console.log(`[LOAN_REMINDER] FCM envoyé à ${clientName} - ${daysText} restant(s)`);
           } else {
-            console.log(`[LOAN_REMINDER] Utilisateur ${clientName} non abonné aux notifications push (notification en base créée)`);
+            console.log(`[LOAN_REMINDER] Utilisateur ${clientName} sans token FCM (notification en base créée)`);
+          }
+          
+          // SMS : les clients reçoivent le rappel même sans push (app fermée, pas d'abonnement)
+          const phone = loan.users?.phone_number;
+          if (phone) {
+            const smsText = `CAMPUS FINANCE - Rappel: votre prêt de ${amountFormatted} arrive à échéance dans ${daysText}. Remboursez pour éviter les pénalités.`;
+            await sendNotificationSms(phone, smsText);
           }
         }
       } catch (loanError) {
@@ -3702,10 +4456,18 @@ app.post('/api/notify-admin-new-loan', async (req, res) => {
       });
     }
 
+    // Vérifier si l'admin a un token FCM
+    const { data: adminWithToken } = await supabase
+      .from('users')
+      .select('id, first_name, last_name, role, fcm_token')
+      .eq('id', adminData.id)
+      .single();
+    
     console.log('[ADMIN_NOTIFICATION] Admin trouvé:', {
       id: adminData.id,
       name: `${adminData.first_name} ${adminData.last_name}`,
-      role: adminData.role
+      role: adminData.role,
+      hasFcmToken: !!adminWithToken?.fcm_token
     });
 
     const adminName = adminData.first_name || 'Admin';
@@ -3736,65 +4498,39 @@ app.post('/api/notify-admin-new-loan', async (req, res) => {
       console.error('[ADMIN_NOTIFICATION] ❌ Erreur création notification DB:', dbError);
     }
     
-    // 2. ENVOYER LA NOTIFICATION PUSH (si abonnement disponible)
-    const { data: subscriptions } = await supabase
-      .from('push_subscriptions')
-      .select('subscription, user_id')
-      .eq('user_id', adminData.id);
-    
-    console.log('[ADMIN_NOTIFICATION] Abonnements trouvés pour l\'admin:', {
-      adminId: adminData.id,
-      subscriptionsCount: subscriptions?.length || 0,
-      subscriptions: subscriptions?.map(sub => ({ user_id: sub.user_id }))
-    });
-    
-    if (!subscriptions || subscriptions.length === 0) {
-      console.log(`[ADMIN_NOTIFICATION] Admin ${adminName} non abonné aux notifications`);
+    // 2. FCM : notification push à l'admin via Firebase (seulement si token FCM disponible)
+    if (!adminWithToken?.fcm_token) {
+      console.log('[ADMIN_NOTIFICATION] ⚠️ Admin sans token FCM - notification créée dans la DB uniquement');
       return res.json({ 
         success: true, 
-        message: 'Notification créée dans la DB (admin non abonné aux push)',
-        push: false
+        message: `Notification créée dans la DB pour l'admin ${adminName} (pas de token FCM)`,
+        fcmSent: false
       });
     }
     
-    let notificationsSent = 0;
-    let errors = 0;
+    const fcmResult = await sendFCMNotificationWithDuplicateCheck(adminData.id, title, body, {
+      url: '/admin/loans',
+      type: 'new_loan_request',
+      loanId: loanId,
+      amount: amountFormatted,
+      clientName: clientName
+    });
     
-    for (const sub of subscriptions) {
-      try {
-        await webPush.sendNotification(sub.subscription, JSON.stringify({
-          title,
-          body,
-          data: {
-            url: '/admin/loans',
-            icon: '/logo192.png',
-            badge: '/logo192.png',
-            type: 'new_loan_request',
-            loanId: loanId,
-            amount: amountFormatted,
-            clientName: clientName
-          },
-          vibrate: [200, 50, 100]
-        }));
-        notificationsSent++;
-        console.log(`[ADMIN_NOTIFICATION] ✅ Notification envoyée à l'admin ${adminName}`);
-      } catch (pushError) {
-        console.error(`[ADMIN_NOTIFICATION] ❌ Erreur envoi notification à l'admin ${adminName}:`, pushError);
-        errors++;
-      }
-    }
-    
-    if (notificationsSent > 0) {
+    if (fcmResult.success) {
+      console.log('[ADMIN_NOTIFICATION] ✅ Notification FCM envoyée à l\'admin');
       res.json({ 
         success: true, 
         message: `Notification envoyée à l'admin ${adminName}`,
-        notificationsSent,
-        errors
+        fcmSent: true
       });
     } else {
-      res.status(500).json({ 
-        success: false, 
-        error: 'Aucune notification envoyée à l\'admin' 
+      console.error('[ADMIN_NOTIFICATION] ❌ Erreur envoi FCM:', fcmResult.error);
+      // Ne pas retourner d'erreur 500, la notification est dans la DB
+      res.json({ 
+        success: true, 
+        message: `Notification créée dans la DB pour l'admin ${adminName} (erreur FCM: ${fcmResult.error})`,
+        fcmSent: false,
+        fcmError: fcmResult.error
       });
     }
     
@@ -3870,60 +4606,20 @@ app.post('/api/notify-admin-repayment', async (req, res) => {
       console.error('[ADMIN_NOTIFICATION_REPAYMENT] ❌ Erreur création notification DB:', dbError);
     }
     
-    // 2. ENVOYER LA NOTIFICATION PUSH (si abonnement disponible)
-    const { data: subscriptions } = await supabase
-      .from('push_subscriptions')
-      .select('subscription, user_id')
-      .eq('user_id', adminData.id);
-    
-    console.log('[ADMIN_NOTIFICATION_REPAYMENT] Abonnements trouvés:', {
-      adminId: adminData.id,
-      subscriptionsCount: subscriptions?.length || 0
+    // 2. FCM : notification push à l'admin via Firebase
+    const fcmResult = await sendFCMNotificationWithDuplicateCheck(adminData.id, title, body, {
+      url: '/admin/loan-requests',
+      type: 'loan_repayment',
+      loanId: loanId,
+      amount: amountFormatted,
+      clientName: clientName,
+      userId: userId
     });
     
-    if (!subscriptions || subscriptions.length === 0) {
-      console.log(`[ADMIN_NOTIFICATION_REPAYMENT] Admin ${adminName} non abonné aux notifications`);
-      return res.json({ 
-        success: true, 
-        message: 'Notification créée dans la DB (admin non abonné aux push)',
-        push: false
-      });
-    }
-    
-    let notificationsSent = 0;
-    let errors = 0;
-    
-    for (const sub of subscriptions) {
-      try {
-        await webPush.sendNotification(sub.subscription, JSON.stringify({
-          title,
-          body,
-          data: {
-            url: '/admin/loan-requests',
-            icon: '/logo192.png',
-            badge: '/logo192.png',
-            type: 'loan_repayment',
-            loanId: loanId,
-            amount: amountFormatted,
-            clientName: clientName,
-            userId: userId
-          },
-          vibrate: [200, 50, 100]
-        }));
-        notificationsSent++;
-        console.log(`[ADMIN_NOTIFICATION_REPAYMENT] ✅ Notification envoyée à l'admin ${adminName}`);
-      } catch (pushError) {
-        console.error(`[ADMIN_NOTIFICATION_REPAYMENT] ❌ Erreur envoi notification:`, pushError);
-        errors++;
-      }
-    }
-    
-    if (notificationsSent > 0) {
+    if (fcmResult.success) {
       res.json({ 
         success: true, 
-        message: `Notification de remboursement envoyée à l'admin ${adminName}`,
-        notificationsSent,
-        errors
+        message: `Notification de remboursement envoyée à l'admin ${adminName}`
       });
     } else {
       res.status(500).json({ 
@@ -4007,65 +4703,22 @@ app.post('/api/notify-admin-withdrawal', async (req, res) => {
       await supabase.from('withdrawal_requests').update({ admin_notified_at: new Date().toISOString() }).eq('id', withdrawalId);
     }
     
-    // Push si l'admin est abonné
+    // FCM : notification push à l'admin via Firebase
     const body = `Hello ${adminName}, ${clientName} demande un retrait de ${amountFormatted}. Cliquez pour traiter la demande.`;
-    const { data: subscriptions } = await supabase
-      .from('push_subscriptions')
-      .select('subscription, user_id')
-      .eq('user_id', adminData.id);
-    
-    console.log('[ADMIN_NOTIFICATION_WITHDRAWAL] Abonnements push trouvés:', {
-      adminId: adminData.id,
-      subscriptionsCount: subscriptions?.length || 0
+    const fcmResult = await sendFCMNotificationWithDuplicateCheck(adminData.id, title, body, {
+      url: '/admin/ab-epargne',
+      type: 'withdrawal_request',
+      withdrawalId: withdrawalId,
+      amount: amountFormatted,
+      clientName: clientName,
+      userId: userId || ''
     });
     
-    if (!subscriptions || subscriptions.length === 0) {
-      return res.json({ 
-        success: true, 
-        message: 'Notification enregistrée (cloche). Admin non abonné aux notifications push.' 
-      });
-    }
-    
-    let notificationsSent = 0;
-    let marked = false;
-    let errors = 0;
-    
-    for (const sub of subscriptions) {
-      try {
-        await webPush.sendNotification(sub.subscription, JSON.stringify({
-          title,
-          body,
-          data: {
-            url: '/admin/ab-epargne',
-            icon: '/logo192.png',
-            badge: '/logo192.png',
-            type: 'withdrawal_request',
-            withdrawalId: withdrawalId,
-            amount: amountFormatted,
-            clientName: clientName,
-            userId: userId
-          },
-          vibrate: [200, 50, 100]
-        }));
-        notificationsSent++;
-        if (!marked) {
-          await supabase.from('withdrawal_requests').update({ admin_notified_at: new Date().toISOString() }).eq('id', withdrawalId);
-          marked = true;
-        }
-        console.log(`[ADMIN_NOTIFICATION_WITHDRAWAL] ✅ Notification envoyée à l'admin ${adminName}`);
-      } catch (pushError) {
-        console.error(`[ADMIN_NOTIFICATION_WITHDRAWAL] ❌ Erreur envoi notification:`, pushError);
-        errors++;
-      }
-    }
-    
-    if (notificationsSent > 0) {
-      if (!marked) await supabase.from('withdrawal_requests').update({ admin_notified_at: new Date().toISOString() }).eq('id', withdrawalId);
+    if (fcmResult.success) {
+      await supabase.from('withdrawal_requests').update({ admin_notified_at: new Date().toISOString() }).eq('id', withdrawalId);
       res.json({ 
         success: true, 
-        message: `Notification de retrait envoyée à l'admin ${adminName}`,
-        notificationsSent,
-        errors
+        message: `Notification de retrait envoyée à l'admin ${adminName}`
       });
     } else {
       res.status(500).json({ 
@@ -4193,21 +4846,23 @@ app.post('/api/savings/withdrawal-reject', async (req, res) => {
 // Route pour notifier l'approbation d'un prêt
 app.post('/api/notify-loan-approval', async (req, res) => {
   try {
+    console.log('[LOAN_APPROVAL] ========== NOTIFICATION APPROBATION DÉCLENCHÉE ==========');
     const { userId, loanAmount, loanId } = req.body;
     
     if (!userId || !loanAmount || !loanId) {
+      console.error('[LOAN_APPROVAL] ❌ Paramètres manquants:', { userId, loanAmount, loanId });
       return res.status(400).json({ 
         success: false, 
         error: 'userId, loanAmount et loanId sont requis' 
       });
     }
     
-    console.log('[LOAN_APPROVAL] Envoi notification d\'approbation:', { userId, loanAmount, loanId });
+    console.log('[LOAN_APPROVAL] 📋 Paramètres reçus:', { userId, loanAmount, loanId });
     
-    // Récupérer les informations de l'utilisateur
+    // Récupérer les informations de l'utilisateur (dont téléphone pour SMS)
     const { data: userData, error: userError } = await supabase
       .from('users')
-      .select('first_name, last_name')
+      .select('first_name, last_name, phone_number')
       .eq('id', userId)
       .single();
 
@@ -4222,60 +4877,74 @@ app.post('/api/notify-loan-approval', async (req, res) => {
     const clientName = `${userData.first_name} ${userData.last_name}`;
     const amountFormatted = `${parseInt(loanAmount).toLocaleString()} FCFA`;
     
+    // ⚠️ PROTECTION CONTRE LES DOUBLONS : Vérifier si une notification existe déjà pour ce prêt
+    const { data: existingNotif1 } = await supabase
+      .from('notifications')
+      .select('id, created_at')
+      .eq('user_id', userId)
+      .eq('type', 'loan_approval')
+      .filter('data->>loanId', 'eq', loanId)
+      .limit(1);
+    
+    // Vérification alternative avec contains
+    const { data: existingNotif2 } = await supabase
+      .from('notifications')
+      .select('id, created_at')
+      .eq('user_id', userId)
+      .eq('type', 'loan_approval')
+      .contains('data', { loanId: loanId })
+      .limit(1);
+    
+    if ((existingNotif1 && existingNotif1.length > 0) || (existingNotif2 && existingNotif2.length > 0)) {
+      const found = existingNotif1?.[0] || existingNotif2?.[0];
+      console.log('[LOAN_APPROVAL] ⚠️ Notification déjà envoyée pour ce prêt à', found?.created_at, '(évite doublon)');
+      return res.json({ 
+        success: true, 
+        message: `Notification déjà envoyée pour ce prêt` 
+      });
+    }
+    
     const title = "AB Campus Finance - Prêt approuvé !";
     const body = `Félicitations ${clientName} ! Votre demande de prêt de ${amountFormatted} a été approuvée. Les fonds seront transférés sous 24h.`;
     
-    // Récupérer les abonnements de l'utilisateur
-    const { data: subscriptions } = await supabase
-      .from('push_subscriptions')
-      .select('subscription')
-      .eq('user_id', userId);
+    // Toujours créer la notification en base (visible dans l'app)
+    await supabase.from('notifications').insert({
+      user_id: userId,
+      title,
+      message: body,
+      type: 'loan_approval',
+      priority: 'high',
+      read: false,
+      data: { loanId, amount: amountFormatted, url: '/repayment' }
+    });
     
-    if (!subscriptions || subscriptions.length === 0) {
-      console.log(`[LOAN_APPROVAL] Utilisateur ${clientName} non abonné aux notifications`);
-      return res.json({ 
-        success: true, 
-        message: 'Prêt approuvé mais utilisateur non abonné aux notifications' 
-      });
+    // SMS : le client est notifié même sans push
+    if (userData.phone_number) {
+      const smsText = `CAMPUS FINANCE - Félicitations ! Votre prêt de ${amountFormatted} a été approuvé. Les fonds seront transférés sous 24h.`;
+      await sendNotificationSms(userData.phone_number, smsText);
     }
     
-    let notificationsSent = 0;
-    let errors = 0;
+    // FCM : notification push via Firebase
+    console.log('[LOAN_APPROVAL] 📱 Envoi notification FCM à:', clientName);
+    const fcmResult = await sendFCMNotificationWithDuplicateCheck(userId, title, body, {
+      url: '/repayment',
+      type: 'loan_approval',
+      loanId: loanId,
+      amount: amountFormatted
+    });
     
-    for (const sub of subscriptions) {
-      try {
-        await webPush.sendNotification(sub.subscription, JSON.stringify({
-          title,
-          body,
-          data: {
-            url: '/loans',
-            icon: '/logo192.png',
-            badge: '/logo192.png',
-            type: 'loan_approval',
-            loanId: loanId,
-            amount: amountFormatted
-          },
-          vibrate: [200, 50, 100]
-        }));
-        notificationsSent++;
-        console.log(`[LOAN_APPROVAL] ✅ Notification envoyée à ${clientName}`);
-      } catch (pushError) {
-        console.error(`[LOAN_APPROVAL] ❌ Erreur envoi notification à ${clientName}:`, pushError);
-        errors++;
-      }
-    }
-    
-    if (notificationsSent > 0) {
+    if (fcmResult.success) {
+      console.log('[LOAN_APPROVAL] ✅ Notification FCM envoyée avec succès à', clientName);
       res.json({ 
         success: true, 
-        message: `Notification d'approbation envoyée à ${clientName}`,
-        notificationsSent,
-        errors
+        message: `Notification d'approbation envoyée à ${clientName}`
       });
     } else {
-      res.status(500).json({ 
-        success: false, 
-        error: 'Aucune notification envoyée' 
+      console.error('[LOAN_APPROVAL] ❌ Échec envoi FCM:', fcmResult.error);
+      // On retourne quand même success car la notification DB est créée
+      res.json({ 
+        success: true, 
+        message: `Notification in-app créée pour ${clientName} (FCM: ${fcmResult.error || 'non disponible'})`
       });
     }
     
@@ -4308,10 +4977,7 @@ async function manageOverdueLoans() {
         duration_months,
         approved_at,
         status,
-        daily_penalty_rate,
-        total_penalty_amount,
-        last_penalty_calculation,
-        users!inner(first_name, last_name)
+        users!inner(first_name, last_name, phone_number)
       `)
       .in('status', ['active', 'overdue'])
       .not('approved_at', 'is', null);
@@ -4343,7 +5009,7 @@ async function manageOverdueLoans() {
 
         if (daysOverdue > 0) {
           // Prêt en retard - calculer les pénalités (2% tous les 5 jours complets, composées)
-          const penaltyRate = loan.daily_penalty_rate != null ? Number(loan.daily_penalty_rate) : 2.0;
+          const penaltyRate = 2.0; // Taux de pénalité par défaut (2% tous les 5 jours)
           const principalAmount = parseFloat(loan.amount) || 0;
           const interestAmount = principalAmount * ((loan.interest_rate || 0) / 100);
           const totalOriginalAmount = principalAmount + interestAmount;
@@ -4366,8 +5032,6 @@ async function manageOverdueLoans() {
             .from('loans')
             .update({
               status: 'overdue',
-              total_penalty_amount: Math.round(totalPenalty * 100) / 100,
-              last_penalty_calculation: today.toISOString(),
               updated_at: new Date().toISOString()
             })
             .eq('id', loan.id);
@@ -4412,25 +5076,20 @@ async function manageOverdueLoans() {
                 
                 console.log(`[OVERDUE_MANAGEMENT] ✅ Notification client créée pour prêt #${loan.id}`);
                 
-                // Push notification au client (si abonné)
-                const { data: clientSubscriptions } = await supabase
-                  .from('push_subscriptions')
-                  .select('subscription')
-                  .eq('user_id', loan.user_id);
+                // FCM : notification push au client via Firebase
+                await sendFCMNotificationWithDuplicateCheck(loan.user_id, clientTitle, `Votre prêt est en retard de ${daysText}. Pénalités: ${penaltyFormatted}`, {
+                  url: '/repayment',
+                  type: 'loan_overdue',
+                  loanId: loan.id.toString(),
+                  daysOverdue: daysOverdue.toString(),
+                  penaltyAmount: totalPenalty.toString()
+                });
                 
-                if (clientSubscriptions && clientSubscriptions.length > 0 && webPush) {
-                  for (const sub of clientSubscriptions) {
-                    try {
-                      await webPush.sendNotification(sub.subscription, JSON.stringify({
-                        title: clientTitle,
-                        body: `Votre prêt est en retard de ${daysText}. Pénalités: ${penaltyFormatted}`,
-                        data: { url: '/repayment', type: 'loan_overdue', loanId: loan.id },
-                        vibrate: [200, 50, 100]
-                      }));
-                    } catch (e) {
-                      console.error('[OVERDUE_MANAGEMENT] Erreur push client:', e.message);
-                    }
-                  }
+                // SMS au client : prêt en retard (même sans push)
+                const clientPhone = loan.users?.phone_number;
+                if (clientPhone) {
+                  const smsText = `CAMPUS FINANCE - Votre prêt est en retard de ${daysText}. Pénalités: ${penaltyFormatted}. Remboursez rapidement.`;
+                  await sendNotificationSms(clientPhone, smsText);
                 }
                 
                 // 2. Notification à l'admin
@@ -4467,26 +5126,14 @@ async function manageOverdueLoans() {
                   
                   console.log(`[OVERDUE_MANAGEMENT] ✅ Notification admin créée pour prêt #${loan.id}`);
                   
-                  // Push notification à l'admin (si abonné)
-                  const { data: adminSubscriptions } = await supabase
-                    .from('push_subscriptions')
-                    .select('subscription')
-                    .eq('user_id', adminData.id);
-                  
-                  if (adminSubscriptions && adminSubscriptions.length > 0 && webPush) {
-                    for (const sub of adminSubscriptions) {
-                      try {
-                        await webPush.sendNotification(sub.subscription, JSON.stringify({
-                          title: adminTitle,
-                          body: `${clientName}: prêt en retard de ${daysText}`,
-                          data: { url: '/admin/loans', type: 'loan_overdue_admin', loanId: loan.id },
-                          vibrate: [200, 50, 100]
-                        }));
-                      } catch (e) {
-                        console.error('[OVERDUE_MANAGEMENT] Erreur push admin:', e.message);
-                      }
-                    }
-                  }
+                  // FCM : notification push à l'admin via Firebase
+                  await sendFCMNotificationWithDuplicateCheck(adminData.id, adminTitle, `${clientName}: prêt en retard de ${daysText}`, {
+                    url: '/admin/loans',
+                    type: 'loan_overdue_admin',
+                    loanId: loan.id.toString(),
+                    clientId: loan.user_id,
+                    daysOverdue: daysOverdue.toString()
+                  });
                 }
               } catch (notifError) {
                 console.error(`[OVERDUE_MANAGEMENT] Erreur notifications prêt #${loan.id}:`, notifError);
@@ -4501,8 +5148,6 @@ async function manageOverdueLoans() {
             .from('loans')
             .update({
               status: 'active',
-              total_penalty_amount: 0,
-              last_penalty_calculation: null,
               updated_at: new Date().toISOString()
             })
             .eq('id', loan.id);
@@ -4780,23 +5425,14 @@ async function manageOverdueSavings() {
               data: { plan_id: plan.id, days_overdue: daysOverdue, lost_interest_amount: lostInterest }
             });
 
-            // Notification push
-            const { data: subscriptions } = await supabase.from('push_subscriptions').select('subscription').eq('user_id', plan.user_id);
-            if (subscriptions && subscriptions.length > 0 && webPush) {
-              const body = `Votre plan d'épargne a été suspendu après ${daysOverdue} jours de retard. Intérêts perdus: ${(lostInterest || 0).toLocaleString()} FCFA.`;
-              for (const sub of subscriptions) {
-                try {
-                  await webPush.sendNotification(sub.subscription, JSON.stringify({
-                    title: 'AB Campus Finance - Plan d\'épargne suspendu',
-                    body,
-                    data: { url: '/ab-epargne', type: 'savings_plan_suspended', planId: plan.id },
-                    vibrate: [200, 50, 100]
-                  }));
-                } catch (e) {
-                  console.error('[SAVINGS_OVERDUE] Erreur push:', e.message);
-                }
-              }
-            }
+            // FCM : notification push via Firebase
+            const body = `Votre plan d'épargne a été suspendu après ${daysOverdue} jours de retard. Intérêts perdus: ${(lostInterest || 0).toLocaleString()} FCFA.`;
+            await sendFCMNotificationWithDuplicateCheck(plan.user_id, 'AB Campus Finance - Plan d\'épargne suspendu', body, {
+              url: '/ab-epargne',
+              type: 'savings_plan_suspended',
+              planId: plan.id.toString(),
+              daysOverdue: daysOverdue.toString()
+            });
           }
         } else {
           // 1-6 jours : marquer en retard + avertissement (perte des intérêts à 7j si pas de dépôt)
@@ -4832,23 +5468,14 @@ async function manageOverdueSavings() {
               data: { plan_id: plan.id, days_overdue: daysOverdue, fixed_amount: plan.fixed_amount }
             });
 
-            // Push (optionnel, une fois par jour suffit)
-            const { data: subscriptions } = await supabase.from('push_subscriptions').select('subscription').eq('user_id', plan.user_id);
-            if (subscriptions && subscriptions.length > 0 && webPush) {
-              const body = `Dépôt en retard de ${daysOverdue} jour(s). Effectuez votre dépôt de ${amountFormatted} pour éviter la suspension.`;
-              for (const sub of subscriptions) {
-                try {
-                  await webPush.sendNotification(sub.subscription, JSON.stringify({
-                    title: 'AB Campus Finance - Dépôt d\'épargne en retard',
-                    body,
-                    data: { url: '/ab-epargne', type: 'savings_deposit_overdue', planId: plan.id },
-                    vibrate: [200, 50, 100]
-                  }));
-                } catch (e) {
-                  console.error('[SAVINGS_OVERDUE] Erreur push:', e.message);
-                }
-              }
-            }
+            // FCM : notification push via Firebase
+            const body = `Dépôt en retard de ${daysOverdue} jour(s). Effectuez votre dépôt de ${amountFormatted} pour éviter la suspension.`;
+            await sendFCMNotificationWithDuplicateCheck(plan.user_id, 'AB Campus Finance - Dépôt d\'épargne en retard', body, {
+              url: '/ab-epargne',
+              type: 'savings_deposit_overdue',
+              planId: plan.id.toString(),
+              daysOverdue: daysOverdue.toString()
+            });
           }
         }
       } catch (err) {
@@ -4913,20 +5540,16 @@ async function notifyAdminForPendingWithdrawals() {
         continue;
       }
 
-      const { data: subs } = await supabase.from('push_subscriptions').select('subscription').eq('user_id', adminData.id);
+      // FCM : notification push à l'admin via Firebase
       const body = `Hello ${adminName}, ${clientName} demande un retrait de ${amountFormatted}. Cliquez pour traiter la demande.`;
-      if (subs && subs.length > 0 && webPush) {
-        for (const sub of subs) {
-          try {
-            await webPush.sendNotification(sub.subscription, JSON.stringify({
-              title,
-              body,
-              data: { url: '/admin/ab-epargne', type: 'withdrawal_request', withdrawalId: row.id, amount: amountFormatted, clientName, userId: row.user_id },
-              vibrate: [200, 50, 100]
-            }));
-          } catch (e) { /* ignore */ }
-        }
-      }
+      await sendFCMNotificationWithDuplicateCheck(adminData.id, title, body, {
+        url: '/admin/ab-epargne',
+        type: 'withdrawal_request',
+        withdrawalId: row.id.toString(),
+        amount: amountFormatted,
+        clientName: clientName,
+        userId: row.user_id
+      });
 
       await supabase.from('withdrawal_requests').update({ admin_notified_at: new Date().toISOString() }).eq('id', row.id);
       console.log('[WITHDRAWAL_JOB] Admin notifié pour demande', row.id);
@@ -4979,21 +5602,23 @@ function scheduleReminders() {
 // Route pour notifier l'utilisateur de l'approbation de son prêt
 app.post('/api/notify-loan-approbation', async (req, res) => {
   try {
+    console.log('[LOAN_APPROVAL_NOTIFICATION] ========== NOTIFICATION APPROBATION DÉCLENCHÉE ==========');
     const { userId, loanAmount, loanId } = req.body;
     
     if (!userId || !loanAmount || !loanId) {
+      console.error('[LOAN_APPROVAL_NOTIFICATION] ❌ Paramètres manquants:', { userId, loanAmount, loanId });
       return res.status(400).json({ 
         success: false, 
         error: 'userId, loanAmount et loanId sont requis' 
       });
     }
     
-    console.log('[LOAN_APPROVAL_NOTIFICATION] Prêt approuvé:', { userId, loanAmount, loanId });
+    console.log('[LOAN_APPROVAL_NOTIFICATION] 📋 Paramètres reçus:', { userId, loanAmount, loanId });
     
-    // Récupérer les informations de l'utilisateur
+    // Récupérer les informations de l'utilisateur (dont téléphone pour SMS)
     const { data: userData, error: userError } = await supabase
       .from('users')
-      .select('id, first_name, last_name')
+      .select('id, first_name, last_name, phone_number')
       .eq('id', userId)
       .single();
 
@@ -5008,45 +5633,60 @@ app.post('/api/notify-loan-approbation', async (req, res) => {
     const userName = userData.first_name || 'Utilisateur';
     const amountFormatted = `${parseInt(loanAmount).toLocaleString()} FCFA`;
     
+    // ⚠️ PROTECTION CONTRE LES DOUBLONS : Vérifier si une notification existe déjà pour ce prêt
+    const { data: existingNotif1 } = await supabase
+      .from('notifications')
+      .select('id, created_at')
+      .eq('user_id', userId)
+      .eq('type', 'loan_approval')
+      .filter('data->>loanId', 'eq', loanId)
+      .limit(1);
+    
+    // Vérification alternative avec contains
+    const { data: existingNotif2 } = await supabase
+      .from('notifications')
+      .select('id, created_at')
+      .eq('user_id', userId)
+      .eq('type', 'loan_approval')
+      .contains('data', { loanId: loanId })
+      .limit(1);
+    
+    if ((existingNotif1 && existingNotif1.length > 0) || (existingNotif2 && existingNotif2.length > 0)) {
+      const found = existingNotif1?.[0] || existingNotif2?.[0];
+      console.log('[LOAN_APPROVAL_NOTIFICATION] ⚠️ Notification déjà envoyée pour ce prêt à', found?.created_at, '(évite doublon)');
+      return res.json({ success: true, message: 'Notification déjà envoyée pour ce prêt' });
+    }
+    
     const title = "🎉 Prêt approuvé !";
     const body = `Félicitations ${userName} ! Votre demande de prêt de ${amountFormatted} a été approuvée. Vous pouvez maintenant effectuer votre premier remboursement.`;
     
-    // Récupérer les abonnements de l'utilisateur
-    const { data: subscriptions } = await supabase
-      .from('push_subscriptions')
-      .select('subscription, user_id')
-      .eq('user_id', userId);
+    // Notification en base + SMS pour que le client reçoive même sans push
+    await supabase.from('notifications').insert({
+      user_id: userId,
+      title,
+      message: body,
+      type: 'loan_approval',
+      priority: 'high',
+      read: false,
+      data: { loanId, amount: amountFormatted, url: '/repayment' }
+    });
+    if (userData.phone_number) {
+      const smsText = `CAMPUS FINANCE - Félicitations ! Votre prêt de ${amountFormatted} est approuvé. Vous pouvez effectuer votre premier remboursement.`;
+      await sendNotificationSms(userData.phone_number, smsText);
+    }
     
-    console.log('[LOAN_APPROVAL_NOTIFICATION] Abonnements trouvés:', {
-      userId,
-      subscriptionsCount: subscriptions?.length || 0
+    // FCM : notification push via Firebase
+    console.log('[LOAN_APPROVAL_NOTIFICATION] 📱 Envoi notification FCM à:', userName);
+    const fcmResult = await sendFCMNotificationWithDuplicateCheck(userId, title, body, {
+      url: '/repayment',
+      loanId: loanId,
+      type: 'loan_approved'
     });
 
-    if (subscriptions && subscriptions.length > 0) {
-      const payload = JSON.stringify({
-        title,
-        body,
-        icon: '/logo192.png',
-        badge: '/logo192.png',
-        data: {
-          url: '/client/remboursement',
-          loanId,
-          type: 'loan_approved'
-        }
-      });
-
-      const promises = subscriptions.map(async (sub) => {
-        try {
-          await webPush.sendNotification(sub.subscription, payload);
-          console.log('[LOAN_APPROVAL_NOTIFICATION] ✅ Notification envoyée à l\'utilisateur');
-        } catch (error) {
-          console.error('[LOAN_APPROVAL_NOTIFICATION] ❌ Erreur envoi notification:', error);
-        }
-      });
-
-      await Promise.all(promises);
+    if (fcmResult.success) {
+      console.log('[LOAN_APPROVAL_NOTIFICATION] ✅ Notification FCM envoyée avec succès à', userName);
     } else {
-      console.log('[LOAN_APPROVAL_NOTIFICATION] ⚠️ Aucun abonnement trouvé pour l\'utilisateur');
+      console.error('[LOAN_APPROVAL_NOTIFICATION] ⚠️ FCM non disponible:', fcmResult.error, '(notification DB créée)');
     }
 
     res.json({ success: true, message: 'Notification d\'approbation envoyée' });
@@ -5132,45 +5772,50 @@ app.post('/api/notify-loan-refus', async (req, res) => {
     const userName = userData.first_name || 'Utilisateur';
     const amountFormatted = `${parseInt(loanAmount).toLocaleString()} FCFA`;
     
+    // ⚠️ PROTECTION CONTRE LES DOUBLONS : Vérifier si une notification existe déjà pour ce prêt
+    const { data: existingNotif } = await supabase
+      .from('notifications')
+      .select('id, created_at')
+      .eq('user_id', userId)
+      .eq('type', 'loan_rejected')
+      .filter('data->>loanId', 'eq', loanId)
+      .limit(1);
+    
+    if (existingNotif && existingNotif.length > 0) {
+      console.log('[LOAN_REJECTION_NOTIFICATION] ⚠️ Notification déjà envoyée pour ce prêt (évite doublon)');
+      return res.json({ 
+        success: true, 
+        message: 'Notification déjà envoyée pour ce prêt' 
+      });
+    }
+    
     const title = "Demande de prêt refusée";
     const body = `Bonjour ${userName}, votre demande de prêt de ${amountFormatted} a été refusée. Contactez l'administration pour plus d'informations.`;
     
-    // Récupérer les abonnements de l'utilisateur
-    const { data: subscriptions } = await supabase
-      .from('push_subscriptions')
-      .select('subscription, user_id')
-      .eq('user_id', userId);
-    
-    console.log('[LOAN_REJECTION_NOTIFICATION] Abonnements trouvés:', {
-      userId,
-      subscriptionsCount: subscriptions?.length || 0
+    // Toujours créer la notification en base (visible dans l'app)
+    await supabase.from('notifications').insert({
+      user_id: userId,
+      title,
+      message: body,
+      type: 'loan_rejected',
+      priority: 'high',
+      read: false,
+      data: { loanId, amount: amountFormatted, url: '/client/dashboard' }
     });
-
-    if (subscriptions && subscriptions.length > 0) {
-      const payload = JSON.stringify({
-        title,
-        body,
-        icon: '/logo192.png',
-        badge: '/logo192.png',
-        data: {
-          url: '/client/dashboard',
-          loanId,
-          type: 'loan_rejected'
-        }
-      });
-
-      const promises = subscriptions.map(async (sub) => {
-        try {
-          await webPush.sendNotification(sub.subscription, payload);
-          console.log('[LOAN_REJECTION_NOTIFICATION] ✅ Notification envoyée à l\'utilisateur');
-        } catch (error) {
-          console.error('[LOAN_REJECTION_NOTIFICATION] ❌ Erreur envoi notification:', error);
-        }
-      });
-
-      await Promise.all(promises);
+    
+    console.log('[LOAN_REJECTION_NOTIFICATION] ✅ Notification créée dans la DB');
+    
+    // FCM : notification push via Firebase
+    const fcmResult = await sendFCMNotificationWithDuplicateCheck(userId, title, body, {
+      url: '/client/dashboard',
+      loanId: loanId,
+      type: 'loan_rejected'
+    });
+    
+    if (fcmResult.success) {
+      console.log('[LOAN_REJECTION_NOTIFICATION] ✅ Notification FCM envoyée');
     } else {
-      console.log('[LOAN_REJECTION_NOTIFICATION] ⚠️ Aucun abonnement trouvé pour l\'utilisateur');
+      console.log('[LOAN_REJECTION_NOTIFICATION] ⚠️ FCM non disponible:', fcmResult.error, '(notification DB créée)');
     }
 
     res.json({ success: true, message: 'Notification de refus envoyée' });
@@ -5299,17 +5944,25 @@ setInterval(notifyAdminForPendingWithdrawals, 2 * 60 * 1000);
 setTimeout(() => notifyAdminForPlansGoalReached(), 60 * 1000);
 setInterval(notifyAdminForPlansGoalReached, 5 * 60 * 1000);
 
-// Job toutes les 10 minutes : vérifier et traiter les paiements manquants
+// Job toutes les 30 secondes : vérifier et traiter les paiements manquants
+// ⚠️ IMPORTANT : On n'envoie des notifications QUE pour les paiements créés dans les 5 dernières minutes.
+// Les anciens paiements ne déclenchent que la sync du statut du prêt, pas de notification (évite le spam).
+const PAYMENT_NOTIFICATION_MAX_AGE_MS = 5 * 60 * 1000; // 5 minutes
+
 async function processMissingPayments() {
   try {
     console.log('[PAYMENT_CHECK_JOB] 🔍 Vérification des paiements non traités...');
     
-    const { supabase } = require('./utils/supabaseClient-server');
+    if (!supabase) {
+      console.error('[PAYMENT_CHECK_JOB] ❌ Client Supabase non disponible');
+      return;
+    }
     
-    // Récupérer les paiements complétés des dernières 24h qui ont un transaction_id
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
+    const now = new Date();
+    const twoMinutesAgo = new Date(now.getTime() - 2 * 60 * 1000); // Réduit à 2 minutes pour éviter les boucles
+    const yesterday = new Date(now.getTime() - 24 * 60 * 60 * 1000);
     
+    // Récupérer les paiements complétés des dernières 24h (pour sync statut) mais on ne notifiera que les tout récents
     const { data: payments, error } = await supabase
       .from('payments')
       .select('id, loan_id, user_id, amount, transaction_id, status, created_at')
@@ -5317,11 +5970,24 @@ async function processMissingPayments() {
       .not('transaction_id', 'is', null)
       .gte('created_at', yesterday.toISOString())
       .order('created_at', { ascending: false })
-      .limit(50); // Limiter à 50 pour éviter la surcharge
+      .limit(50);
     
     if (error) {
-      console.error('[PAYMENT_CHECK_JOB] ❌ Erreur récupération paiements:', error);
-      return;
+      // Gérer les erreurs de connexion réseau (fetch failed)
+      if (error.message && error.message.includes('fetch failed')) {
+        console.error('[PAYMENT_CHECK_JOB] ⚠️ Erreur de connexion réseau (temporaire, réessai au prochain cycle):', {
+          message: error.message,
+          hint: 'Vérifiez votre connexion internet ou l\'URL Supabase'
+        });
+      } else {
+        console.error('[PAYMENT_CHECK_JOB] ❌ Erreur récupération paiements:', {
+          message: error.message,
+          details: error.details,
+          hint: error.hint,
+          code: error.code
+        });
+      }
+      return; // Retourner silencieusement, le job réessayera au prochain cycle
     }
     
     if (!payments || payments.length === 0) {
@@ -5330,54 +5996,98 @@ async function processMissingPayments() {
     }
     
     let processed = 0;
+    let notificationsSent = 0;
     
     for (const payment of payments) {
       try {
         const loanId = payment.loan_id;
-        if (!loanId) continue;
+        const userId = payment.user_id;
+        if (!loanId || !userId) continue;
         
         // Vérifier si le prêt est toujours actif/overdue
-        const { data: loan } = await supabase
-          .from('loans')
-          .select('id, status, amount, interest_rate, total_penalty_amount')
-          .eq('id', loanId)
-          .single();
-        
-        if (!loan || loan.status === 'completed') {
-          continue; // Prêt déjà complété ou introuvable
+        let loan;
+        try {
+          const { data: loanData, error: loanError } = await supabase
+            .from('loans')
+            .select('id, status')
+            .eq('id', loanId)
+            .single();
+          
+          if (loanError || !loanData) {
+            console.warn(`[PAYMENT_CHECK_JOB] ⚠️ Prêt #${loanId} non trouvé`);
+            continue; // Prêt introuvable, passer au suivant
+          }
+          
+          loan = loanData;
+        } catch (fetchError) {
+          // Gérer les erreurs de connexion réseau
+          if (fetchError.message && fetchError.message.includes('fetch failed')) {
+            console.warn(`[PAYMENT_CHECK_JOB] ⚠️ Erreur connexion pour prêt #${loanId} (temporaire)`);
+          }
+          continue; // Passer au paiement suivant
         }
         
-        // Calculer et mettre à jour le statut
-        const principalAmount = parseFloat(loan.amount) || 0;
-        const interestAmount = principalAmount * ((loan.interest_rate || 0) / 100);
-        const penaltyAmount = parseFloat(loan.total_penalty_amount || 0);
-        const totalExpectedAmount = principalAmount + interestAmount + penaltyAmount;
+        // Utiliser la fonction syncLoanStatusToCompletedIfFullyPaid pour mettre à jour le statut
+        // Cette fonction gère correctement le calcul des pénalités et la mise à jour du statut
+        let syncResult;
+        try {
+          syncResult = await syncLoanStatusToCompletedIfFullyPaid(supabase, loanId);
+        } catch (syncError) {
+          // Gérer les erreurs de synchronisation
+          if (syncError.message && syncError.message.includes('fetch failed')) {
+            console.warn(`[PAYMENT_CHECK_JOB] ⚠️ Erreur synchronisation prêt #${loanId} (temporaire)`);
+          } else {
+            console.error(`[PAYMENT_CHECK_JOB] ❌ Erreur synchronisation prêt #${loanId}:`, syncError.message);
+          }
+          continue; // Passer au paiement suivant
+        }
         
-        const { data: allPayments } = await supabase
-          .from('payments')
-          .select('amount')
-          .eq('loan_id', loanId)
-          .eq('status', 'completed');
-        
-        const totalPaidAmount = allPayments.reduce((sum, p) => sum + (parseFloat(p.amount) || 0), 0);
-        const remainingAmount = Math.max(0, totalExpectedAmount - totalPaidAmount);
-        const isFullyPaid = remainingAmount <= 1 || totalPaidAmount >= totalExpectedAmount - 1;
-        
-        if (isFullyPaid && loan.status !== 'completed') {
-          const updateData = {
-            status: 'completed',
-            total_penalty_amount: 0,
-            last_penalty_calculation: null,
-            updated_at: new Date().toISOString()
-          };
-          
-          await supabase
-            .from('loans')
-            .update(updateData)
-            .eq('id', loanId);
-          
+        if (syncResult.updated) {
           processed++;
           console.log(`[PAYMENT_CHECK_JOB] ✅ Prêt #${loanId} marqué comme complété`);
+        }
+        
+        // ⚠️ PROTECTION RENFORCÉE : Ne jamais notifier les paiements de plus de 2 minutes (réduit de 5 à 2 min)
+        // ET vérifier qu'aucune notification n'existe déjà pour ce paiement
+        const paymentCreatedAt = new Date(payment.created_at);
+        
+        if (paymentCreatedAt < twoMinutesAgo) {
+          // Paiement ancien (> 2 min) : on a fait la sync du prêt, on n'envoie PAS de notification
+          continue;
+        }
+        
+        // Paiement très récent (< 2 min) : vérifier si une notification existe déjà (double vérification)
+        const { data: existingNotifByPayment1 } = await supabase
+          .from('notifications')
+          .select('id, created_at')
+          .eq('type', 'loan_repayment')
+          .eq('user_id', userId)
+          .filter('data->>payment_id', 'eq', payment.id)
+          .limit(1);
+        
+        // Vérification alternative avec contains
+        const { data: existingNotifByPayment2 } = await supabase
+          .from('notifications')
+          .select('id, created_at')
+          .eq('type', 'loan_repayment')
+          .eq('user_id', userId)
+          .contains('data', { payment_id: payment.id })
+          .limit(1);
+        
+        if ((existingNotifByPayment1 && existingNotifByPayment1.length > 0) || 
+            (existingNotifByPayment2 && existingNotifByPayment2.length > 0)) {
+          const found = existingNotifByPayment1?.[0] || existingNotifByPayment2?.[0];
+          console.log(`[PAYMENT_CHECK_JOB] ⚠️ Notification déjà envoyée pour paiement #${payment.id.substring(0, 8)}... à ${found?.created_at} (évite doublon)`);
+          continue;
+        }
+        
+        // Envoyer la notification seulement si elle n'existe pas déjà
+        const sent = await sendRepaymentNotifications(loanId, userId, payment.amount, payment.id);
+        if (sent) {
+          console.log(`[PAYMENT_CHECK_JOB] 📢 Notifications envoyées pour paiement #${payment.id.substring(0, 8)}... (récent < 2 min)`);
+          notificationsSent++;
+        } else {
+          console.log(`[PAYMENT_CHECK_JOB] ⚠️ Notification non envoyée (déjà existante ou erreur)`);
         }
         
       } catch (error) {
@@ -5388,16 +6098,95 @@ async function processMissingPayments() {
     if (processed > 0) {
       console.log(`[PAYMENT_CHECK_JOB] ✅ ${processed} prêt(s) mis à jour`);
     }
+    if (notificationsSent > 0) {
+      console.log(`[PAYMENT_CHECK_JOB] ✅ ${notificationsSent} notification(s) envoyée(s)`);
+    }
     
   } catch (error) {
     console.error('[PAYMENT_CHECK_JOB] ❌ Erreur générale:', error);
   }
 }
 
-// Démarrer le job de vérification des paiements manquants toutes les 10 minutes
-setInterval(processMissingPayments, 10 * 60 * 1000);
+// Route pour synchroniser le statut d'un prêt (vérifie si entièrement remboursé)
+app.post('/api/sync-loan-status', async (req, res) => {
+  try {
+    const { loanId } = req.body;
+    
+    if (!loanId) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'loanId requis' 
+      });
+    }
+    
+    console.log('[SYNC_LOAN_STATUS] 🔄 Synchronisation statut prêt:', loanId);
+    
+    const syncResult = await syncLoanStatusToCompletedIfFullyPaid(supabase, loanId);
+    
+    if (syncResult.ok && syncResult.updated) {
+      res.json({ 
+        success: true, 
+        updated: true,
+        message: 'Statut du prêt synchronisé et mis à jour à "completed"' 
+      });
+    } else if (syncResult.ok) {
+      res.json({ 
+        success: true, 
+        updated: false,
+        message: 'Statut vérifié - prêt pas encore entièrement remboursé' 
+      });
+    } else {
+      res.status(500).json({ 
+        success: false, 
+        updated: false,
+        error: 'Erreur lors de la synchronisation' 
+      });
+    }
+  } catch (error) {
+    console.error('[SYNC_LOAN_STATUS] ❌ Erreur:', error);
+    res.status(500).json({ 
+      success: false, 
+      updated: false,
+      error: error.message 
+    });
+  }
+});
+
+// Route pour déclencher immédiatement les notifications de remboursement
+app.post('/api/notify-repayment', async (req, res) => {
+  try {
+    const { loanId, userId, amount } = req.body;
+    
+    if (!loanId || !userId || !amount) {
+      return res.status(400).json({ 
+        success: false, 
+        error: 'loanId, userId et amount sont requis' 
+      });
+    }
+    
+    console.log('[NOTIFY_REPAYMENT] 📢 Déclenchement immédiat des notifications:', { loanId, userId, amount });
+    
+    await sendRepaymentNotifications(loanId, userId, amount);
+    
+    res.json({ 
+      success: true, 
+      message: 'Notifications envoyées' 
+    });
+  } catch (error) {
+    console.error('[NOTIFY_REPAYMENT] ❌ Erreur:', error);
+    res.status(500).json({ 
+      success: false, 
+      error: error.message 
+    });
+  }
+});
+
+// ⚠️ JOB DÉSACTIVÉ TEMPORAIREMENT - Cause probable des notifications en boucle
+// Démarrer le job de vérification des paiements manquants toutes les 30 secondes (backup)
+// setInterval(processMissingPayments, 30 * 1000);
 // Exécuter une première fois au démarrage (après 30 secondes pour laisser le serveur démarrer)
-setTimeout(processMissingPayments, 30 * 1000);
+// setTimeout(processMissingPayments, 30 * 1000);
+console.log('[PAYMENT_CHECK_JOB] ⚠️ Job désactivé temporairement pour éviter les notifications en boucle');
 
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {

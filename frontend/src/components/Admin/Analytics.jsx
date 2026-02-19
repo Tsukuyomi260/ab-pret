@@ -112,7 +112,7 @@ const Analytics = () => {
       const validatedLoans = loans.filter(validatedByAdmin);
 
       const totalLoans = loans.length;
-      const activeLoans = loans.filter(l => l.status === 'active' || l.status === 'approved').length;
+      const activeLoans = loans.filter(l => l.status === 'active' || l.status === 'approved' || l.status === 'overdue').length;
       const completedLoans = loans.filter(l => l.status === 'completed').length;
       const pendingLoans = loans.filter(l => l.status === 'pending').length;
       // Total prêté = montant total des prêts validés (principal uniquement, sans intérêts ni pénalités)
