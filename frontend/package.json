@@ -12,6 +12,7 @@
     "axios": "^1.4.0",
     "fedapay": "^1.2.5",
     "fedapay-reactjs": "^1.1.2",
+    "firebase": "^9.24.0",
     "framer-motion": "^12.23.6",
     "jspdf": "^2.5.1",
     "jspdf-font": "^1.0.7",
