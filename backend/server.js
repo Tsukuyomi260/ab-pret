@@ -23,6 +23,7 @@ const webPush = require('./config/push');
 
 // Import Supabase client
 const { supabase } = require('./utils/supabaseClient-server');
+const { requireAuth, requireAdmin } = require('./utils/authMiddleware');
 
 // Import PDF Generator
 const pdfGenerator = require('./routes/pdfGenerator');
@@ -40,7 +41,22 @@ const fetch = (...args) => import('node-fetch').then(({ default: fetch }) => fet
 require('dotenv').config({ path: '.env.local' });
 require('dotenv').config();
 
-app.use(cors());
+const allowedOrigins = [
+  'https://ab-cf1.vercel.app',
+  process.env.FRONTEND_URL,
+  'http://localhost:3000',
+  'http://localhost:3001'
+].filter(Boolean);
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Autoriser les requêtes sans origin (ex: Postman, mobile apps, webhooks)
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin)) return callback(null, true);
+    callback(new Error(`CORS: origine non autorisée — ${origin}`));
+  },
+  credentials: true
+}));
 
 // Routes PDF
 app.use('/api', pdfGenerator);
@@ -470,7 +486,7 @@ app.post('/api/notifications/test-fcm-all-users', async (req, res) => {
 // ===== WEB PUSH NOTIFICATIONS =====
 
 // Route pour s'abonner aux notifications push
-app.post("/api/save-subscription", async (req, res) => {
+app.post("/api/save-subscription", requireAuth, async (req, res) => {
   try {
     const { subscription, userId } = req.body;
 
@@ -545,14 +561,14 @@ app.post("/api/save-subscription", async (req, res) => {
 
 // Fonction utilitaire pour envoyer une notification à tous les utilisateurs abonnés
 // DEPRECATED: Utilisez sendFCMNotificationToAllUsers à la place
-async function sendNotificationToAllUsers(title, body, dgata = {}) {
+async function sendNotificationToAllUsers(title, body, data = {}) {
   console.warn('[DEPRECATED] sendNotificationToAllUsers est dépréciée. Utilisez sendFCMNotificationToAllUsers.');
-  const result = await sendFCMNotificationToAllUsers(title, body, dgata);
+  const result = await sendFCMNotificationToAllUsers(title, body, data);
   return result.sent > 0;
 }
 
 // Route pour tester la validité d'un abonnement
-app.post('/api/test-subscription', async (req, res) => {
+app.post('/api/test-subscription', requireAuth, async (req, res) => {
   try {
     const { subscription, userId } = req.body;
 
@@ -738,7 +754,7 @@ app.get('/api/push/vapid-public-key', (req, res) => {
 });
 
 // Route pour tester l'envoi de notifications de prêt
-app.post('/api/test-loan-notification', async (req, res) => {
+app.post('/api/test-loan-notification', requireAdmin, async (req, res) => {
   try {
     const { userId, testType = 'approval' } = req.body;
     
@@ -868,58 +884,6 @@ app.post('/api/test-loan-notification', async (req, res) => {
   }
 });
 
-// Route pour tester la validité d'un abonnement
-app.post('/api/test-subscription', async (req, res) => {
-  try {
-    const { subscription, userId } = req.body;
-    
-    if (!subscription || !userId) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'subscription et userId sont requis' 
-      });
-    }
-    
-    console.log('[TEST_SUBSCRIPTION] Test de l\'abonnement pour l\'utilisateur:', userId);
-    
-    // Envoyer une notification de test silencieuse
-    try {
-      await webPush.sendNotification(subscription, JSON.stringify({
-        title: 'Test de validité',
-        body: 'Votre abonnement aux notifications est valide',
-        data: {
-          url: '/',
-          icon: '/logo192.png',
-          badge: '/logo192.png',
-          type: 'subscription_test',
-          silent: true // Notification silencieuse pour le test
-        },
-        vibrate: [200, 50, 100]
-      }));
-      
-      console.log('[TEST_SUBSCRIPTION] ✅ Abonnement valide');
-      res.json({ 
-        success: true, 
-        message: 'Abonnement valide' 
-      });
-    } catch (pushError) {
-      console.log('[TEST_SUBSCRIPTION] ❌ Abonnement invalide:', pushError.message);
-      res.json({ 
-        success: false, 
-        message: 'Abonnement invalide ou expiré' 
-      });
-    }
-    
-  } catch (error) {
-    console.error('[TEST_SUBSCRIPTION] Erreur lors du test:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Erreur serveur lors du test' 
-    });
-  }
-});
-
-
 // Mode SMS: 'live' (production) ou 'echo' (développement)
 let SMS_MODE = process.env.SMS_MODE || 'echo'; // Utiliser la variable d'environnement ou echo par défaut
 
@@ -948,10 +912,10 @@ app.get('/api/admin/sms-mode', (req, res) => {
 let vonageClient = null;
 function getVonageClient() {
   if (!vonageClient) {
-    const apiKey = process.env.REACT_APP_VONAGE_API_KEY || "5991994e";
-    const apiSecret = process.env.REACT_APP_VONAGE_API_SECRET || "TXqA0XxEzJQWBtfI";
+    const apiKey = process.env.VONAGE_API_KEY;
+    const apiSecret = process.env.VONAGE_API_SECRET;
     if (!apiKey || !apiSecret) {
-      throw new Error('Vonage credentials are missing');
+      throw new Error('Vonage credentials are missing (VONAGE_API_KEY / VONAGE_API_SECRET)');
     }
     const { Vonage } = require('@vonage/server-sdk');
     vonageClient = new Vonage({ apiKey, apiSecret });
@@ -988,7 +952,7 @@ async function sendNotificationSms(phoneNumber, message) {
     return { success: true };
   }
   try {
-    const brandName = process.env.REACT_APP_VONAGE_BRAND_NAME || 'AB Campus Finance';
+    const brandName = process.env.VONAGE_BRAND_NAME || 'AB Campus Finance';
     const client = getVonageClient();
     const result = await client.sms.send(brandName, to, message);
     if (result.messages[0].status === '0') {
@@ -1016,7 +980,7 @@ app.post('/api/sms/send-otp', async (req, res) => {
       return res.json({ success: true, echo: true, otp });
     }
 
-    const brandName = process.env.REACT_APP_VONAGE_BRAND_NAME || "AB Campus Finance";
+    const brandName = process.env.VONAGE_BRAND_NAME || "AB Campus Finance";
     const message = `CAMPUS FINANCE\n\nBonjour ${userName || 'Utilisateur'},\n\nVotre code de vérification est : ${otp}\n\nCe code est valide pendant 15 minutes.\n\nNe partagez jamais ce code.\n\nCampus Finance`;
 
     const client = getVonageClient();
@@ -1044,7 +1008,7 @@ app.post('/api/sms/send-welcome', async (req, res) => {
       return res.json({ success: true, echo: true });
     }
 
-    const brandName = process.env.REACT_APP_VONAGE_BRAND_NAME || "AB Campus Finance";
+    const brandName = process.env.VONAGE_BRAND_NAME || "AB Campus Finance";
     const message = `CAMPUS FINANCE\n\nBonjour ${userName || 'Utilisateur'},\n\nVotre compte a été créé avec succès !\n\nBienvenue chez Campus Finance.`;
 
     const client = getVonageClient();
@@ -1074,7 +1038,7 @@ app.post('/api/sms/start-verification', async (req, res) => {
       return res.json({ success: true, echo: true, request_id: fakeRequestId });
     }
 
-    const brandName = process.env.REACT_APP_VONAGE_BRAND_NAME || "AB Campus Finance";
+    const brandName = process.env.VONAGE_BRAND_NAME || "AB Campus Finance";
     const client = getVonageClient();
     const result = await client.verify.start({
       number: to,
@@ -1112,11 +1076,14 @@ app.post('/api/sms/check-verification', async (req, res) => {
 
 // Diagnostic: expose only presence/format of envs (no secrets)
 app.get('/api/debug/status', (req, res) => {
+  if (process.env.NODE_ENV === 'production') {
+    return res.status(404).json({ success: false, error: 'Not found' });
+  }
   res.json({
     success: true,
-    hasApiKey: Boolean(process.env.REACT_APP_VONAGE_API_KEY),
-    hasApiSecret: Boolean(process.env.REACT_APP_VONAGE_API_SECRET),
-    hasBrandName: Boolean(process.env.REACT_APP_VONAGE_BRAND_NAME),
+    hasApiKey: Boolean(process.env.VONAGE_API_KEY),
+    hasApiSecret: Boolean(process.env.VONAGE_API_SECRET),
+    hasBrandName: Boolean(process.env.VONAGE_BRAND_NAME),
     smsMode: SMS_MODE
   });
 });
@@ -1211,7 +1178,7 @@ app.post('/api/fedapay/create-transaction', async (req, res) => {
     // Construire les URLs de callback
     // BACKEND_URL pour le webhook (ngrok en local, URL prod en production)
     // FRONTEND_URL pour les redirections après paiement
-    const backendUrl = process.env.BACKEND_URL || process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
+    const backendUrl = process.env.BACKEND_URL || process.env.BACKEND_URL || 'http://localhost:5000';
     const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3001';
     
     const successUrl = `${frontendUrl}/remboursement/success?transaction_id={transaction_id}&amount=${amount}&loan_id=${loanId}&user_id=${userId}`;
@@ -1404,7 +1371,7 @@ async function syncLoanStatusToCompletedIfFullyPaid(supabaseClient, loanId) {
     return { ok: false, updated: false };
   }
   const totalPaid = (payments || []).reduce((s, p) => s + (parseFloat(p.amount) || 0), 0);
-  const tolerance = 10;
+  const tolerance = 100;
   const fullyPaid = totalPaid >= totalExpected - tolerance;
   console.log('[LOAN_STATUS] sync:', { loanId, totalExpected, totalPaid, fullyPaid });
   if (!fullyPaid) return { ok: true, updated: false };
@@ -1783,8 +1750,7 @@ app.post('/api/fedapay/webhook', async (req, res) => {
     console.log('- Signature extraite:', signature);
     console.log('- Clé secrète utilisée:', process.env.FEDAPAY_SECRET_KEY?.substring(0, 10) + '...');
 
-    // Temporairement désactiver la vérification de signature en sandbox
-    const isValid = true; // verifyFedaPaySignature(rawData, signature, process.env.FEDAPAY_SECRET_KEY);
+    const isValid = verifyFedaPaySignature(rawData, signature, process.env.FEDAPAY_SECRET_KEY);
     if (!isValid) {
       console.warn('[FEDAPAY_WEBHOOK] Signature invalide');
       return res.status(400).json({ success: false, error: 'Signature invalide' });
@@ -1974,7 +1940,7 @@ app.post('/api/fedapay/webhook', async (req, res) => {
           console.log('[FEDAPAY_WEBHOOK] 🔧 Configuration client:', {
             hasServiceKey: !!process.env.SUPABASE_SERVICE_ROLE_KEY,
             serviceKeyLength: process.env.SUPABASE_SERVICE_ROLE_KEY?.length || 0,
-            supabaseUrl: process.env.REACT_APP_SUPABASE_URL ? 'Configurée' : 'Manquante'
+            supabaseUrl: process.env.SUPABASE_URL ? 'Configurée' : 'Manquante'
           });
 
           // 1. Vérifier si le paiement existe déjà (idempotence)
@@ -2547,7 +2513,7 @@ app.post('/api/fedapay/webhook', async (req, res) => {
               const amountFormatted = `${depositAmount.toLocaleString()} FCFA`;
               
               // Envoyer la notification
-              const notificationResponse = await fetch(`${process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000'}/api/notify-savings-deposit`, {
+              const notificationResponse = await fetch(`${process.env.BACKEND_URL || 'http://localhost:5000'}/api/notify-savings-deposit`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
@@ -2813,7 +2779,7 @@ app.post('/api/fedapay/process-all-missing-payments', async (req, res) => {
 });
 
 // Route pour traiter manuellement un paiement FedaPay qui n'a pas été traité par le webhook
-app.post('/api/fedapay/process-payment-manually', async (req, res) => {
+app.post('/api/fedapay/process-payment-manually', requireAuth, async (req, res) => {
   try {
     const { transaction_id, loan_id, user_id } = req.body;
     
@@ -3027,7 +2993,7 @@ app.post('/api/fedapay/process-payment-manually', async (req, res) => {
 });
 
 // Endpoint pour créer une transaction de dépôt
-app.post('/api/create-savings-deposit', async (req, res) => {
+app.post('/api/create-savings-deposit', requireAuth, async (req, res) => {
   try {
     const { user_id, plan_id, amount } = req.body;
     
@@ -3092,7 +3058,7 @@ app.post('/api/create-savings-deposit', async (req, res) => {
 });
 
 // Endpoint pour créer une transaction de remboursement
-app.post('/api/create-loan-repayment', async (req, res) => {
+app.post('/api/create-loan-repayment', requireAuth, async (req, res) => {
   try {
     console.log('[LOAN_REPAYMENT] 📥 Body reçu:', req.body);
     const { user_id, loan_id, amount } = req.body;
@@ -3182,7 +3148,7 @@ app.post('/api/create-loan-repayment', async (req, res) => {
 });
 
 // Endpoint pour vérifier le statut d'un remboursement
-app.get('/api/loans/repayment-status', async (req, res) => {
+app.get('/api/loans/repayment-status', requireAuth, async (req, res) => {
   try {
     const { reference, id, txId, transaction_id } = req.query;
     const transactionId = reference || id || txId || transaction_id;
@@ -3446,7 +3412,7 @@ app.get('/api/savings/plan-status', async (req, res) => {
 });
 
 // Historique des plans d'épargne terminés (pour le client)
-app.get('/api/savings/history', async (req, res) => {
+app.get('/api/savings/history', requireAuth, async (req, res) => {
   try {
     const userId = req.query.userId;
     if (!userId) return res.status(400).json({ success: false, error: 'userId requis' });
@@ -4218,10 +4184,10 @@ app.post('/api/trigger-admin-loyalty-notification', async (req, res) => {
 });
 
 // Route pour vérifier si un popup de fidélité doit être affiché
-app.get('/api/loyalty-popup-check', async (req, res) => {
+app.get('/api/loyalty-popup-check', requireAuth, async (req, res) => {
   try {
     const userId = req.query.userId;
-    const isAdmin = req.query.isAdmin === 'true';
+    const isAdmin = req.user.role === 'admin';
 
     if (!userId) {
       return res.status(400).json({ 
@@ -4297,7 +4263,7 @@ app.get('/api/loyalty-popup-check', async (req, res) => {
 });
 
 // Route pour réinitialiser le compteur de fidélité et mettre à jour le statut
-app.post('/api/loyalty-reset-counter', async (req, res) => {
+app.post('/api/loyalty-reset-counter', requireAuth, async (req, res) => {
   try {
     const { userId } = req.body;
 
@@ -4427,7 +4393,7 @@ app.post('/api/trigger-loan-reminders', async (req, res) => {
 });
 
 // Route pour notifier l'admin d'une nouvelle demande de prêt
-app.post('/api/notify-admin-new-loan', async (req, res) => {
+app.post('/api/notify-admin-new-loan', requireAuth, async (req, res) => {
   try {
     const { loanAmount, clientName, loanId } = req.body;
     
@@ -4638,7 +4604,7 @@ app.post('/api/notify-admin-repayment', async (req, res) => {
 });
 
 // Route pour notifier l'admin d'une nouvelle demande de retrait
-app.post('/api/notify-admin-withdrawal', async (req, res) => {
+app.post('/api/notify-admin-withdrawal', requireAuth, async (req, res) => {
   try {
     const { withdrawalId, clientName, amount, userId, planId } = req.body;
     
@@ -4737,7 +4703,7 @@ app.post('/api/notify-admin-withdrawal', async (req, res) => {
 });
 
 // Approuver une demande de retrait (côté backend = notification client garantie, plan passé en historique)
-app.post('/api/savings/withdrawal-approve', async (req, res) => {
+app.post('/api/savings/withdrawal-approve', requireAdmin, async (req, res) => {
   try {
     const { withdrawalId, processedBy } = req.body;
     if (!withdrawalId) return res.status(400).json({ success: false, error: 'withdrawalId requis' });
@@ -4793,7 +4759,7 @@ app.post('/api/savings/withdrawal-approve', async (req, res) => {
 });
 
 // Rejeter une demande de retrait
-app.post('/api/savings/withdrawal-reject', async (req, res) => {
+app.post('/api/savings/withdrawal-reject', requireAdmin, async (req, res) => {
   try {
     const { withdrawalId, reason, processedBy } = req.body;
     if (!withdrawalId) return res.status(400).json({ success: false, error: 'withdrawalId requis' });
@@ -4844,7 +4810,7 @@ app.post('/api/savings/withdrawal-reject', async (req, res) => {
 });
 
 // Route pour notifier l'approbation d'un prêt
-app.post('/api/notify-loan-approval', async (req, res) => {
+app.post('/api/notify-loan-approval', requireAdmin, async (req, res) => {
   try {
     console.log('[LOAN_APPROVAL] ========== NOTIFICATION APPROBATION DÉCLENCHÉE ==========');
     const { userId, loanAmount, loanId } = req.body;
@@ -5008,6 +4974,14 @@ async function manageOverdueLoans() {
         const daysOverdue = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
 
         if (daysOverdue > 0) {
+          // Vérifier d'abord si le prêt a été payé mais le webhook a été manqué
+          const syncResult = await syncLoanStatusToCompletedIfFullyPaid(supabase, loan.id);
+          if (syncResult.updated) {
+            console.log(`[OVERDUE_MANAGEMENT] ✅ Prêt #${loan.id} déjà remboursé (webhook manqué) - marqué completed`);
+            updatedLoans++;
+            continue;
+          }
+
           // Prêt en retard - calculer les pénalités (2% tous les 5 jours complets, composées)
           const penaltyRate = 2.0; // Taux de pénalité par défaut (2% tous les 5 jours)
           const principalAmount = parseFloat(loan.amount) || 0;
@@ -5599,8 +5573,20 @@ function scheduleReminders() {
   }, timeUntil11AM);
 }
 
+// Route admin pour déclencher manuellement la gestion des prêts en retard
+app.post('/api/admin/trigger-overdue-check', requireAdmin, async (req, res) => {
+  try {
+    console.log('[ADMIN] Déclenchement manuel manageOverdueLoans...');
+    const result = await manageOverdueLoans();
+    res.json({ success: true, result });
+  } catch (error) {
+    console.error('[ADMIN] Erreur trigger-overdue-check:', error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
 // Route pour notifier l'utilisateur de l'approbation de son prêt
-app.post('/api/notify-loan-approbation', async (req, res) => {
+app.post('/api/notify-loan-approbation', requireAdmin, async (req, res) => {
   try {
     console.log('[LOAN_APPROVAL_NOTIFICATION] ========== NOTIFICATION APPROBATION DÉCLENCHÉE ==========');
     const { userId, loanAmount, loanId } = req.body;
@@ -5697,7 +5683,7 @@ app.post('/api/notify-loan-approbation', async (req, res) => {
 });
 
 // Route pour valider un abonnement push
-app.post('/api/validate-subscription', async (req, res) => {
+app.post('/api/validate-subscription', requireAuth, async (req, res) => {
   try {
     const { subscription, userId } = req.body;
     
@@ -5741,7 +5727,7 @@ app.post('/api/validate-subscription', async (req, res) => {
 });
 
 // Route pour notifier l'utilisateur du refus de son prêt
-app.post('/api/notify-loan-refus', async (req, res) => {
+app.post('/api/notify-loan-refus', requireAdmin, async (req, res) => {
   try {
     const { userId, loanAmount, loanId } = req.body;
     
@@ -5826,7 +5812,7 @@ app.post('/api/notify-loan-refus', async (req, res) => {
 });
 
 // Route pour supprimer définitivement un utilisateur (admin seulement)
-app.delete('/api/admin/delete-user/:userId', async (req, res) => {
+app.delete('/api/admin/delete-user/:userId', requireAdmin, async (req, res) => {
   try {
     const { userId } = req.params;
     
@@ -6192,5 +6178,5 @@ const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`API server listening on port ${PORT}`);
   console.log(`SMS Mode: ${SMS_MODE}`);
-  console.log(`Vonage configured: ${Boolean(process.env.REACT_APP_VONAGE_API_KEY && process.env.REACT_APP_VONAGE_API_SECRET)}`);
+  console.log(`Vonage configured: ${Boolean(process.env.VONAGE_API_KEY && process.env.VONAGE_API_SECRET)}`);
 });

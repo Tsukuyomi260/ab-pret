@@ -62,6 +62,7 @@ const FedaPayRemboursementButton = ({ loan, onSuccess }) => {
         if (data.transactionId) {
           sessionStorage.setItem('pending_repayment_transaction_id', data.transactionId);
         }
+        sessionStorage.setItem('pending_repayment_loan_id', loan.id);
         window.location.href = data.transactionUrl;
       } else {
         console.error("[FedaPayRemboursementButton] ❌ Erreur détaillée:", data);

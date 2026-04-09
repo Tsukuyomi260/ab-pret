@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useAuth } from '../../context/AuthContext';
+import { fetchWithAuth } from '../../utils/fetchWithAuth';
 
 // Configuration du backend selon l'environnement
 const getBackendUrl = () => {
@@ -69,7 +70,7 @@ const RemboursementRetour = () => {
     const delayMs = 2000;
 
     const checkOnce = async () => {
-      const response = await fetch(`${BACKEND_URL}/api/loans/repayment-status?id=${encodeURIComponent(transactionId)}`);
+      const response = await fetchWithAuth(`${BACKEND_URL}/api/loans/repayment-status?id=${encodeURIComponent(transactionId)}`);
       const result = await response.json();
       return result.success && result.loan ? result : null;
     };
@@ -89,6 +90,33 @@ const RemboursementRetour = () => {
           setMessage(`Vérification du remboursement... (${attempt}/${maxAttempts})`);
           await new Promise(r => setTimeout(r, delayMs));
         }
+      }
+
+      // Fallback : le webhook n'a pas été reçu (Render dormait). Forcer le traitement manuellement.
+      console.log('[REMBOURSEMENT_RETOUR] Webhook non reçu, tentative de traitement manuel...');
+      setMessage('Finalisation du remboursement...');
+      try {
+        const loanId = sessionStorage.getItem('pending_repayment_loan_id') || null;
+        const manualRes = await fetchWithAuth(`${BACKEND_URL}/api/fedapay/process-payment-manually`, {
+          method: 'POST',
+          body: JSON.stringify({
+            transaction_id: transactionId,
+            loan_id: loanId,
+            user_id: user?.id
+          })
+        });
+        const manualResult = await manualRes.json();
+        if (manualResult.success) {
+          console.log('[REMBOURSEMENT_RETOUR] ✅ Traitement manuel réussi');
+          setStatus('success');
+          setMessage('Remboursement confirmé, prêt mis à jour !');
+          queryClient.invalidateQueries({ queryKey: ['dashboardStats', user?.id] });
+          if (loanId) sessionStorage.removeItem('pending_repayment_loan_id');
+          setTimeout(() => navigate('/dashboard'), 3000);
+          return;
+        }
+      } catch (manualError) {
+        console.error('[REMBOURSEMENT_RETOUR] Erreur traitement manuel:', manualError);
       }
 
       setStatus('success');

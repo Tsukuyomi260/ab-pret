@@ -3,12 +3,13 @@ const PDFDocument = require('pdfkit');
 const fs = require('fs');
 const path = require('path');
 const { createClient } = require('@supabase/supabase-js');
+const { requireAuth } = require('../utils/authMiddleware');
 
 const router = express.Router();
 
 // Configuration Supabase
-const supabaseUrl = process.env.SUPABASE_URL || process.env.REACT_APP_SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY || process.env.REACT_APP_SUPABASE_ANON_KEY;
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
 // Fonction pour formater les montants en FCFA
@@ -44,7 +45,7 @@ const cleanText = (text) => {
 };
 
 // Route pour générer le PDF d'engagement de prêt
-router.post('/generate-loan-pdf', async (req, res) => {
+router.post('/generate-loan-pdf', requireAuth, async (req, res) => {
   try {
     const { userId, loanData } = req.body;
 
@@ -323,7 +324,7 @@ router.post('/generate-loan-pdf', async (req, res) => {
 });
 
 // Route pour générer le PDF par ID de prêt
-router.get('/generate-pdf/:loanId', async (req, res) => {
+router.get('/generate-pdf/:loanId', requireAuth, async (req, res) => {
   try {
     const { loanId } = req.params;
 
@@ -562,7 +563,7 @@ router.get('/generate-pdf/:loanId', async (req, res) => {
 });
 
 // Route pour générer un PDF preview (avant soumission)
-router.post('/generate-preview-pdf', async (req, res) => {
+router.post('/generate-preview-pdf', requireAuth, async (req, res) => {
   try {
     const { user, loan, calculation } = req.body;
 
