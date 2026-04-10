@@ -142,6 +142,13 @@ const FedaPayEpargneButton = ({ planConfig }) => {
 
     console.log("[FedaPay] 🚀 Initialisation du paiement...");
 
+    // Sauvegarder la config pour le fallback manuel (si webhook manqué)
+    sessionStorage.setItem('pending_savings_plan_config', JSON.stringify({
+      fixed_amount: planConfig.montant,
+      frequency_days: planConfig.frequence,
+      duration_months: planConfig.nombreMois
+    }));
+
     // Démarrer le polling immédiatement pour détecter la création du plan
     startPollingForPlan();
 

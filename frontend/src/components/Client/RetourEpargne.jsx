@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { BACKEND_URL } from '../../config/backend';
 import { useAuth } from '../../context/AuthContext';
+import { fetchWithAuth } from '../../utils/fetchWithAuth';
 
 const RetourEpargne = () => {
   const navigate = useNavigate();
@@ -92,8 +93,35 @@ const RetourEpargne = () => {
           // Mettre à jour la barre de progression (max 30 tentatives = 100%)
           setProgress(Math.min((newCount / 30) * 100, 100));
           
-          // Arrêter le polling après 30 tentatives (5 minutes)
+          // Arrêter le polling après 30 tentatives → fallback manuel
           if (newCount >= 30) {
+            console.log('[RETOUR_EPARGNE] Timeout polling, tentative traitement manuel...');
+            setMessage && setMessage('Finalisation en cours...');
+            try {
+              const savedConfig = JSON.parse(sessionStorage.getItem('pending_savings_plan_config') || '{}');
+              const manualRes = await fetchWithAuth(`${backendUrl}/api/savings/process-plan-manually`, {
+                method: 'POST',
+                body: JSON.stringify({
+                  transaction_reference: reference || planId,
+                  fixed_amount: savedConfig.fixed_amount,
+                  frequency_days: savedConfig.frequency_days,
+                  duration_months: savedConfig.duration_months
+                })
+              });
+              const manualData = await manualRes.json();
+              if (manualData.success && manualData.plan) {
+                console.log('[RETOUR_EPARGNE] ✅ Plan créé manuellement:', manualData.plan.id);
+                sessionStorage.removeItem('pending_savings_plan_config');
+                setPlan(manualData.plan);
+                setStatus('success');
+                setTimeout(() => {
+                  navigate(`/ab-epargne/personalize/${manualData.plan.id}`, { replace: true });
+                }, 2000);
+                return;
+              }
+            } catch (manualError) {
+              console.error('[RETOUR_EPARGNE] Erreur fallback manuel:', manualError);
+            }
             setError('Le plan n\'a pas été créé dans les temps. Veuillez contacter le support.');
             setStatus('error');
             return;

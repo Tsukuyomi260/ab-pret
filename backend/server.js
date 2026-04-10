@@ -2327,6 +2327,19 @@ app.post('/api/fedapay/webhook', async (req, res) => {
             }
 
             plan = newPlan;
+
+            // Tracer les frais de création dans savings_transactions
+            await supabase
+              .from('savings_transactions')
+              .insert({
+                user_id: userId,
+                savings_plan_id: plan.id,
+                transaction_type: 'creation_fee',
+                amount: transaction.amount || 1000,
+                transaction_reference: transaction.reference,
+                status: 'completed',
+                created_at: new Date().toISOString()
+              });
           }
 
           console.log('[FEDAPAY_WEBHOOK] 🎉 Plan d\'épargne créé avec succès:', {
@@ -2372,6 +2385,7 @@ app.post('/api/fedapay/webhook', async (req, res) => {
           
         } catch (error) {
           console.error('[FEDAPAY_WEBHOOK] ❌ Erreur lors de la création du plan d\'épargne:', error);
+          throw error; // Propage l'erreur → FedaPay recevra 500 et réessaiera
         }
       } else if (paymentType === 'savings_deposit' && userId && transaction.custom_metadata?.plan_id) {
         console.log(`[FEDAPAY_WEBHOOK] 🎯 Dépôt confirmé pour plan d'épargne - User: ${userId}, Plan: ${transaction.custom_metadata.plan_id}`);
@@ -2609,9 +2623,8 @@ app.post('/api/fedapay/webhook', async (req, res) => {
     console.error('[FEDAPAY_WEBHOOK] ❌ Erreur générale webhook:', error);
     console.error('[FEDAPAY_WEBHOOK] ❌ Stack trace:', error.stack);
     console.error('[FEDAPAY_WEBHOOK] ❌ Message:', error.message);
-    // Retourner 200 pour éviter que FedaPay réessaie indéfiniment
-    // Mais logger l'erreur pour investigation
-    return res.status(200).json({ success: false, error: 'Erreur serveur (loggée)' });
+    // Retourner 500 pour que FedaPay réessaie (erreur réelle de traitement)
+    return res.status(500).json({ success: false, error: 'Erreur serveur' });
   }
 });
 
@@ -3271,6 +3284,103 @@ app.get('/api/savings/deposit-status', async (req, res) => {
   } catch (error) {
     console.error('[SAVINGS_DEPOSIT_STATUS] ❌ Erreur:', error);
     return res.status(500).json({ success: false, error: 'Erreur serveur' });
+  }
+});
+
+// Route pour traitement manuel d'un plan épargne (fallback si webhook manqué)
+app.post('/api/savings/process-plan-manually', requireAuth, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { transaction_reference, fixed_amount, frequency_days, duration_months } = req.body;
+
+    if (!transaction_reference) {
+      return res.status(400).json({ success: false, error: 'transaction_reference requis' });
+    }
+
+    // Plan déjà créé ? (idempotence)
+    const { data: existing } = await supabase
+      .from('savings_plans')
+      .select('*')
+      .eq('transaction_reference', transaction_reference)
+      .maybeSingle();
+
+    if (existing) {
+      console.log('[MANUAL_SAVINGS] Plan déjà existant:', existing.id);
+      return res.json({ success: true, plan: existing, alreadyExisted: true });
+    }
+
+    // Vérifier la transaction dans FedaPay
+    const fedapayBaseUrl = process.env.FEDAPAY_ENVIRONMENT === 'live'
+      ? 'https://api.fedapay.com/v1'
+      : 'https://sandbox-api.fedapay.com/v1';
+
+    const txRes = await fetch(`${fedapayBaseUrl}/transactions?filters[reference]=${transaction_reference}`, {
+      headers: { 'Authorization': `Bearer ${process.env.FEDAPAY_SECRET_KEY}` }
+    });
+    const txData = await txRes.json();
+    const tx = txData?.v1?.transactions?.[0] || txData?.transactions?.[0];
+
+    if (!tx || !['approved', 'transferred'].includes(tx.status)) {
+      return res.status(400).json({ success: false, error: 'Transaction non approuvée dans FedaPay' });
+    }
+
+    // Créer le plan
+    const fAmount = parseInt(fixed_amount, 10) || parseInt(tx.custom_metadata?.fixed_amount, 10) || 500;
+    const fDays = parseInt(frequency_days, 10) || parseInt(tx.custom_metadata?.frequency_days, 10) || 10;
+    const fMonths = parseInt(duration_months, 10) || parseInt(tx.custom_metadata?.duration_months, 10) || 3;
+    const totalDepositsRequired = Math.ceil((fMonths * 30) / fDays);
+    const totalAmountTarget = fAmount * totalDepositsRequired;
+    const startDate = new Date();
+    const endDate = new Date();
+    endDate.setMonth(startDate.getMonth() + fMonths);
+
+    const { data: account, error: accErr } = await supabase
+      .from('savings_accounts')
+      .upsert({ user_id: userId, balance: 0, account_creation_fee_paid: true, account_creation_fee_amount: 1000, is_active: true, interest_rate: 5, total_interest_earned: 0 }, { onConflict: 'user_id' })
+      .select().single();
+
+    if (accErr) throw accErr;
+
+    const { data: plan, error: planErr } = await supabase
+      .from('savings_plans')
+      .insert({
+        user_id: userId,
+        savings_account_id: account.id,
+        plan_name: 'Plan Épargne',
+        fixed_amount: fAmount,
+        frequency_days: fDays,
+        duration_months: fMonths,
+        total_deposits_required: totalDepositsRequired,
+        total_amount_target: totalAmountTarget,
+        completed_deposits: 0,
+        current_balance: 0,
+        total_deposited: 0,
+        start_date: startDate.toISOString(),
+        end_date: endDate.toISOString(),
+        next_deposit_date: startDate.toISOString(),
+        status: 'active',
+        completion_percentage: 0,
+        transaction_reference,
+        interest_rate: 5,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString()
+      })
+      .select().single();
+
+    if (planErr) throw planErr;
+
+    // Tracer les frais de création
+    await supabase.from('savings_transactions').insert({
+      user_id: userId, savings_plan_id: plan.id, transaction_type: 'creation_fee',
+      amount: tx.amount || 1000, transaction_reference, status: 'completed',
+      created_at: new Date().toISOString()
+    });
+
+    console.log('[MANUAL_SAVINGS] ✅ Plan créé manuellement:', plan.id);
+    res.json({ success: true, plan });
+  } catch (error) {
+    console.error('[MANUAL_SAVINGS] ❌ Erreur:', error);
+    res.status(500).json({ success: false, error: error.message });
   }
 });
 
