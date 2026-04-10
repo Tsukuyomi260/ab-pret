@@ -289,33 +289,15 @@ const Register = () => {
     switch (currentStep) {
       case 5:
         return (
-          <div className="space-y-6 animate-fade-in-up">
+          <div className="space-y-4">
             {fromCreateAccount && (
-              <div className="bg-green-50 border border-green-200 rounded-lg p-4 mb-6">
-                <div className="flex items-center">
-                  <CheckCircle size={20} className="text-green-600 mr-3" />
-                  <div>
-                    <h4 className="text-sm font-medium text-green-800">
-                      Informations pré-remplies
-                    </h4>
-                    <p className="text-sm text-green-700 mt-1">
-                      Vos informations de base ont été automatiquement remplies depuis la création de votre compte.
-                    </p>
-                  </div>
-                </div>
+              <div className="flex items-center gap-3 p-3 bg-green-50 border border-green-100 rounded-xl text-sm text-green-700 mb-2">
+                <CheckCircle size={16} className="flex-shrink-0" />
+                <span>Informations de base pré-remplies depuis l'étape précédente.</span>
               </div>
             )}
-            
-            <div className="flex items-center space-x-3 mb-6">
-              <div className="w-10 h-10 bg-primary-100 rounded-xl flex items-center justify-center">
-                <User size={20} className="text-primary-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-secondary-900 font-montserrat">
-                Informations personnelles
-              </h3>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                              <div className="relative group">
                  <Input
                    label="Prénom"
@@ -362,7 +344,7 @@ const Register = () => {
                />
              </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                              <div className="relative group">
                  <Input
                    label="Adresse"
@@ -380,7 +362,7 @@ const Register = () => {
                </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <div className="relative group">
                 <Input
                   label="Filière"
@@ -391,7 +373,7 @@ const Register = () => {
                   placeholder="Ex: Informatique"
                   error={errors.filiere}
                   required
-                  className="group-hover:shadow-md transition-all duration-300"
+                  className=""
                 />
                 <GraduationCap size={20} className="absolute right-4 top-12 text-neutral-400 group-hover:text-primary-500 transition-colors duration-300" />
               </div>
@@ -406,7 +388,7 @@ const Register = () => {
                   placeholder="Ex: 2ème année"
                   error={errors.anneeEtude}
                   required
-                  className="group-hover:shadow-md transition-all duration-300"
+                  className=""
                 />
               </div>
               
@@ -431,7 +413,7 @@ const Register = () => {
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="relative group">
                 <Input
                   label="Adresse email (optionnel)"
@@ -441,7 +423,7 @@ const Register = () => {
                   onChange={handleChange}
                   placeholder="votre@email.com (optionnel)"
                   error={errors.email}
-                  className="group-hover:shadow-md transition-all duration-300"
+                  className=""
                 />
                 <Mail size={20} className="absolute right-4 top-12 text-neutral-400 group-hover:text-primary-500 transition-colors duration-300" />
               </div>
@@ -456,13 +438,13 @@ const Register = () => {
                    placeholder="+229 12345678"
                    error={errors.phone}
                    required
-                   className="group-hover:shadow-md transition-all duration-300"
+                   className=""
                  />
                  <Phone size={20} className="absolute right-4 top-12 text-neutral-400 group-hover:text-primary-500 transition-colors duration-300" />
                </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="relative group">
                 <Input
                   label="Mot de passe"
@@ -473,7 +455,7 @@ const Register = () => {
                   placeholder="••••••••"
                   error={errors.password}
                   required
-                  className="group-hover:shadow-md transition-all duration-300"
+                  className=""
                 />
                 <button
                   type="button"
@@ -494,7 +476,7 @@ const Register = () => {
                   placeholder="••••••••"
                   error={errors.confirmPassword}
                   required
-                  className="group-hover:shadow-md transition-all duration-300"
+                  className=""
                 />
                 <Lock size={20} className="absolute right-4 top-12 text-neutral-400 group-hover:text-primary-500 transition-colors duration-300" />
               </div>
@@ -570,17 +552,8 @@ const Register = () => {
 
       case 6:
         return (
-          <div className="space-y-6 animate-fade-in-up">
-            <div className="flex items-center space-x-3 mb-6">
-              <div className="w-10 h-10 bg-secondary-100 rounded-xl flex items-center justify-center">
-                <Shield size={20} className="text-secondary-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-secondary-900 font-montserrat">
-                Informations du témoin
-              </h3>
-            </div>
-
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="relative group">
                 <Input
                   label="Nom complet du témoin"
@@ -591,7 +564,7 @@ const Register = () => {
                   placeholder="Nom et prénom du témoin"
                   error={errors.temoinName}
                   required
-                  className="group-hover:shadow-md transition-all duration-300"
+                  className=""
                 />
               </div>
               
@@ -605,12 +578,12 @@ const Register = () => {
                   placeholder="Ex: Akpakpa, Cotonou"
                   error={errors.temoinQuartier}
                   required
-                  className="group-hover:shadow-md transition-all duration-300"
+                  className=""
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="relative group">
                                  <Input
                    label="Téléphone du témoin"
@@ -621,7 +594,7 @@ const Register = () => {
                    placeholder="+229 12345678"
                    error={errors.temoinPhone}
                    required
-                   className="group-hover:shadow-md transition-all duration-300"
+                   className=""
                  />
                 <Phone size={20} className="absolute right-4 top-12 text-neutral-400 group-hover:text-primary-500 transition-colors duration-300" />
               </div>
@@ -636,7 +609,7 @@ const Register = () => {
                   placeholder="temoins@email.com"
                   error={errors.temoinEmail}
                   required
-                  className="group-hover:shadow-md transition-all duration-300"
+                  className=""
                 />
                 <Mail size={20} className="absolute right-4 top-12 text-neutral-400 group-hover:text-primary-500 transition-colors duration-300" />
               </div>
@@ -679,17 +652,9 @@ const Register = () => {
 
       case 7:
         return (
-          <div className="space-y-6 animate-fade-in-up">
-            <div className="flex items-center space-x-3 mb-6">
-              <div className="w-10 h-10 bg-accent-100 rounded-xl flex items-center justify-center">
-                <Phone size={20} className="text-accent-600" />
-              </div>
-              <h3 className="text-xl font-semibold text-secondary-900 font-montserrat">
-                Contact d'urgence
-              </h3>
-            </div>
+          <div className="space-y-4">
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="relative group">
                 <Input
                   label="Nom complet du contact"
@@ -700,7 +665,7 @@ const Register = () => {
                   placeholder="Nom et prénom"
                   error={errors.emergencyName}
                   required
-                  className="group-hover:shadow-md transition-all duration-300"
+                  className=""
                 />
               </div>
               
@@ -714,12 +679,12 @@ const Register = () => {
                   placeholder="Ex: Parent, Frère, Sœur"
                   error={errors.emergencyRelation}
                   required
-                  className="group-hover:shadow-md transition-all duration-300"
+                  className=""
                 />
               </div>
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="relative group">
                                  <Input
                    label="Téléphone d'urgence"
@@ -730,7 +695,7 @@ const Register = () => {
                    placeholder="+229 12345678"
                    error={errors.emergencyPhone}
                    required
-                   className="group-hover:shadow-md transition-all duration-300"
+                   className=""
                  />
                 <Phone size={20} className="absolute right-4 top-12 text-neutral-400 group-hover:text-primary-500 transition-colors duration-300" />
               </div>
@@ -745,7 +710,7 @@ const Register = () => {
                   placeholder="contact@email.com"
                   error={errors.emergencyEmail}
                   required
-                  className="group-hover:shadow-md transition-all duration-300"
+                  className=""
                 />
                 <Mail size={20} className="absolute right-4 top-12 text-neutral-400 group-hover:text-primary-500 transition-colors duration-300" />
               </div>
@@ -761,7 +726,7 @@ const Register = () => {
                 placeholder="Adresse complète du contact d'urgence"
                 error={errors.emergencyAddress}
                 required
-                className="group-hover:shadow-md transition-all duration-300"
+                className=""
               />
             </div>
           </div>
@@ -769,60 +734,46 @@ const Register = () => {
 
       case 8:
         return (
-          <div className="space-y-6 animate-fade-in-up">
-            <div className="flex items-center space-x-3 mb-6">
-              <div className="w-10 h-10 bg-green-100 rounded-xl flex items-center justify-center">
-                <CheckCircle size={20} className="text-green-600" />
+          <div className="space-y-4">
+            <div className="bg-white border border-slate-200 rounded-xl overflow-hidden">
+              <div className="px-4 py-3 bg-slate-50 border-b border-slate-100">
+                <p className="text-xs font-semibold text-slate-500 uppercase tracking-wide">Récapitulatif</p>
               </div>
-              <h3 className="text-xl font-semibold text-secondary-900 font-montserrat">
-                Validation et création du compte
-              </h3>
-            </div>
-
-            <div className="bg-accent-50 rounded-2xl p-6 space-y-4">
-              <h4 className="font-semibold text-secondary-900 font-montserrat">Récapitulatif de vos informations :</h4>
-              
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
-                <div>
-                  <p className="font-medium text-secondary-900">Informations personnelles :</p>
-                  <p className="text-neutral-600">{formData.firstName} {formData.lastName}</p>
-                  <p className="text-neutral-600">Facebook: {formData.facebookName}</p>
-                  <p className="text-neutral-600">{formData.filiere} - {formData.anneeEtude}</p>
-                  <p className="text-neutral-600">{formData.entite}</p>
+              <div className="grid grid-cols-1 sm:grid-cols-2 divide-y sm:divide-y-0 sm:divide-x divide-slate-100">
+                <div className="divide-y divide-slate-100">
+                  {[
+                    ['Nom', `${formData.firstName} ${formData.lastName}`],
+                    ['Facebook', formData.facebookName],
+                    ['Filière', `${formData.filiere} — ${formData.anneeEtude}`],
+                    ['Entité', formData.entite],
+                    ['Email', formData.email],
+                    ['Téléphone', formData.phone],
+                  ].map(([label, value]) => (
+                    <div key={label} className="flex justify-between items-center px-4 py-2 text-xs">
+                      <span className="text-slate-400">{label}</span>
+                      <span className="text-slate-700 font-medium text-right max-w-[55%] truncate">{value || '—'}</span>
+                    </div>
+                  ))}
                 </div>
-                
-                <div>
-                  <p className="font-medium text-secondary-900">Contact :</p>
-                  <p className="text-neutral-600">{formData.email}</p>
-                  <p className="text-neutral-600">{formData.phone}</p>
-                </div>
-                
-                <div>
-                  <p className="font-medium text-secondary-900">Témoin :</p>
-                  <p className="text-neutral-600">{formData.temoinName}</p>
-                  <p className="text-neutral-600">{formData.temoinQuartier}</p>
-                </div>
-                
-                <div>
-                  <p className="font-medium text-secondary-900">Contact d'urgence :</p>
-                  <p className="text-neutral-600">{formData.emergencyName}</p>
-                  <p className="text-neutral-600">{formData.emergencyRelation}</p>
+                <div className="divide-y divide-slate-100">
+                  {[
+                    ['Témoin', formData.temoinName],
+                    ['Quartier témoin', formData.temoinQuartier],
+                    ['Urgence', formData.emergencyName],
+                    ['Relation', formData.emergencyRelation],
+                    ['Tél. urgence', formData.emergencyPhone],
+                  ].map(([label, value]) => (
+                    <div key={label} className="flex justify-between items-center px-4 py-2 text-xs">
+                      <span className="text-slate-400">{label}</span>
+                      <span className="text-slate-700 font-medium text-right max-w-[55%] truncate">{value || '—'}</span>
+                    </div>
+                  ))}
                 </div>
               </div>
             </div>
-
-            <div className="bg-blue-50 rounded-2xl p-6">
-              <div className="flex items-start space-x-3">
-                <div className="w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                  <span className="text-white text-xs font-bold">i</span>
-                </div>
-                <div>
-                  <p className="font-medium text-blue-900 font-montserrat">Important :</p>
-                  <p className="text-blue-700 text-sm font-montserrat">
-                    Après la création de votre compte, vous recevrez un code OTP par email pour finaliser l'inscription.
-                  </p>
-                </div>
-              </div>
+            <div className="flex items-start gap-3 bg-[#0f2d6b]/5 border border-[#0f2d6b]/10 rounded-xl px-4 py-3 text-sm">
+              <span className="w-5 h-5 bg-[#0f2d6b] rounded-full flex items-center justify-center text-white text-xs font-bold flex-shrink-0 mt-0.5">i</span>
+              <p className="text-[#0f2d6b] text-xs">Après la création de votre compte, vous recevrez un code OTP par email pour finaliser l'inscription.</p>
             </div>
           </div>
         );
@@ -832,134 +783,107 @@ const Register = () => {
     }
   };
 
+  const stepIndex = steps.findIndex(s => s.id === currentStep);
+  const stepLabels = ['Infos personnelles', 'Témoin', 'Contact urgence', 'Validation'];
+
   return (
-    <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 flex items-center justify-center py-12 px-4 sm:px-6 lg:px-8 relative overflow-hidden">
-      <div className="absolute inset-0 overflow-hidden">
-        <div className="absolute -top-40 -right-40 w-80 h-80 bg-gradient-to-br from-primary-400/20 to-secondary-400/20 rounded-full blur-3xl"></div>
-        <div className="absolute -bottom-40 -left-40 w-80 h-80 bg-gradient-to-tr from-accent-400/20 to-primary-400/20 rounded-full blur-3xl"></div>
+    <div className="min-h-screen bg-slate-50 flex flex-col items-center justify-start py-8 px-4">
+
+      {/* Header compact */}
+      <div className="w-full max-w-2xl flex items-center justify-between mb-6">
+        <div className="flex items-center gap-3">
+          <div className="w-9 h-9 bg-white rounded-xl shadow-sm border border-slate-200 p-1 flex items-center justify-center">
+            <img src="/logo-campus-finance.png" alt="AB Campus Finance" className="w-full h-full object-contain" />
+          </div>
+          <span className="text-[#0f2d6b] font-bold text-sm hidden sm:block">AB Campus Finance</span>
+        </div>
+        <p className="text-xs text-slate-500">
+          Étape <span className="font-semibold text-[#0f2d6b]">{stepIndex + 1}</span>/{steps.length} — {stepLabels[stepIndex]}
+        </p>
       </div>
 
-      <div className="max-w-4xl w-full space-y-8 relative z-10">
-        <div className="text-center mb-8 animate-fade-in-up">
-          <div className="flex justify-center mb-6">
-            <div className="bg-white/80 backdrop-blur-sm rounded-2xl p-6 shadow-soft">
-              <Logo size="xl" showText={true} />
-            </div>
-          </div>
-          
-          <h1 className="text-4xl font-bold text-secondary-900 font-montserrat mb-3 bg-gradient-to-r from-primary-600 to-secondary-600 bg-clip-text text-transparent">
-            Créer votre compte étudiant
-          </h1>
-          <p className="text-lg text-neutral-600 font-montserrat max-w-2xl mx-auto">
-            Rejoignez la communauté AB CAMPUS FINANCE et accédez à nos services de prêt étudiant
-          </p>
-        </div>
-
-        <div className="flex justify-center mb-8">
-          <div className="flex items-center space-x-4 bg-white/80 backdrop-blur-sm rounded-2xl p-4 shadow-soft">
-            {steps.map((step, index) => (
-              <div key={step.id} className="flex items-center">
-                <div className={`flex items-center justify-center w-10 h-10 rounded-full border-2 transition-all duration-300 ${
-                  currentStep >= step.id 
-                    ? 'bg-primary-500 border-primary-500 text-white' 
-                    : 'bg-white border-accent-300 text-neutral-400'
+      {/* Progress steps */}
+      <div className="w-full max-w-2xl mb-6">
+        <div className="flex items-center gap-1.5">
+          {steps.map((step, index) => (
+            <React.Fragment key={step.id}>
+              <div className={`flex items-center gap-1.5 flex-shrink-0 transition-all ${currentStep === step.id ? 'opacity-100' : 'opacity-60'}`}>
+                <div className={`w-6 h-6 rounded-full flex items-center justify-center text-xs font-bold transition-all ${
+                  currentStep > step.id ? 'bg-[#e8a020] text-white' :
+                  currentStep === step.id ? 'bg-[#0f2d6b] text-white' :
+                  'bg-slate-200 text-slate-500'
                 }`}>
-                  {currentStep > step.id ? (
-                    <CheckCircle size={20} className="text-white" />
-                  ) : (
-                    <step.icon size={20} />
-                  )}
+                  {currentStep > step.id ? <CheckCircle size={12} /> : stepIndex + 1 === index + 1 ? index + 1 : index + 1}
                 </div>
-                {index < steps.length - 1 && (
-                  <div className={`w-8 h-0.5 mx-2 transition-all duration-300 ${
-                    currentStep > step.id ? 'bg-primary-500' : 'bg-accent-300'
-                  }`}></div>
-                )}
+                <span className="text-xs text-slate-600 hidden sm:block">{stepLabels[index]}</span>
               </div>
-            ))}
+              {index < steps.length - 1 && (
+                <div className={`flex-1 h-0.5 rounded-full transition-all ${currentStep > step.id ? 'bg-[#e8a020]' : 'bg-slate-200'}`} />
+              )}
+            </React.Fragment>
+          ))}
+        </div>
+      </div>
+
+      {/* Carte formulaire */}
+      <div className="w-full max-w-2xl bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+        {/* Titre section */}
+        <div className="px-6 py-4 border-b border-slate-100 flex items-center gap-3">
+          <div className="w-8 h-8 bg-[#0f2d6b]/8 rounded-lg flex items-center justify-center">
+            {React.createElement(steps[stepIndex]?.icon || User, { size: 16, className: 'text-[#0f2d6b]' })}
+          </div>
+          <div>
+            <h2 className="text-base font-semibold text-[#0f2d6b]">{stepLabels[stepIndex]}</h2>
+            <p className="text-xs text-slate-400">Renseignez les champs ci-dessous</p>
           </div>
         </div>
 
-        <div className="bg-white/90 backdrop-blur-sm rounded-3xl shadow-2xl border border-white/20 p-8 lg:p-12">
-          <form onSubmit={handleSubmit} className="space-y-8">
+        <form onSubmit={handleSubmit}>
+          <div className="p-6">
             {errors.general && (
-              <div className="bg-red-50 border border-red-200 text-red-700 px-6 py-4 rounded-2xl font-montserrat animate-fade-in-up">
-                {errors.general}
+              <div className="flex items-start gap-3 bg-red-50 border border-red-100 text-red-700 rounded-xl px-4 py-3 text-sm mb-5">
+                <span className="mt-0.5 flex-shrink-0">⚠</span>
+                <span>{errors.general}</span>
               </div>
             )}
-
             {renderStepContent()}
-
-            <div className="flex justify-between pt-6">
-              {currentStep < 8 ? (
-                <>
-                                      {currentStep > 5 && (
-                    <Button
-                      type="button"
-                      onClick={handlePrevious}
-                      className="flex items-center space-x-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-montserrat px-6 py-3 rounded-xl transition-all duration-300"
-                    >
-                      <ArrowLeft size={20} />
-                      <span>Précédent</span>
-                    </Button>
-                  )}
-
-                  <div className="flex-1"></div>
-
-                  <Button
-                    type="button"
-                    onClick={handleNext}
-                    className="flex items-center space-x-2 bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white font-montserrat px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02]"
-                  >
-                    <span>Suivant</span>
-                    <ArrowRight size={20} />
-                  </Button>
-                </>
-              ) : (
-                <div className="flex items-center space-x-4 w-full">
-                  <Button
-                    type="button"
-                    onClick={handlePrevious}
-                    className="flex items-center space-x-2 bg-neutral-100 hover:bg-neutral-200 text-neutral-700 font-montserrat px-6 py-3 rounded-xl transition-all duration-300 text-sm"
-                  >
-                    <ArrowLeft size={18} />
-                    <span>Précédent</span>
-                  </Button>
-                  
-                  <div className="flex-1"></div>
-                  
-                  <StarBorder
-                    color="#FF6B35"
-                    speed="2s"
-                    thickness={3}
-                    className="w-auto"
-                  >
-                    <Button
-                      type="submit"
-                      loading={loading}
-                      className="bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white font-montserrat px-6 py-3 rounded-xl shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-[1.02] text-sm"
-                    >
-                      {loading ? 'Création...' : 'Créer mon compte'}
-                    </Button>
-                  </StarBorder>
-                </div>
-              )}
-            </div>
-          </form>
-
-          <div className="mt-8 text-center pt-6 border-t border-accent-200">
-            <p className="text-neutral-600 font-montserrat">
-              Déjà un compte ?{' '}
-              <Link 
-                to="/login" 
-                className="text-primary-600 hover:text-primary-700 font-semibold transition-colors duration-300"
-              >
-                Se connecter
-              </Link>
-            </p>
           </div>
-        </div>
+
+          {/* Navigation */}
+          <div className="px-6 pb-6 flex items-center justify-between gap-3 border-t border-slate-100 pt-4">
+            {currentStep > 5 ? (
+              <button type="button" onClick={handlePrevious}
+                className="flex items-center gap-2 px-4 py-2.5 text-sm font-medium text-slate-600 bg-white border border-slate-200 rounded-xl hover:bg-slate-50 transition">
+                <ArrowLeft size={15} /> Précédent
+              </button>
+            ) : <div />}
+
+            {currentStep < 8 ? (
+              <button type="button" onClick={handleNext}
+                className="flex items-center gap-2 px-5 py-2.5 text-sm font-semibold text-white bg-[#0f2d6b] hover:bg-[#0a2255] rounded-xl shadow-md hover:shadow-lg transition ml-auto">
+                Suivant <ArrowRight size={15} />
+              </button>
+            ) : (
+              <button type="submit" disabled={loading}
+                className="flex items-center gap-2 px-6 py-2.5 text-sm font-semibold text-white bg-[#0f2d6b] hover:bg-[#0a2255] rounded-xl shadow-md hover:shadow-lg transition disabled:opacity-50 ml-auto">
+                {loading ? (
+                  <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                  </svg>
+                ) : <CheckCircle size={15} />}
+                {loading ? 'Création...' : 'Créer mon compte'}
+              </button>
+            )}
+          </div>
+        </form>
       </div>
+
+      {/* Lien connexion */}
+      <p className="text-center text-sm text-slate-500 mt-5">
+        Déjà un compte ?{' '}
+        <Link to="/login" className="text-[#0f2d6b] font-semibold hover:underline">Se connecter</Link>
+      </p>
     </div>
   );
 };
