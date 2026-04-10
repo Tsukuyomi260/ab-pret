@@ -1,6 +1,7 @@
 import React, { useRef, useEffect, useState } from "react";
 import { useAuth } from "../../context/AuthContext";
 import { BACKEND_URL } from "../../config/backend";
+import { fetchWithAuth } from "../../utils/fetchWithAuth";
 
 const FedaPayRemboursementButton = ({ loan, onSuccess }) => {
   const buttonRef = useRef(null);
@@ -42,11 +43,8 @@ const FedaPayRemboursementButton = ({ loan, onSuccess }) => {
     try {
       // Appel au backend pour créer la transaction
       const backendUrl = BACKEND_URL;
-      const response = await fetch(`${backendUrl}/api/create-loan-repayment`, {
+      const response = await fetchWithAuth(`${backendUrl}/api/create-loan-repayment`, {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
         body: JSON.stringify({
           user_id: user?.id,
           loan_id: loan.id,
