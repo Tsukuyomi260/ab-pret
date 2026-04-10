@@ -4,6 +4,7 @@ import { ChevronLeft, Wallet, CheckCircle2, Target, Calendar } from 'lucide-reac
 import { useAuth } from '../../context/AuthContext';
 import { BACKEND_URL } from '../../config/backend';
 import { formatCurrency } from '../../utils/helpers';
+import { fetchWithAuth } from '../../utils/fetchWithAuth';
 
 const EpargneHistorique = () => {
   const navigate = useNavigate();
@@ -18,7 +19,7 @@ const EpargneHistorique = () => {
         return;
       }
       try {
-        const res = await fetch(`${BACKEND_URL}/api/savings/history?userId=${user.id}`);
+        const res = await fetchWithAuth(`${BACKEND_URL}/api/savings/history?userId=${user.id}`);
         const data = await res.json();
         if (data.success && Array.isArray(data.plans)) {
           setPlans(data.plans);

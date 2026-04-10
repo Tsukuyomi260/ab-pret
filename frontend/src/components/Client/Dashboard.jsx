@@ -33,7 +33,7 @@ const ClientDashboard = () => {
     const checkPopup = async () => {
       if (user?.id) {
         try {
-          const result = await checkLoyaltyPopup(user.id, false);
+          const result = await checkLoyaltyPopup(user.id);
           if (result.success && result.showPopup) {
             setLoyaltyModalData(result.notification);
             setShowLoyaltyModal(true);

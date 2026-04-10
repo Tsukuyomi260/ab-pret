@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm start:*)",
+      "Bash(PORT=3000 npm start)",
+      "Bash(taskkill /PID 28248 /F)"
+    ]
+  }
+}

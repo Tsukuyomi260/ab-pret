@@ -53,7 +53,7 @@ const AdminDashboard = () => {
   const checkAdminLoyaltyPopup = async () => {
     if (user?.id) {
       try {
-        const result = await checkLoyaltyPopup(user.id, true);
+        const result = await checkLoyaltyPopup(user.id);
         if (result.success && result.showPopup) {
           setLoyaltyModalData(result.notification);
           setShowLoyaltyModal(true);

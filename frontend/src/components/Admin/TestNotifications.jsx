@@ -14,6 +14,7 @@ import {
 import Card from '../UI/Card';
 import Button from '../UI/Button';
 import { getAllUsers } from '../../utils/supabaseAPI';
+import { fetchWithAuth } from '../../utils/fetchWithAuth';
 
 const TestNotifications = () => {
   const [users, setUsers] = useState([]);
@@ -73,11 +74,8 @@ const TestNotifications = () => {
         backendUrl: BACKEND_URL
       });
 
-      const response = await fetch(`${BACKEND_URL}/api/test-loan-notification`, {
+      const response = await fetchWithAuth(`${BACKEND_URL}/api/test-loan-notification`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify({
           userId: selectedUser,
           testType: testType

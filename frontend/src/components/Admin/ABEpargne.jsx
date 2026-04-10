@@ -24,6 +24,7 @@ import {
 import { formatCurrency } from '../../utils/helpers';
 import { supabase } from '../../utils/supabaseClient';
 import { BACKEND_URL } from '../../config/backend';
+import { fetchWithAuth } from '../../utils/fetchWithAuth';
 import toast from 'react-hot-toast';
 
 const ABEpargne = () => {
@@ -227,9 +228,8 @@ const ABEpargne = () => {
       console.log('[ADMIN_AB_EPARGNE] ✅ Approbation retrait:', withdrawal.id);
       const { data: { user: authUser } } = await supabase.auth.getUser();
 
-      const res = await fetch(`${BACKEND_URL}/api/savings/withdrawal-approve`, {
+      const res = await fetchWithAuth(`${BACKEND_URL}/api/savings/withdrawal-approve`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           withdrawalId: withdrawal.id,
           processedBy: authUser?.id || null
@@ -256,9 +256,8 @@ const ABEpargne = () => {
       console.log('[ADMIN_AB_EPARGNE] ❌ Rejet retrait:', withdrawal.id);
       const { data: { user: authUser } } = await supabase.auth.getUser();
 
-      const res = await fetch(`${BACKEND_URL}/api/savings/withdrawal-reject`, {
+      const res = await fetchWithAuth(`${BACKEND_URL}/api/savings/withdrawal-reject`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           withdrawalId: withdrawal.id,
           reason: reason || '',

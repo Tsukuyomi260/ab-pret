@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { BACKEND_URL } from '../config/backend';
 import { registerServiceWorker } from '../utils/serviceWorkerConfig';
+import { fetchWithAuth } from '../utils/fetchWithAuth';
 
 // Utilitaire pour convertir la clé VAPID
 function urlBase64ToUint8Array(base64String) {
@@ -187,9 +188,8 @@ export const usePushNotifications = () => {
 
       // En développement, tester avec le backend
       try {
-        const response = await fetch(`${BACKEND_URL}/api/validate-subscription`, {
+        const response = await fetchWithAuth(`${BACKEND_URL}/api/validate-subscription`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             subscription: subscription,
             userId: user?.id
@@ -235,9 +235,8 @@ export const usePushNotifications = () => {
       console.log('[PUSH HOOK] Nouvel abonnement créé');
 
       // Sauvegarder le nouvel abonnement
-      const saveResponse = await fetch(`${BACKEND_URL}/api/save-subscription`, {
+      const saveResponse = await fetchWithAuth(`${BACKEND_URL}/api/save-subscription`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           subscription: newSubscription,
           userId: user?.id
@@ -269,9 +268,8 @@ export const usePushNotifications = () => {
       }
       
       // En développement seulement, tester l'abonnement en envoyant une notification de test
-      const response = await fetch(`${BACKEND_URL}/api/test-subscription`, {
+      const response = await fetchWithAuth(`${BACKEND_URL}/api/test-subscription`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           subscription: subscription,
           userId: user?.id
@@ -307,9 +305,8 @@ export const usePushNotifications = () => {
       console.log('[PUSH HOOK] Nouvel abonnement créé');
 
       // Sauvegarder le nouvel abonnement
-      const saveResponse = await fetch(`${BACKEND_URL}/api/save-subscription`, {
+      const saveResponse = await fetchWithAuth(`${BACKEND_URL}/api/save-subscription`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           subscription: newSubscription,
           userId: user?.id
@@ -393,12 +390,11 @@ export const usePushNotifications = () => {
         userId: user?.id
       });
       
-      const response = await fetch(`${BACKEND_URL}/api/save-subscription`, {
+      const response = await fetchWithAuth(`${BACKEND_URL}/api/save-subscription`, {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ 
+        body: JSON.stringify({
           subscription: newSubscription,
-          userId: user?.id 
+          userId: user?.id
         }),
       });
 

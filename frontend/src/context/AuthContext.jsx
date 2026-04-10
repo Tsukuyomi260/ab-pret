@@ -188,20 +188,10 @@ export const AuthProvider = ({ children }) => {
           }
           }
         } else {
-          console.log('[AUTH] Aucune session active');
-          // Essayer de récupérer depuis le cache
-          try {
-            const cached = localStorage.getItem('ab_user_cache');
-            if (cached) {
-              const cachedUser = JSON.parse(cached);
-              if (cachedUser && cachedUser.id) {
-                console.log('[AUTH] Utilisateur récupéré depuis le cache');
-                setUser(cachedUser);
-              }
-            }
-          } catch (cacheError) {
-            console.warn('[AUTH] Erreur lecture cache:', cacheError);
-          }
+          console.log('[AUTH] Aucune session active — nettoyage du cache');
+          localStorage.removeItem('ab_user_cache');
+          localStorage.removeItem('ab_user_cache_time');
+          setUser(null);
         }
 
         // 2. Configurer l'écouteur d'événements
@@ -495,8 +485,7 @@ export const AuthProvider = ({ children }) => {
     signInWithPhoneNumber,
     logout,
     refreshUser,
-    forceRefreshRole,
-    setUser
+    forceRefreshRole
   };
 
   return (

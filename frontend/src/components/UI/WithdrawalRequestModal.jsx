@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { X, CreditCard, User, CheckCircle, AlertCircle } from 'lucide-react';
 import { supabase } from '../../utils/supabaseClient';
 import { formatCurrency } from '../../utils/helpers';
+import { fetchWithAuth } from '../../utils/fetchWithAuth';
 
 const WithdrawalRequestModal = ({ plan, onClose, onSuccess }) => {
   const [step, setStep] = useState(1); // 1 = Formulaire, 2 = Confirmation
@@ -82,9 +83,8 @@ const WithdrawalRequestModal = ({ plan, onClose, onSuccess }) => {
       // Notifier l'admin via le backend (notification en base + push) — l'insert côté client est bloqué par RLS
       try {
         const BACKEND_URL = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
-        const notifResponse = await fetch(`${BACKEND_URL}/api/notify-admin-withdrawal`, {
+        const notifResponse = await fetchWithAuth(`${BACKEND_URL}/api/notify-admin-withdrawal`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             withdrawalId: withdrawalData.id,
             clientName: `${plan.user?.first_name} ${plan.user?.last_name}`,

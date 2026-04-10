@@ -1,6 +1,7 @@
 import { supabase, testSupabaseConnection } from './supabaseClient';
 import { sendOTPSMS } from './smsService';
 import { BACKEND_URL } from '../config/backend';
+import { fetchWithAuth } from './fetchWithAuth';
 
 const DEFAULT_PAGE_SIZE = 50;
 
@@ -676,11 +677,8 @@ export const updateUserStatus = async (userId, status) => {
 
 export const deleteUserPermanently = async (userId) => {
   try {
-    const response = await fetch(`${BACKEND_URL}/api/admin/delete-user/${userId}`, {
+    const response = await fetchWithAuth(`${BACKEND_URL}/api/admin/delete-user/${userId}`, {
       method: 'DELETE',
-      headers: {
-        'Content-Type': 'application/json',
-      },
     });
 
     const result = await response.json();
@@ -731,9 +729,8 @@ export const createLoan = async (loanData) => {
           clientName: clientName
         });
         
-        const notificationResponse = await fetch(`${BACKEND_URL}/api/notify-admin-new-loan`, {
+        const notificationResponse = await fetchWithAuth(`${BACKEND_URL}/api/notify-admin-new-loan`, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             loanAmount: data.amount,
             clientName: clientName,
@@ -951,9 +948,8 @@ export const updateLoanStatus = async (loanId, status, adminId = null) => {
 
         // 2. Tenter d'envoyer la notification push (si abonnement disponible)
         try {
-          const notificationResponse = await fetch(`${BACKEND_URL}/api/notify-loan-${action}`, {
+          const notificationResponse = await fetchWithAuth(`${BACKEND_URL}/api/notify-loan-${action}`, {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               userId: data.user_id,
               loanAmount: data.amount,
@@ -1445,9 +1441,9 @@ export const processFedaPayLoanRepayment = async (transactionData) => {
 // ===== LOYALTY SYSTEM =====
 
 // Vérifier si un popup de fidélité doit être affiché
-export const checkLoyaltyPopup = async (userId, isAdmin = false) => {
+export const checkLoyaltyPopup = async (userId) => {
   try {
-    const response = await fetch(`${BACKEND_URL}/api/loyalty-popup-check?userId=${userId}&isAdmin=${isAdmin}`);
+    const response = await fetchWithAuth(`${BACKEND_URL}/api/loyalty-popup-check?userId=${userId}`);
     const data = await response.json();
     
     if (!response.ok) {
@@ -1464,11 +1460,8 @@ export const checkLoyaltyPopup = async (userId, isAdmin = false) => {
 // Réinitialiser le compteur de fidélité et mettre à jour le statut
 export const resetLoyaltyCounter = async (userId) => {
   try {
-    const response = await fetch(`${BACKEND_URL}/api/loyalty-reset-counter`, {
+    const response = await fetchWithAuth(`${BACKEND_URL}/api/loyalty-reset-counter`, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
       body: JSON.stringify({ userId }),
     });
     

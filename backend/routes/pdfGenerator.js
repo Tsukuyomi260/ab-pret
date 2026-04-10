@@ -7,788 +7,352 @@ const { requireAuth } = require('../utils/authMiddleware');
 
 const router = express.Router();
 
-// Configuration Supabase
 const supabaseUrl = process.env.SUPABASE_URL;
 const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 const supabase = createClient(supabaseUrl, supabaseKey);
 
-// Fonction pour formater les montants en FCFA
 const formatAmountFCFA = (amount) => {
-  // Utiliser un formatage simple avec des espaces normaux
   const formatted = parseInt(amount).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ');
   return `${formatted} FCFA`;
 };
 
-// Fonction pour obtenir le texte de durée
 const getDurationText = (days) => {
-  const durations = {
-    5: '5 jours',
-    15: '15 jours', 
-    30: '1 mois',
-    60: '2 mois',
-    90: '3 mois',
-    120: '4 mois',
-    150: '5 mois',
-    180: '6 mois'
-  };
+  const durations = { 5: '5 jours', 15: '15 jours', 30: '1 mois', 60: '2 mois', 90: '3 mois', 120: '4 mois', 150: '5 mois', 180: '6 mois' };
   return durations[days] || `${days} jours`;
 };
 
-// Fonction pour nettoyer le texte des caractères problématiques
 const cleanText = (text) => {
   if (!text) return 'Non renseigne';
-  // Remplacer les caractères problématiques
-  return text
-    .replace(/[^\x20-\x7E\xC0-\xFF]/g, '') // Garder ASCII + Latin-1
-    .replace(/\s+/g, ' ') // Normaliser les espaces
-    .trim();
+  return text.replace(/[^\x20-\x7E\xC0-\xFF]/g, '').replace(/\s+/g, ' ').trim();
 };
 
-// Route pour générer le PDF d'engagement de prêt
-router.post('/generate-loan-pdf', requireAuth, async (req, res) => {
+// ─── Design constants ───────────────────────────────────────────────────────
+const C = {
+  primary:   '#0f2d6b',  // bleu marine
+  accent:    '#e8a020',  // or
+  light:     '#f0f4ff',  // bleu très clair
+  border:    '#c8d4f0',
+  text:      '#1a1a2e',
+  muted:     '#5a6a8a',
+  white:     '#ffffff',
+  rowEven:   '#f7f9ff',
+  rowOdd:    '#ffffff',
+  green:     '#0d6e3f',
+};
+
+/**
+ * Génère un PDF d'engagement complet sur une seule page A4.
+ * @param {Object} opts
+ *   - firstName, lastName, email, phone
+ *   - amount, duration, interestRate, interest, totalAmount, guarantee
+ *   - witnessName, witnessPhone, witnessEmail, witnessAddress
+ *   - refNumber, createdAt
+ */
+function buildPDF(doc, opts) {
+  const {
+    firstName, lastName, email, phone,
+    amount, duration, interestRate, interest, totalAmount, guarantee,
+    witnessName, witnessPhone, witnessEmail, witnessAddress,
+    refNumber, createdAt,
+  } = opts;
+
+  const fullName = `${firstName} ${lastName}`.trim();
+  const PAGE_W = 595;
+  const MARGIN = 38;
+  const COL_W = (PAGE_W - MARGIN * 2 - 12) / 2; // two columns with 12pt gap
+
+  // ── HEADER ──────────────────────────────────────────────────────────────
+  // Dark blue background
+  doc.rect(0, 0, PAGE_W, 88).fill(C.primary);
+
+  // Gold left accent bar
+  doc.rect(0, 0, 6, 88).fill(C.accent);
+
+  // Logo
+  const logoPath = path.join(__dirname, '../../frontend/public/logo-campus-finance.png');
+  if (fs.existsSync(logoPath)) {
+    doc.image(logoPath, MARGIN, 14, { width: 52, height: 52 });
+  } else {
+    doc.roundedRect(MARGIN, 14, 52, 52, 6).fill(C.accent);
+    doc.fontSize(18).fill(C.primary).text('AB', MARGIN + 14, 30);
+  }
+
+  // Company name
+  doc.fontSize(20).fill(C.white).font('Helvetica-Bold')
+     .text('AB CAMPUS FINANCE', MARGIN + 62, 20, { lineBreak: false });
+  doc.fontSize(9).fill(C.accent).font('Helvetica')
+     .text('Votre succès, notre mission', MARGIN + 62, 44, { lineBreak: false });
+
+  // Ref + Date block (right side)
+  const refX = PAGE_W - MARGIN - 130;
+  doc.roundedRect(refX, 16, 130, 54, 4).fill('rgba(255,255,255,0.08)');
+  doc.fontSize(7).fill(C.accent).font('Helvetica-Bold')
+     .text('RÉFÉRENCE', refX + 8, 22);
+  doc.fontSize(10).fill(C.white).font('Helvetica-Bold')
+     .text(`#${refNumber}`, refX + 8, 32);
+  doc.fontSize(7).fill(C.accent).font('Helvetica-Bold')
+     .text('DATE', refX + 8, 47);
+  doc.fontSize(8).fill(C.white).font('Helvetica')
+     .text(createdAt, refX + 8, 57);
+
+  // ── TITLE BAND ──────────────────────────────────────────────────────────
+  doc.rect(0, 88, PAGE_W, 26).fill(C.accent);
+  doc.fontSize(12).fill(C.primary).font('Helvetica-Bold')
+     .text('DOCUMENT D\'ENGAGEMENT DE PRÊT', 0, 96, { align: 'center', width: PAGE_W });
+
+  // ── TWO-COLUMN SECTION ───────────────────────────────────────────────────
+  const colY = 126;
+  const leftX = MARGIN;
+  const rightX = MARGIN + COL_W + 12;
+
+  // Helper: section title
+  const sectionTitle = (title, x, y, w) => {
+    doc.rect(x, y, w, 18).fill(C.primary);
+    doc.fontSize(8).fill(C.white).font('Helvetica-Bold')
+       .text(title, x + 8, y + 5, { width: w - 16 });
+    return y + 18;
+  };
+
+  // Helper: info row inside a column
+  const infoRow = (label, value, x, y, w, even) => {
+    doc.rect(x, y, w, 16).fill(even ? C.rowEven : C.rowOdd);
+    doc.rect(x, y, w, 16).stroke(C.border).lineWidth(0.3);
+    doc.fontSize(7).fill(C.muted).font('Helvetica')
+       .text(label, x + 5, y + 5, { width: w * 0.42, lineBreak: false });
+    doc.fontSize(7.5).fill(C.text).font('Helvetica-Bold')
+       .text(cleanText(String(value)), x + w * 0.44, y + 4.5, { width: w * 0.54, lineBreak: false });
+    return y + 16;
+  };
+
+  // LEFT – Emprunteur
+  let ly = sectionTitle('INFORMATIONS DE L\'EMPRUNTEUR', leftX, colY, COL_W);
+  ly = infoRow('Nom complet', fullName, leftX, ly, COL_W, true);
+  ly = infoRow('Téléphone', phone || 'Non renseigné', leftX, ly, COL_W, false);
+  ly = infoRow('Email', email || 'Non renseigné', leftX, ly, COL_W, true);
+  ly = infoRow('Date de demande', createdAt, leftX, ly, COL_W, false);
+
+  // RIGHT – Prêt
+  let ry = sectionTitle('DÉTAILS DU PRÊT', rightX, colY, COL_W);
+  ry = infoRow('Montant emprunté', formatAmountFCFA(amount), rightX, ry, COL_W, true);
+  ry = infoRow('Durée', getDurationText(duration), rightX, ry, COL_W, false);
+  ry = infoRow('Taux d\'intérêt', `${interestRate}%`, rightX, ry, COL_W, true);
+  ry = infoRow('Intérêts', formatAmountFCFA(interest), rightX, ry, COL_W, false);
+
+  // Total row – highlighted
+  const totalY = ry;
+  doc.rect(rightX, totalY, COL_W, 18).fill(C.primary);
+  doc.fontSize(7).fill(C.accent).font('Helvetica')
+     .text('TOTAL À REMBOURSER', rightX + 5, totalY + 5, { width: COL_W * 0.5, lineBreak: false });
+  doc.fontSize(8.5).fill(C.white).font('Helvetica-Bold')
+     .text(formatAmountFCFA(totalAmount), rightX + COL_W * 0.5, totalY + 4, { width: COL_W * 0.48, lineBreak: false });
+  ry = totalY + 18;
+
+  const afterCols = Math.max(ly, ry) + 10;
+
+  // ── ENGAGEMENT BOX ───────────────────────────────────────────────────────
+  const engY = afterCols;
+  const engH = 50;
+  doc.rect(leftX, engY, PAGE_W - MARGIN * 2, engH).fill(C.light).stroke(C.border).lineWidth(0.4);
+  doc.rect(leftX, engY, 4, engH).fill(C.accent);
+  doc.fontSize(7).fill(C.muted).font('Helvetica-Bold')
+     .text('CONDITIONS D\'ENGAGEMENT', leftX + 12, engY + 6);
+  const engText = `Je soussigné(e), ${fullName}, reconnais avoir reçu ${formatAmountFCFA(amount)} d'AB Campus Finance et m'engage à rembourser ${formatAmountFCFA(totalAmount)} dans un délai de ${getDurationText(duration)} à compter de la date d'approbation. En cas de retard, une pénalité de 2% tous les 5 jours sera appliquée sur le montant restant dû.`;
+  doc.fontSize(7.5).fill(C.text).font('Helvetica')
+     .text(engText, leftX + 12, engY + 17, { width: PAGE_W - MARGIN * 2 - 20, align: 'justify' });
+
+  // ── GARANTIE + TÉMOIN (side by side) ─────────────────────────────────────
+  const gtY = engY + engH + 8;
+
+  // Garantie (left)
+  if (guarantee) {
+    let gy = sectionTitle('GARANTIE', leftX, gtY, COL_W);
+    gy = infoRow('Objet', guarantee, leftX, gy, COL_W, true);
+  }
+
+  // Témoin (right)
+  let ty = sectionTitle('INFORMATIONS DU TÉMOIN', rightX, gtY, COL_W);
+  ty = infoRow('Nom', witnessName || 'Non renseigné', rightX, ty, COL_W, true);
+  ty = infoRow('Téléphone', witnessPhone || 'Non renseigné', rightX, ty, COL_W, false);
+  ty = infoRow('Email', witnessEmail || 'Non renseigné', rightX, ty, COL_W, true);
+  ty = infoRow('Adresse', witnessAddress || 'Non renseigné', rightX, ty, COL_W, false);
+
+  const afterGT = Math.max(gtY + (guarantee ? 34 : 18), ty) + 10;
+
+  // ── SIGNATURES ───────────────────────────────────────────────────────────
+  const sigY = afterGT;
+  const sigW = (PAGE_W - MARGIN * 2 - 20) / 3;
+  const sigTitles = ['L\'emprunteur', 'Le témoin', 'Le prêteur'];
+  const sigNames  = [fullName, witnessName || '—', 'AB Campus Finance'];
+
+  sigTitles.forEach((title, i) => {
+    const sx = leftX + i * (sigW + 10);
+    doc.rect(sx, sigY, sigW, 56).fill(C.rowEven).stroke(C.border).lineWidth(0.3);
+    doc.rect(sx, sigY, sigW, 14).fill(C.primary);
+    doc.fontSize(7).fill(C.white).font('Helvetica-Bold')
+       .text(title, sx, sigY + 4, { width: sigW, align: 'center' });
+    // Signature line
+    doc.moveTo(sx + 14, sigY + 42).lineTo(sx + sigW - 14, sigY + 42)
+       .strokeColor(C.border).lineWidth(0.8).stroke();
+    doc.fontSize(7).fill(C.muted).font('Helvetica')
+       .text(sigNames[i], sx, sigY + 45, { width: sigW, align: 'center' });
+  });
+
+  // ── FOOTER ───────────────────────────────────────────────────────────────
+  const footerY = 800;
+  doc.rect(0, footerY, PAGE_W, 42).fill(C.primary);
+  doc.rect(0, footerY, PAGE_W, 2).fill(C.accent);
+
+  doc.fontSize(8).fill(C.white).font('Helvetica-Bold')
+     .text('AB Campus Finance', leftX, footerY + 8);
+  doc.fontSize(7).fill(C.accent).font('Helvetica')
+     .text('+229 53463606  |  abpret51@gmail.com', leftX, footerY + 20);
+
+  doc.fontSize(7).fill(C.muted).font('Helvetica')
+     .text('Document généré automatiquement — Valide pour la durée du prêt', 0, footerY + 28, { align: 'center', width: PAGE_W });
+}
+
+// ─── Route preview (avant soumission) ────────────────────────────────────────
+router.post('/generate-preview-pdf', requireAuth, async (req, res) => {
   try {
-    const { userId, loanData } = req.body;
-
-    if (!userId || !loanData) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'userId et loanData sont requis' 
-      });
+    const { user, loan, calculation } = req.body;
+    if (!user || !loan || !calculation) {
+      return res.status(400).json({ success: false, error: 'Données manquantes' });
     }
 
-    console.log('[PDF] Génération du PDF pour l\'utilisateur:', userId);
-    console.log('[PDF] Données du prêt:', loanData);
-
-    // Récupérer les données complètes de l'utilisateur
-    const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', userId)
-      .single();
-
-    if (userError || !userData) {
-      console.error('[PDF] Erreur récupération utilisateur:', userError);
-      return res.status(404).json({ 
-        success: false, 
-        error: 'Utilisateur non trouvé' 
-      });
-    }
-
-    // Créer le document PDF
-    const doc = new PDFDocument({
-      size: 'A4',
-      margins: {
-        top: 50,
-        bottom: 50,
-        left: 50,
-        right: 50
-      }
-    });
-
-    // Configuration des couleurs inspirées de la facture
-    const primaryColor = '#1e3a8a'; // Bleu foncé (comme la facture)
-    const accentColor = '#f59e0b'; // Jaune/or (comme la facture)
-    const textColor = '#374151'; // Gris foncé
-    const lightGray = '#f3f4f6'; // Gris clair
-
-    // Variables pour les données
-    const clientName = `${userData.first_name || 'Prénom'} ${userData.last_name || 'Nom'}`.trim();
-    const filiere = userData.filiere || 'Non spécifiée';
-    const anneeEtude = userData.annee_etude || 'Non spécifiée';
-    const montantPret = formatAmountFCFA(loanData.amount);
-    const dureePret = getDurationText(loanData.duration_months);
-    const tauxInteret = `${loanData.interest_rate}%`;
-    const dateEmprunt = new Date().toLocaleDateString('fr-FR', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric'
-    });
-
-    // ===== EN-TÊTE INSPIRÉ DE LA FACTURE =====
-    
-    // Fond bleu foncé pour l'en-tête (comme la facture)
-    doc.rect(0, 0, 595, 80)
-       .fill(primaryColor);
-
-    // Logo AB Campus Finance
-    try {
-      const logoPath = path.join(__dirname, '../../frontend/public/logo-campus-finance.png');
-      if (fs.existsSync(logoPath)) {
-        doc.image(logoPath, 50, 20, { width: 40, height: 40 });
-      } else {
-        // Fallback si le logo n'existe pas
-        doc.rect(50, 20, 40, 40)
-           .fill('#ffffff')
-           .stroke(primaryColor);
-        doc.fontSize(16)
-           .fill(primaryColor)
-           .text('AB', 70, 35, { align: 'center' });
-      }
-    } catch (error) {
-      console.error('[PDF] Erreur chargement logo:', error);
-      // Fallback en cas d'erreur
-      doc.rect(50, 20, 40, 40)
-         .fill('#ffffff')
-         .stroke(primaryColor);
-      doc.fontSize(16)
-         .fill(primaryColor)
-         .text('AB', 70, 35, { align: 'center' });
-    }
-
-    // Nom de l'entreprise
-    doc.fontSize(24)
-       .fill('#ffffff')
-       .text('AB CAMPUS FINANCE', 120, 25);
-
-    // Sous-titre
-    doc.fontSize(14)
-       .fill('#ffffff')
-       .text('ENGAGEMENT DE PRÊT', 120, 50);
-
-    // Forme décorative jaune (inspirée de la facture)
-    doc.save();
-    doc.moveTo(450, 0)
-       .lineTo(595, 0)
-       .lineTo(595, 80)
-       .lineTo(520, 80)
-       .fill(accentColor);
-    doc.restore();
-
-    // Numéro et date (comme la facture)
-    doc.fontSize(12)
-       .fill('#ffffff')
-       .text(`N° ${Date.now().toString().slice(-6)}`, 450, 30)
-       .text(`Date: ${dateEmprunt}`, 450, 50);
-
-    // ===== SECTION INFORMATIONS CLIENT =====
-    
-    let yPosition = 120;
-
-    // Titre de section avec fond jaune
-    doc.rect(50, yPosition, 495, 25)
-       .fill(accentColor);
-    
-    doc.fontSize(16)
-       .fill('#ffffff')
-       .text('INFORMATIONS CLIENT', 60, yPosition + 8);
-
-    yPosition += 40;
-
-    // Informations du client
-    const clientInfo = [
-      { label: 'Nom complet', value: clientName },
-      { label: 'Filière', value: filiere },
-      { label: 'Année d\'étude', value: anneeEtude },
-      { label: 'Téléphone', value: userData.phone || 'Non spécifié' },
-      { label: 'Email', value: userData.email || 'Non spécifié' }
-    ];
-
-    clientInfo.forEach((info, index) => {
-      const x = 50 + (index % 2) * 250;
-      const y = yPosition + Math.floor(index / 2) * 25;
-      
-      doc.fontSize(10)
-         .fill(textColor)
-         .text(`${info.label}:`, x, y)
-         .text(info.value, x + 80, y);
-    });
-
-    yPosition += 80;
-
-    // ===== SECTION DÉTAILS DU PRÊT =====
-    
-    // Titre de section avec fond jaune
-    doc.rect(50, yPosition, 495, 25)
-       .fill(accentColor);
-    
-    doc.fontSize(16)
-       .fill('#ffffff')
-       .text('DÉTAILS DU PRÊT', 60, yPosition + 8);
-
-    yPosition += 40;
-
-    // Tableau des détails du prêt
-    const loanDetails = [
-      { label: 'Montant emprunté', value: montantPret },
-      { label: 'Durée du prêt', value: dureePret },
-      { label: 'Taux d\'intérêt', value: tauxInteret },
-      { label: 'Date d\'emprunt', value: dateEmprunt },
-      { label: 'Statut', value: 'En attente' }
-    ];
-
-    // En-tête du tableau
-    doc.rect(50, yPosition, 495, 20)
-       .fill(lightGray)
-       .stroke(textColor);
-
-    doc.fontSize(12)
-       .fill(textColor)
-       .text('DÉTAIL', 60, yPosition + 6)
-       .text('VALEUR', 350, yPosition + 6);
-
-    yPosition += 25;
-
-    // Lignes du tableau
-    loanDetails.forEach((detail, index) => {
-      const bgColor = index % 2 === 0 ? '#ffffff' : lightGray;
-      
-      doc.rect(50, yPosition, 495, 20)
-         .fill(bgColor)
-         .stroke(textColor);
-
-      doc.fontSize(10)
-         .fill(textColor)
-         .text(detail.label, 60, yPosition + 6)
-         .text(detail.value, 350, yPosition + 6);
-
-      yPosition += 20;
-    });
-
-    yPosition += 30;
-
-    // ===== SECTION ENGAGEMENT =====
-    
-    // Titre de section avec fond jaune
-    doc.rect(50, yPosition, 495, 25)
-       .fill(accentColor);
-    
-    doc.fontSize(16)
-       .fill('#ffffff')
-       .text('ENGAGEMENT DE REMBOURSEMENT', 60, yPosition + 8);
-
-    yPosition += 40;
-
-    // Texte d'engagement
-    const engagementText = [
-      `Je soussigné(e) ${clientName}, étudiant(e) en ${filiere} en ${anneeEtude},`,
-      `reconnais avoir reçu un prêt de ${montantPret} de la part de AB Campus Finance,`,
-      `à rembourser avant ${dureePret}.`,
-      '',
-      'En cas de retard de paiement, une pénalité de 2% par jour sera appliquée.',
-      'Cette pénalité s\'accumule quotidiennement jusqu\'au remboursement complet.'
-    ];
-
-    engagementText.forEach((line, index) => {
-      if (line === '') {
-        yPosition += 10;
-      } else {
-        doc.fontSize(11)
-           .fill(textColor)
-           .text(line, 60, yPosition);
-        yPosition += 20;
-      }
-    });
-
-    yPosition += 30;
-
-    // ===== PIED DE PAGE =====
-    
-    // Ajouter un espace avant le footer
-    doc.moveDown(3);
-    
-    // Position du footer basée sur la position actuelle
-    const footerY = doc.y;
-    
-    // Fond bleu foncé pour le pied de page
-    doc.rect(0, footerY, 595, 50)
-       .fill(primaryColor);
-
-    // Informations de contact
-    doc.fontSize(10)
-       .fill('#ffffff')
-       .text('AB Campus Finance', 50, footerY + 10)
-       .text('Téléphone: +229 53463606', 50, footerY + 25)
-       .text('Email: abpret51@gmail.com', 50, footerY + 40);
-
-    // Mention de validité
-    doc.fontSize(9)
-       .fill('#ffffff')
-       .text('Document généré automatiquement - Valide pour la durée du prêt', 300, footerY + 25);
-
-    // Finaliser le PDF
+    const doc = new PDFDocument({ size: 'A4', margin: 0, autoFirstPage: true });
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename="engagement_pret_${clientName.replace(/\s+/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf"`);
-
+    res.setHeader('Content-Disposition', 'attachment; filename=engagement-pret-preview.pdf');
     doc.pipe(res);
-    doc.end();
 
-    console.log('[PDF] PDF généré avec succès pour:', clientName);
-
-  } catch (error) {
-    console.error('[PDF] Erreur lors de la génération du PDF:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Erreur lors de la génération du PDF' 
+    buildPDF(doc, {
+      firstName: user.first_name,
+      lastName:  user.last_name,
+      email:     user.email,
+      phone:     user.phone_number,
+      amount:      loan.amount,
+      duration:    loan.duration,
+      interestRate: loan.interest_rate,
+      interest:    calculation.interest,
+      totalAmount: calculation.totalAmount,
+      guarantee:   loan.guarantee,
+      witnessName:    user.temoin_name,
+      witnessPhone:   user.temoin_phone,
+      witnessEmail:   user.temoin_email,
+      witnessAddress: user.temoin_quartier,
+      refNumber: `PREV-${Date.now().toString().slice(-6)}`,
+      createdAt: new Date().toLocaleDateString('fr-FR'),
     });
+
+    doc.end();
+  } catch (error) {
+    console.error('[PDF PREVIEW] Erreur:', error.message);
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, error: `Erreur génération PDF: ${error.message}` });
+    }
   }
 });
 
-// Route pour générer le PDF par ID de prêt
+// ─── Route par ID de prêt (après approbation) ────────────────────────────────
 router.get('/generate-pdf/:loanId', requireAuth, async (req, res) => {
   try {
     const { loanId } = req.params;
 
-    if (!loanId) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'ID de prêt requis' 
-      });
-    }
-
-    console.log('[PDF] Génération du PDF pour le prêt:', loanId);
-
-    // Récupérer les données du prêt
     const { data: loanData, error: loanError } = await supabase
-      .from('loans')
-      .select('*')
-      .eq('id', loanId)
-      .single();
-
+      .from('loans').select('*').eq('id', loanId).single();
     if (loanError || !loanData) {
-      console.error('[PDF] Erreur récupération prêt:', loanError);
-      return res.status(404).json({ 
-        success: false, 
-        error: 'Prêt non trouvé' 
-      });
+      return res.status(404).json({ success: false, error: 'Prêt non trouvé' });
     }
 
-    // Récupérer les données de l'utilisateur
     const { data: userData, error: userError } = await supabase
-      .from('users')
-      .select('*')
-      .eq('id', loanData.user_id)
-      .single();
-
+      .from('users').select('*').eq('id', loanData.user_id).single();
     if (userError || !userData) {
-      console.error('[PDF] Erreur récupération utilisateur:', userError);
-      return res.status(404).json({ 
-        success: false, 
-        error: 'Utilisateur non trouvé' 
-      });
+      return res.status(404).json({ success: false, error: 'Utilisateur non trouvé' });
     }
 
-    // Créer le document PDF
-    const doc = new PDFDocument({ size: 'A4', margin: 50 });
-    
-    // Configuration de la réponse HTTP
+    const interest = Math.round(loanData.amount * (loanData.interest_rate / 100));
+    const totalAmount = loanData.amount + interest;
+
+    const doc = new PDFDocument({ size: 'A4', margin: 0, autoFirstPage: true });
     res.setHeader('Content-Type', 'application/pdf');
     res.setHeader('Content-Disposition', `attachment; filename=engagement-pret-${loanId}.pdf`);
-    
-    // Pipe le PDF vers la réponse
     doc.pipe(res);
 
-    // Couleurs
-    const primaryColor = '#1e40af'; // Bleu
-    const secondaryColor = '#64748b'; // Gris
-    const accentColor = '#f59e0b'; // Orange
-
-    // Logo AB Campus Finance
-    try {
-      const logoPath = path.join(__dirname, '../../frontend/public/logo-campus-finance.png');
-      if (fs.existsSync(logoPath)) {
-        doc.image(logoPath, 50, 20, { width: 40, height: 40 });
-      } else {
-        // Fallback si le logo n'existe pas
-        doc.rect(50, 20, 40, 40)
-           .fill('#ffffff')
-           .stroke(primaryColor);
-        doc.fontSize(16)
-           .fill(primaryColor)
-           .text('AB', 70, 35, { align: 'center' });
-      }
-    } catch (error) {
-      console.error('[PDF] Erreur chargement logo:', error);
-      // Fallback en cas d'erreur
-      doc.rect(50, 20, 40, 40)
-         .fill('#ffffff')
-         .stroke(primaryColor);
-      doc.fontSize(16)
-         .fill(primaryColor)
-         .text('AB', 70, 35, { align: 'center' });
-    }
-
-    // En-tête
-    doc.fontSize(24)
-       .fillColor(primaryColor)
-       .text('AB CAMPUS FINANCE', 100, 30, { align: 'left' });
-    
-    doc.fontSize(10)
-       .fillColor(secondaryColor)
-       .text('Votre succès, notre mission', 100, 55, { align: 'left' });
-
-    // Ligne de séparation
-    doc.moveTo(50, 80)
-       .lineTo(545, 80)
-       .strokeColor(primaryColor)
-       .lineWidth(2)
-       .stroke();
-
-    // Titre du document
-    doc.moveDown(3);
-    doc.fontSize(20)
-       .fillColor(primaryColor)
-       .text('DOCUMENT D\'ENGAGEMENT DE PRÊT', { align: 'center' });
-    
-    doc.moveDown(2);
-
-    // Informations de l'emprunteur
-    doc.fontSize(14)
-       .fillColor(primaryColor)
-       .text('INFORMATIONS DE L\'EMPRUNTEUR', { underline: true });
-    
-    doc.moveDown(0.5);
-    doc.fontSize(11)
-       .fillColor('#000000')
-       .text(`Nom complet: ${userData.first_name} ${userData.last_name}`)
-       .text(`Email: ${userData.email}`)
-       .text(`Téléphone: ${userData.phone_number || 'Non renseigné'}`)
-       .text(`Date de demande: ${new Date(loanData.created_at).toLocaleDateString('fr-FR')}`);
-
-    doc.moveDown(1.5);
-
-    // Détails du prêt
-    doc.fontSize(14)
-       .fillColor(primaryColor)
-       .text('DÉTAILS DU PRÊT', { underline: true });
-    
-    doc.moveDown(0.5);
-    
-    const interestAmount = Math.round(loanData.amount * (loanData.interest_rate / 100));
-    const totalAmount = loanData.amount + interestAmount;
-    
-    doc.fontSize(11)
-       .fillColor('#000000')
-       .text(`Montant emprunté: ${formatAmountFCFA(loanData.amount)}`)
-       .text(`Durée: ${getDurationText(loanData.duration)}`)
-       .text(`Taux d'intérêt: ${loanData.interest_rate}%`)
-       .text(`Intérêts: ${formatAmountFCFA(interestAmount)}`)
-       .text(`Montant total à rembourser: ${formatAmountFCFA(totalAmount)}`, { 
-         bold: true, 
-         fillColor: accentColor 
-       });
-
-    doc.moveDown(1.5);
-
-    // Conditions d'engagement
-    doc.fontSize(14)
-       .fillColor(primaryColor)
-       .text('CONDITIONS D\'ENGAGEMENT', { underline: true });
-    
-    doc.moveDown(0.5);
-    doc.fontSize(10)
-       .fillColor('#000000')
-       .text('Je soussigné(e), ' + userData.first_name + ' ' + userData.last_name + ', reconnais avoir reçu la somme de ' + formatAmountFCFA(loanData.amount) + ' de la part d\'AB Campus Finance.', {
-         align: 'justify'
-       });
-    
-    doc.moveDown(0.5);
-    doc.text('Je m\'engage à rembourser la totalité du prêt, soit ' + formatAmountFCFA(totalAmount) + ' (capital + intérêts), dans un délai de ' + getDurationText(loanData.duration) + ' à compter de ce jour.', {
-      align: 'justify'
+    buildPDF(doc, {
+      firstName: userData.first_name,
+      lastName:  userData.last_name,
+      email:     userData.email,
+      phone:     userData.phone_number,
+      amount:      loanData.amount,
+      duration:    loanData.duration || loanData.duration_months,
+      interestRate: loanData.interest_rate,
+      interest,
+      totalAmount,
+      guarantee:   loanData.guarantee,
+      witnessName:    userData.temoin_name,
+      witnessPhone:   userData.temoin_phone,
+      witnessEmail:   userData.temoin_email,
+      witnessAddress: userData.temoin_quartier,
+      refNumber: loanId.toString().slice(-6).toUpperCase(),
+      createdAt: new Date(loanData.created_at).toLocaleDateString('fr-FR'),
     });
 
-    doc.moveDown(0.5);
-    doc.text('En cas de retard de paiement, des pénalités de 2% par jour seront appliquées sur le montant restant dû.', {
-      align: 'justify'
-    });
-
-    doc.moveDown(1.5);
-
-    // Garantie
-    if (loanData.guarantee) {
-      doc.fontSize(14)
-         .fillColor(primaryColor)
-         .text('GARANTIE', { underline: true });
-      
-      doc.moveDown(0.5);
-      doc.fontSize(10)
-         .fillColor('#000000')
-         .text(`Garantie fournie: ${cleanText(loanData.guarantee)}`);
-      
-      doc.moveDown(1.5);
-    }
-
-    // Signatures
-    doc.fontSize(14)
-       .fillColor(primaryColor)
-       .text('SIGNATURES', { underline: true });
-    
-    doc.moveDown(2);
-    
-    const signatureY = doc.y;
-    
-    // Signature emprunteur
-    doc.fontSize(10)
-       .fillColor('#000000')
-       .text('L\'emprunteur', 80, signatureY);
-    doc.text('(Signature)', 80, signatureY + 15);
-    doc.moveTo(80, signatureY + 60)
-       .lineTo(230, signatureY + 60)
-       .stroke();
-    doc.text(userData.first_name + ' ' + userData.last_name, 80, signatureY + 65);
-    
-    // Signature prêteur
-    doc.text('Le prêteur', 350, signatureY);
-    doc.text('(Signature)', 350, signatureY + 15);
-    doc.moveTo(350, signatureY + 60)
-       .lineTo(500, signatureY + 60)
-       .stroke();
-    doc.text('AB Campus Finance', 350, signatureY + 65);
-
-    // Footer
-    doc.moveDown(3);
-    const footerY = doc.y;
-    doc.rect(0, footerY, 595, 50)
-       .fill(primaryColor);
-    
-    doc.fontSize(10)
-       .fill('#ffffff')
-       .text('AB Campus Finance', 50, footerY + 10)
-       .text('Téléphone: +229 53463606', 50, footerY + 25)
-       .text('Email: abpret51@gmail.com', 50, footerY + 40);
-    
-    doc.fontSize(9)
-       .fill('#ffffff')
-       .text('Document généré automatiquement - Valide pour la durée du prêt', 300, footerY + 25);
-
-    // Finaliser le PDF
     doc.end();
-
   } catch (error) {
-    console.error('[PDF] Erreur lors de la génération du PDF:', error);
-    res.status(500).json({ 
-      success: false, 
-      error: 'Erreur lors de la génération du PDF' 
-    });
+    console.error('[PDF] Erreur:', error.message);
+    if (!res.headersSent) {
+      res.status(500).json({ success: false, error: `Erreur génération PDF: ${error.message}` });
+    }
   }
 });
 
-// Route pour générer un PDF preview (avant soumission)
-router.post('/generate-preview-pdf', requireAuth, async (req, res) => {
+// ─── Route generate-loan-pdf (admin/legacy) ──────────────────────────────────
+router.post('/generate-loan-pdf', requireAuth, async (req, res) => {
   try {
-    const { user, loan, calculation } = req.body;
-
-    if (!user || !loan || !calculation) {
-      return res.status(400).json({ 
-        success: false, 
-        error: 'Données manquantes' 
-      });
+    const { userId, loanData } = req.body;
+    if (!userId || !loanData) {
+      return res.status(400).json({ success: false, error: 'userId et loanData requis' });
     }
 
-    console.log('[PDF PREVIEW] Génération du PDF preview');
-    console.log('[PDF PREVIEW] User data:', user);
-    
-    // Récupérer les infos du témoin depuis l'utilisateur
-    const witness = {
-      name: user.temoin_name || 'Non renseigné',
-      phone: user.temoin_phone || 'Non renseigné',
-      address: user.temoin_quartier || 'Non renseigné',
-      email: user.temoin_email || 'Non renseigné'
-    };
+    const { data: userData, error: userError } = await supabase
+      .from('users').select('*').eq('id', userId).single();
+    if (userError || !userData) {
+      return res.status(404).json({ success: false, error: 'Utilisateur non trouvé' });
+    }
 
-    // Créer le document PDF
-    const doc = new PDFDocument({ size: 'A4', margin: 50 });
-    
-    // Configuration de la réponse HTTP
+    const interest = Math.round(loanData.amount * ((loanData.interest_rate || 0) / 100));
+    const totalAmount = loanData.amount + interest;
+
+    const doc = new PDFDocument({ size: 'A4', margin: 0, autoFirstPage: true });
     res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader('Content-Disposition', `attachment; filename=engagement-pret-preview.pdf`);
-    
-    // Pipe le PDF vers la réponse
+    res.setHeader('Content-Disposition', `attachment; filename=engagement_pret_${userData.last_name}_${new Date().toISOString().split('T')[0]}.pdf`);
     doc.pipe(res);
 
-    // Couleurs
-    const primaryColor = '#1e40af'; // Bleu
-    const secondaryColor = '#64748b'; // Gris
-    const accentColor = '#f59e0b'; // Orange
+    buildPDF(doc, {
+      firstName: userData.first_name,
+      lastName:  userData.last_name,
+      email:     userData.email,
+      phone:     userData.phone_number,
+      amount:      loanData.amount,
+      duration:    loanData.duration_months || loanData.duration,
+      interestRate: loanData.interest_rate || 0,
+      interest,
+      totalAmount,
+      guarantee:   loanData.guarantee,
+      witnessName:    userData.temoin_name,
+      witnessPhone:   userData.temoin_phone,
+      witnessEmail:   userData.temoin_email,
+      witnessAddress: userData.temoin_quartier,
+      refNumber: `${Date.now().toString().slice(-6)}`,
+      createdAt: new Date().toLocaleDateString('fr-FR'),
+    });
 
-    // Logo AB Campus Finance
-    try {
-      const logoPath = path.join(__dirname, '../../frontend/public/logo-campus-finance.png');
-      if (fs.existsSync(logoPath)) {
-        doc.image(logoPath, 50, 20, { width: 40, height: 40 });
-      } else {
-        doc.rect(50, 20, 40, 40)
-           .fill('#ffffff')
-           .stroke(primaryColor);
-        doc.fontSize(16)
-           .fill(primaryColor)
-           .text('AB', 70, 35, { align: 'center' });
-      }
-    } catch (error) {
-      console.error('[PDF] Erreur chargement logo:', error);
-      doc.rect(50, 20, 40, 40)
-         .fill('#ffffff')
-         .stroke(primaryColor);
-      doc.fontSize(16)
-         .fill(primaryColor)
-         .text('AB', 70, 35, { align: 'center' });
-    }
-
-    // En-tête
-    doc.fontSize(24)
-       .fillColor(primaryColor)
-       .text('AB CAMPUS FINANCE', 100, 30, { align: 'left' });
-    
-    doc.fontSize(10)
-       .fillColor(secondaryColor)
-       .text('Votre succès, notre mission', 100, 55, { align: 'left' });
-
-    // Ligne de séparation
-    doc.moveTo(50, 80)
-       .lineTo(545, 80)
-       .strokeColor(primaryColor)
-       .lineWidth(2)
-       .stroke();
-
-    // Titre du document
-    doc.moveDown(1.5);
-    doc.fontSize(16)
-       .fillColor(primaryColor)
-       .text('DOCUMENT D\'ENGAGEMENT DE PRÊT', { align: 'center' });
-    
-    doc.moveDown(1);
-
-    // Informations de l'emprunteur
-    doc.fontSize(12)
-       .fillColor(primaryColor)
-       .text('INFORMATIONS DE L\'EMPRUNTEUR', { underline: true });
-    
-    doc.moveDown(0.3);
-    doc.fontSize(10)
-       .fillColor('#000000')
-       .text(`Nom complet: ${user.first_name} ${user.last_name}`)
-       .text(`Email: ${user.email}`)
-       .text(`Téléphone: ${user.phone_number || 'Non renseigné'}`)
-       .text(`Date de demande: ${new Date().toLocaleDateString('fr-FR')}`);
-
-    doc.moveDown(0.8);
-
-    // Détails du prêt
-    doc.fontSize(12)
-       .fillColor(primaryColor)
-       .text('DÉTAILS DU PRÊT', { underline: true });
-    
-    doc.moveDown(0.3);
-    
-    doc.fontSize(10)
-       .fillColor('#000000')
-       .text(`Montant emprunté: ${formatAmountFCFA(loan.amount)}`)
-       .text(`Durée: ${getDurationText(loan.duration)}`)
-       .text(`Taux d'intérêt: ${loan.interest_rate}%`)
-       .text(`Intérêts: ${formatAmountFCFA(calculation.interest)}`)
-       .text(`Montant total à rembourser: ${formatAmountFCFA(calculation.totalAmount)}`, { 
-         bold: true, 
-         fillColor: accentColor 
-       });
-
-    doc.moveDown(0.8);
-
-    // Garantie
-    if (loan.guarantee) {
-      doc.fontSize(12)
-         .fillColor(primaryColor)
-         .text('GARANTIE', { underline: true });
-      
-      doc.moveDown(0.3);
-      doc.fontSize(9)
-         .fillColor('#000000')
-         .text(`Garantie: ${cleanText(loan.guarantee)}`);
-      
-      doc.moveDown(0.8);
-    }
-
-    // Conditions d'engagement (version compacte)
-    doc.fontSize(12)
-       .fillColor(primaryColor)
-       .text('CONDITIONS D\'ENGAGEMENT', { underline: true });
-    
-    doc.moveDown(0.3);
-    doc.fontSize(9)
-       .fillColor('#000000')
-       .text('Je soussigné(e), ' + user.first_name + ' ' + user.last_name + ', reconnais avoir reçu ' + formatAmountFCFA(loan.amount) + ' d\'AB Campus Finance et m\'engage à rembourser ' + formatAmountFCFA(calculation.totalAmount) + ' dans un délai de ' + getDurationText(loan.duration) + '. Pénalités: 2%/jour en cas de retard.', {
-         align: 'justify'
-       });
-
-    doc.moveDown(0.8);
-
-    // Informations du témoin
-    doc.fontSize(12)
-       .fillColor(primaryColor)
-       .text('INFORMATIONS DU TÉMOIN', { underline: true });
-    
-    doc.moveDown(0.3);
-    doc.fontSize(9)
-       .fillColor('#000000')
-       .text(`Nom: ${witness.name} | Tél: ${witness.phone} | Email: ${witness.email}`)
-       .text(`Adresse: ${witness.address}`);
-
-    doc.moveDown(0.8);
-
-    // Signatures (version compacte - 3 colonnes)
-    doc.fontSize(12)
-       .fillColor(primaryColor)
-       .text('SIGNATURES', { underline: true });
-    
-    doc.moveDown(0.5);
-    
-    const signatureY = doc.y;
-    
-    // Signature emprunteur (gauche)
-    doc.fontSize(8)
-       .fillColor('#000000')
-       .text('L\'emprunteur', 50, signatureY);
-    doc.moveTo(50, signatureY + 30)
-       .lineTo(150, signatureY + 30)
-       .stroke();
-    doc.fontSize(7).text(user.first_name + ' ' + user.last_name, 50, signatureY + 33);
-    
-    // Signature témoin (centre)
-    doc.fontSize(8).text('Le témoin', 200, signatureY);
-    doc.moveTo(200, signatureY + 30)
-       .lineTo(300, signatureY + 30)
-       .stroke();
-    doc.fontSize(7).text(witness.name, 200, signatureY + 33);
-
-    // Signature prêteur (droite)
-    doc.fontSize(8).text('Le prêteur', 350, signatureY);
-    doc.moveTo(350, signatureY + 30)
-       .lineTo(450, signatureY + 30)
-       .stroke();
-    doc.fontSize(7).text('AB Campus Finance', 350, signatureY + 33);
-
-    // Footer (positionner après les signatures)
-    // Calculer la position après les signatures
-    const footerY = signatureY + 50;
-    doc.rect(0, footerY, 595, 50)
-       .fill(primaryColor);
-    
-    doc.fontSize(10)
-       .fill('#ffffff')
-       .text('AB Campus Finance', 50, footerY + 10)
-       .text('Téléphone: +229 53463606', 50, footerY + 25)
-       .text('Email: abpret51@gmail.com', 50, footerY + 40);
-    
-    doc.fontSize(9)
-       .fill('#ffffff')
-       .text('Document généré automatiquement - Valide pour la durée du prêt', 300, footerY + 25);
-
-    // Finaliser le PDF
     doc.end();
-
   } catch (error) {
-    console.error('[PDF PREVIEW] Erreur complète:', error);
-    console.error('[PDF PREVIEW] Message:', error.message);
-    console.error('[PDF PREVIEW] Stack:', error.stack);
-    
-    // Ne pas envoyer de JSON si les headers ont déjà été envoyés
+    console.error('[PDF] Erreur:', error.message);
     if (!res.headersSent) {
-      res.status(500).json({ 
-        success: false, 
-        error: `Erreur lors de la génération du PDF: ${error.message}` 
-      });
+      res.status(500).json({ success: false, error: `Erreur génération PDF: ${error.message}` });
     }
   }
 });
 
 module.exports = router;
-
-

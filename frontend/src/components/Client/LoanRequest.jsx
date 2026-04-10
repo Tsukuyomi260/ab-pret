@@ -24,6 +24,7 @@ import { formatCurrency } from '../../utils/helpers';
 import { getLoans, getPayments, createLoan } from '../../utils/supabaseAPI';
 import { BACKEND_URL } from '../../config/backend';
 import { supabase } from '../../utils/supabaseClient';
+import { fetchWithAuth } from '../../utils/fetchWithAuth';
 
 const LoanRequest = () => {
   const { user } = useAuth();
@@ -305,11 +306,8 @@ const LoanRequest = () => {
 
       console.log('[PDF] Envoi des données:', pdfData);
       
-      const response = await fetch(`${BACKEND_URL}/api/generate-preview-pdf`, {
+      const response = await fetchWithAuth(`${BACKEND_URL}/api/generate-preview-pdf`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
         body: JSON.stringify(pdfData),
       });
 
@@ -418,7 +416,7 @@ const LoanRequest = () => {
     }
 
     try {
-      const response = await fetch(`${BACKEND_URL}/api/generate-pdf/${loanId}`);
+      const response = await fetchWithAuth(`${BACKEND_URL}/api/generate-pdf/${loanId}`);
 
       if (!response.ok) {
         throw new Error('Erreur lors de la génération du PDF');

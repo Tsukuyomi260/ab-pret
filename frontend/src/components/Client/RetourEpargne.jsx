@@ -96,7 +96,6 @@ const RetourEpargne = () => {
           // Arrêter le polling après 30 tentatives → fallback manuel
           if (newCount >= 30) {
             console.log('[RETOUR_EPARGNE] Timeout polling, tentative traitement manuel...');
-            setMessage && setMessage('Finalisation en cours...');
             try {
               const savedConfig = JSON.parse(sessionStorage.getItem('pending_savings_plan_config') || '{}');
               const manualRes = await fetchWithAuth(`${backendUrl}/api/savings/process-plan-manually`, {
