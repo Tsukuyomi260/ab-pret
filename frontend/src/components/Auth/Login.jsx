@@ -70,136 +70,169 @@ const Login = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-yellow-50 to-slate-100 flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        {/* Card principale */}
-        <div className="bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden">
-          {/* Header avec dégradé */}
-          <div className="bg-gradient-to-r from-slate-700 to-slate-800 p-8 text-center">
-            <div className="w-24 h-24 bg-white rounded-2xl flex items-center justify-center mx-auto mb-4 shadow-lg p-2">
-              <img 
-                src="/logo-campus-finance.png" 
-                alt="AB Campus Finance" 
-                className="w-full h-full object-contain"
-              />
-            </div>
-            <h1 className="text-3xl font-bold text-white font-montserrat mb-2">
-              Bienvenue
-            </h1>
-            <p className="text-slate-300 font-montserrat">
-              Connectez-vous à votre compte
-            </p>
+    <div className="min-h-screen flex">
+
+      {/* ── Panneau gauche – branding (visible desktop uniquement) ── */}
+      <div className="hidden lg:flex lg:w-1/2 bg-[#0f2d6b] flex-col justify-between p-12 relative overflow-hidden">
+        {/* Cercles décoratifs */}
+        <div className="absolute -top-20 -left-20 w-72 h-72 rounded-full bg-white/5" />
+        <div className="absolute bottom-10 -right-16 w-56 h-56 rounded-full bg-[#e8a020]/10" />
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-96 h-96 rounded-full bg-white/3" />
+
+        {/* Logo + nom */}
+        <div className="relative z-10 flex items-center gap-3">
+          <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center shadow-md p-1">
+            <img src="/logo-campus-finance.png" alt="AB Campus Finance" className="w-full h-full object-contain" />
           </div>
+          <span className="text-white font-bold text-lg tracking-wide">AB Campus Finance</span>
+        </div>
 
-          {/* Formulaire */}
-          <div className="p-8">
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Message d'erreur */}
-              {error && (
-                <div className="bg-red-50 border-l-4 border-red-500 p-4 rounded-lg">
-                  <p className="text-sm text-red-700 font-medium">{error}</p>
-                </div>
-              )}
+        {/* Texte central */}
+        <div className="relative z-10 space-y-6">
+          <div className="w-12 h-1 bg-[#e8a020] rounded-full" />
+          <h2 className="text-4xl font-bold text-white leading-snug">
+            La finance étudiante,<br />
+            <span className="text-[#e8a020]">réinventée.</span>
+          </h2>
+          <p className="text-slate-300 text-base leading-relaxed max-w-sm">
+            Prêts rapides, épargne intelligente et suivi en temps réel — tout ce dont vous avez besoin pour réussir.
+          </p>
 
-              {/* Identifiant */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Email ou Téléphone
-                </label>
-                <div className="relative">
-                  {isPhoneNumber(formData.identifier) ? (
-                    <Phone size={18} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  ) : (
-                    <Mail size={18} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  )}
-                  <input
-                    type="text"
-                    name="identifier"
-                    value={formData.identifier}
-                    onChange={handleChange}
-                    placeholder="Entrez votre email ou téléphone"
-                    required
-                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all"
-                  />
+          {/* Trois points clés */}
+          <div className="space-y-3 pt-2">
+            {['Prêts approuvés en 24h', 'Épargne avec intérêts 5%/mois', 'Sécurisé & 100% en ligne'].map((item) => (
+              <div key={item} className="flex items-center gap-3">
+                <div className="w-5 h-5 rounded-full bg-[#e8a020]/20 flex items-center justify-center flex-shrink-0">
+                  <div className="w-2 h-2 rounded-full bg-[#e8a020]" />
                 </div>
+                <span className="text-slate-300 text-sm">{item}</span>
               </div>
-
-              {/* Mot de passe */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Mot de passe
-                </label>
-                <div className="relative">
-                  <Lock size={18} className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" />
-                  <input
-                    type={showPassword ? 'text' : 'password'}
-                    name="password"
-                    value={formData.password}
-                    onChange={handleChange}
-                    placeholder="••••••••"
-                    required
-                    className="w-full pl-12 pr-12 py-3 border border-gray-200 rounded-xl focus:ring-2 focus:ring-yellow-500 focus:border-transparent transition-all"
-                  />
-                  <button
-                    type="button"
-                    onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-4 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
-                  >
-                    {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                  </button>
-                </div>
-              </div>
-
-              {/* Bouton de connexion */}
-              <button
-                type="submit"
-                disabled={loading}
-                className="w-full flex items-center justify-center gap-2 py-3 bg-gradient-to-r from-yellow-500 to-yellow-600 hover:from-yellow-600 hover:to-yellow-700 text-slate-900 rounded-xl font-bold transition-all duration-200 shadow-lg hover:shadow-xl disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                <LogIn size={20} />
-                <span>{loading ? 'Connexion en cours...' : 'Se connecter'}</span>
-              </button>
-
-              {/* Liens */}
-              <div className="space-y-3">
-                <div className="text-center">
-                  <Link
-                    to="/forgot-password"
-                    className="inline-flex items-center gap-2 text-sm text-gray-600 hover:text-yellow-600 font-medium transition-colors"
-                  >
-                    <KeyRound size={16} />
-                    Mot de passe oublié ?
-                  </Link>
-                </div>
-                
-                <div className="relative">
-                  <div className="absolute inset-0 flex items-center">
-                    <div className="w-full border-t border-gray-200"></div>
-                  </div>
-                  <div className="relative flex justify-center text-sm">
-                    <span className="px-4 bg-white text-gray-500">ou</span>
-                  </div>
-                </div>
-
-                <Link
-                  to="/create-account"
-                  className="w-full flex items-center justify-center gap-2 py-3 bg-slate-50 hover:bg-slate-100 text-slate-700 rounded-xl font-medium transition-all duration-200 border border-slate-200"
-                >
-                  <UserPlus size={20} />
-                  <span>Créer un compte</span>
-                </Link>
-              </div>
-            </form>
+            ))}
           </div>
         </div>
 
-        {/* Footer */}
-        <div className="text-center mt-6">
-          <p className="text-sm text-gray-600">
-            © 2025 AB Campus Finance. Tous droits réservés.
-          </p>
-          <p className="text-sm text-primary-600 font-semibold mt-1">
-            Made in Bénin 🇧🇯
+        {/* Footer branding */}
+        <div className="relative z-10">
+          <p className="text-slate-500 text-xs">Made with pride in Bénin 🇧🇯</p>
+        </div>
+      </div>
+
+      {/* ── Panneau droit – formulaire ── */}
+      <div className="w-full lg:w-1/2 flex items-center justify-center bg-slate-50 p-6 sm:p-10">
+        <div className="w-full max-w-sm space-y-8">
+
+          {/* Logo mobile uniquement */}
+          <div className="flex lg:hidden flex-col items-center gap-2">
+            <div className="w-14 h-14 bg-white rounded-2xl shadow-md p-2 flex items-center justify-center">
+              <img src="/logo-campus-finance.png" alt="AB Campus Finance" className="w-full h-full object-contain" />
+            </div>
+            <span className="text-[#0f2d6b] font-bold text-base tracking-wide">AB Campus Finance</span>
+          </div>
+
+          {/* Titre formulaire */}
+          <div>
+            <h1 className="text-2xl font-bold text-[#0f2d6b]">Connexion</h1>
+            <p className="text-slate-500 text-sm mt-1">Entrez vos identifiants pour accéder à votre espace.</p>
+          </div>
+
+          {/* Formulaire */}
+          <form onSubmit={handleSubmit} className="space-y-5">
+
+            {/* Erreur */}
+            {error && (
+              <div className="flex items-start gap-3 bg-red-50 border border-red-100 text-red-700 rounded-xl px-4 py-3 text-sm">
+                <span className="mt-0.5 flex-shrink-0">⚠</span>
+                <span>{error}</span>
+              </div>
+            )}
+
+            {/* Email / Téléphone */}
+            <div className="space-y-1.5">
+              <label className="text-sm font-medium text-slate-700">Email ou Téléphone</label>
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                  {isPhoneNumber(formData.identifier)
+                    ? <Phone size={16} />
+                    : <Mail size={16} />}
+                </span>
+                <input
+                  type="text"
+                  name="identifier"
+                  value={formData.identifier}
+                  onChange={handleChange}
+                  placeholder="vous@email.com ou 97000000"
+                  required
+                  className="w-full pl-10 pr-4 py-2.5 text-sm bg-white border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0f2d6b]/20 focus:border-[#0f2d6b] transition"
+                />
+              </div>
+            </div>
+
+            {/* Mot de passe */}
+            <div className="space-y-1.5">
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-slate-700">Mot de passe</label>
+                <Link to="/forgot-password" className="text-xs text-[#e8a020] hover:underline font-medium">
+                  Oublié ?
+                </Link>
+              </div>
+              <div className="relative">
+                <span className="absolute left-3.5 top-1/2 -translate-y-1/2 text-slate-400">
+                  <Lock size={16} />
+                </span>
+                <input
+                  type={showPassword ? 'text' : 'password'}
+                  name="password"
+                  value={formData.password}
+                  onChange={handleChange}
+                  placeholder="••••••••"
+                  required
+                  className="w-full pl-10 pr-10 py-2.5 text-sm bg-white border border-slate-200 rounded-xl text-slate-800 placeholder-slate-400 focus:outline-none focus:ring-2 focus:ring-[#0f2d6b]/20 focus:border-[#0f2d6b] transition"
+                />
+                <button
+                  type="button"
+                  onClick={() => setShowPassword(!showPassword)}
+                  className="absolute right-3.5 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-600 transition"
+                >
+                  {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                </button>
+              </div>
+            </div>
+
+            {/* Bouton connexion */}
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full flex items-center justify-center gap-2 py-2.5 bg-[#0f2d6b] hover:bg-[#0a2255] text-white rounded-xl text-sm font-semibold shadow-md hover:shadow-lg transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {loading ? (
+                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4z" />
+                </svg>
+              ) : <LogIn size={16} />}
+              <span>{loading ? 'Connexion...' : 'Se connecter'}</span>
+            </button>
+
+            {/* Séparateur */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1 h-px bg-slate-200" />
+              <span className="text-xs text-slate-400">ou</span>
+              <div className="flex-1 h-px bg-slate-200" />
+            </div>
+
+            {/* Créer un compte */}
+            <Link
+              to="/create-account"
+              className="w-full flex items-center justify-center gap-2 py-2.5 bg-white hover:bg-slate-50 text-[#0f2d6b] rounded-xl text-sm font-semibold border border-slate-200 transition-all duration-200"
+            >
+              <UserPlus size={16} />
+              <span>Créer un compte</span>
+            </Link>
+          </form>
+
+          {/* Footer */}
+          <p className="text-center text-xs text-slate-400">
+            © 2025 AB Campus Finance — Tous droits réservés
           </p>
         </div>
       </div>
