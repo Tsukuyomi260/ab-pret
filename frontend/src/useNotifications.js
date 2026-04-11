@@ -94,7 +94,6 @@ export const useNotifications = () => {
 
   const requestPermission = async () => {
     try {
-      // Si la permission n'est pas encore demandée, la demander
       let permission = Notification.permission;
       if (permission === 'default') {
         permission = await Notification.requestPermission();
@@ -108,16 +107,30 @@ export const useNotifications = () => {
           return;
         }
 
-        const currentToken = await getToken(messaging, {
-          vapidKey: VAPID_KEY
-        });
+        // Enregistrer / récupérer le service worker Firebase avant d'appeler getToken()
+        // Sans ça, getToken() échoue avec "no active Service Worker"
+        let swRegistration;
+        try {
+          swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+          await navigator.serviceWorker.ready;
+          console.log('[FCM] Service worker prêt');
+        } catch (swError) {
+          console.warn('[FCM] Erreur enregistrement service worker:', swError);
+          // Tenter quand même avec le service worker existant
+          swRegistration = await navigator.serviceWorker.ready.catch(() => null);
+        }
+
+        const tokenOptions = { vapidKey: VAPID_KEY };
+        if (swRegistration) tokenOptions.serviceWorkerRegistration = swRegistration;
+
+        const currentToken = await getToken(messaging, tokenOptions);
 
         if (currentToken) {
           console.log('[FCM] Token obtenu');
           setToken(currentToken);
           await saveTokenToDatabase(currentToken);
         } else {
-          console.warn('[FCM] Aucun token reçu (vérifiez le service worker firebase-messaging-sw.js)');
+          console.warn('[FCM] Aucun token reçu (vérifiez firebase-messaging-sw.js)');
         }
       } else {
         console.log('[FCM] Permission refusée:', permission);
