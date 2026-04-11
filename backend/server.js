@@ -245,9 +245,10 @@ async function sendFCMNotification(userId, title, body, data = {}) {
       notification: { title, body },
       webpush: {
         notification: {
+          title,
+          body,
           icon: '/logo192.png',
-          badge: '/logo192.png',
-          sound: 'default'
+          badge: '/logo192.png'
         },
         fcmOptions: {
           link: data.url || '/dashboard'
@@ -255,6 +256,8 @@ async function sendFCMNotification(userId, title, body, data = {}) {
       },
       android: {
         notification: {
+          title,
+          body,
           sound: 'default',
           icon: 'logo192',
           channelId: 'ab-campus-finance'
@@ -263,6 +266,7 @@ async function sendFCMNotification(userId, title, body, data = {}) {
       apns: {
         payload: {
           aps: {
+            alert: { title, body },
             sound: 'default'
           }
         }
@@ -4556,9 +4560,9 @@ app.post('/api/notify-admin-new-loan', requireAuth, async (req, res) => {
 
     const adminName = adminData.first_name || 'Admin';
     const amountFormatted = `${parseInt(loanAmount).toLocaleString()} FCFA`;
-    
-    const title = "Nouvelle demande de prêt 📋";
-    const body = `${clientName} a soumis une nouvelle demande de prêt de ${amountFormatted}.`;
+
+    const title = "Nouvelle demande de prêt";
+    const body = `Bonjour ${adminName} ! ${clientName} a soumis une demande de prêt de ${amountFormatted}.`;
     
     // 1. CRÉER LA NOTIFICATION DANS LA BASE DE DONNÉES (TOUJOURS)
     try {
