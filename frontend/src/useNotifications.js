@@ -3,8 +3,31 @@ import { messaging, getToken, onMessage } from './firebase';
 import { useAuth } from './context/AuthContext';
 import { supabase } from './utils/supabaseClient';
 
-// Clé VAPID Firebase : Firebase Console > Paramètres du projet > Cloud Messaging > Certificats Web Push
 const VAPID_KEY = process.env.REACT_APP_FIREBASE_VAPID_KEY;
+
+// Attend que CE service worker spécifique soit actif (pas juste n'importe quel SW)
+function waitForServiceWorkerActive(registration) {
+  return new Promise((resolve, reject) => {
+    if (registration.active) {
+      resolve(registration);
+      return;
+    }
+    const sw = registration.installing || registration.waiting;
+    if (!sw) {
+      reject(new Error('Aucun service worker en cours d\'installation'));
+      return;
+    }
+    sw.addEventListener('statechange', function handler(e) {
+      if (e.target.state === 'activated') {
+        sw.removeEventListener('statechange', handler);
+        resolve(registration);
+      } else if (e.target.state === 'redundant') {
+        sw.removeEventListener('statechange', handler);
+        reject(new Error('Service worker devenu redondant'));
+      }
+    });
+  });
+}
 
 export const useNotifications = () => {
   const { user } = useAuth();
@@ -110,20 +133,15 @@ export const useNotifications = () => {
           return;
         }
 
-        // Enregistrer le service worker Firebase et attendre qu'il soit actif
+        // Enregistrer firebase-messaging-sw.js et attendre QU'IL soit actif
+        // (pas navigator.serviceWorker.ready qui peut retourner le SW CRA)
         let swRegistration = null;
         try {
           const reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-          // Attendre que le SW soit actif (skipWaiting dans le SW accélère ça)
-          if (reg.active) {
-            swRegistration = reg;
-          } else {
-            swRegistration = await navigator.serviceWorker.ready;
-          }
-          console.log('[FCM] Service worker actif');
+          swRegistration = await waitForServiceWorkerActive(reg);
+          console.log('[FCM] Service worker Firebase actif ✅');
         } catch (swError) {
           console.warn('[FCM] Erreur service worker:', swError);
-          swRegistration = await navigator.serviceWorker.ready.catch(() => null);
         }
 
         const tokenOptions = { vapidKey: VAPID_KEY };
