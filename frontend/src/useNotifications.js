@@ -12,24 +12,27 @@ export const useNotifications = () => {
   const [notification, setNotification] = useState(null);
 
   useEffect(() => {
+    console.log('[FCM] useEffect déclenché — user.id:', user?.id);
     if (!user?.id) return;
-    
+
+    if (!messaging) {
+      console.error('[FCM] messaging est null — Firebase Messaging non initialisé');
+      return;
+    }
+
     // Vérifier d'abord si l'utilisateur a déjà un token FCM
     checkExistingTokenAndRequestPermission();
 
-    // Écouter les messages quand l'app est ouverte
-    const unsubscribe = onMessage(messaging, (payload) => {
-      console.log('Message reçu (foreground):', payload);
-      setNotification(payload.notification || null);
-      
-      // ⚠️ NE PAS afficher de notification système quand l'app est ouverte
-      // Le service worker gère déjà les notifications en arrière-plan
-      // Si on affiche aussi ici, on aura des doublons
-      // On met juste à jour l'état pour l'UI, mais pas de Notification() système
-      
-      // Note: Les notifications système sont gérées par le service worker
-      // Ici on met juste à jour l'état React pour afficher dans l'UI de l'app
-    });
+    // Écouter les messages quand l'app est ouverte (foreground)
+    let unsubscribe;
+    try {
+      unsubscribe = onMessage(messaging, (payload) => {
+        console.log('[FCM] Message reçu (foreground):', payload);
+        setNotification(payload.notification || null);
+      });
+    } catch (err) {
+      console.error('[FCM] Erreur onMessage:', err);
+    }
 
     return () => unsubscribe && unsubscribe();
   }, [user?.id]);
