@@ -29,8 +29,9 @@ const ForgotPassword = () => {
 
     try {
       // Utiliser Supabase Auth pour envoyer l'email de réinitialisation
+      const siteUrl = process.env.REACT_APP_SITE_URL || window.location.origin;
       const { error } = await supabase.auth.resetPasswordForEmail(email, {
-        redirectTo: `${window.location.origin}/reset-password`,
+        redirectTo: `${siteUrl}/reset-password`,
       });
 
       if (error) {
