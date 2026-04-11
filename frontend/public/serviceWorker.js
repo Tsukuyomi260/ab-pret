@@ -98,22 +98,27 @@ self.addEventListener('message', (event) => {
 // Gestion des notifications push
 self.addEventListener('push', (event) => {
   console.log('[SW] Notification push reçue');
-  
+
   if (event.data) {
-    const data = event.data.json();
-    console.log('[SW] Données de notification:', data);
-    
+    const raw = event.data.json();
+    console.log('[SW] Données de notification:', raw);
+
+    // FCM data-only messages : les champs sont dans raw.data (pas à la racine)
+    const notifData = raw.data || raw;
+    const title = notifData.title || 'AB Campus Finance';
+    const body = notifData.body || '';
+
     const options = {
-      body: data.body || 'Nouvelle notification',
+      body,
       icon: '/logo192.png',
       badge: '/logo192.png',
-      tag: data.tag || 'ab-campus-finance',
-      data: data.data || {},
-      actions: data.actions || []
+      tag: notifData.tag || raw.tag || 'ab-campus-finance',
+      data: notifData,
+      actions: raw.actions || []
     };
-    
+
     event.waitUntil(
-      self.registration.showNotification(data.title || 'AB Campus Finance', options)
+      self.registration.showNotification(title, options)
     );
   }
 });
