@@ -10,7 +10,7 @@ require('dotenv').config();
 const getFrontendUrl = () => {
   // En production, utiliser l'URL de production
   if (process.env.NODE_ENV === 'production') {
-    return process.env.FRONTEND_URL || 'https://ab-cf1.vercel.app';
+    return process.env.FRONTEND_URL || 'https://www.campusab.com';
   }
   // En développement, utiliser localhost:3001
   return process.env.FRONTEND_URL || 'http://localhost:3001';
@@ -42,7 +42,7 @@ require('dotenv').config({ path: '.env.local' });
 require('dotenv').config();
 
 const allowedOrigins = [
-  'https://ab-cf1.vercel.app',
+  'https://www.campusab.com',
   process.env.FRONTEND_URL,
   'http://localhost:3000',
   'http://localhost:3001'
