@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { supabase } from '../../utils/supabaseClient';
 import { Lock, Eye, EyeOff, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
@@ -8,40 +8,9 @@ const ResetPassword = () => {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const [status, setStatus] = useState('waiting'); // waiting, idle, loading, success, error
+  const [status, setStatus] = useState('idle'); // idle, loading, success, error
   const [errorMessage, setErrorMessage] = useState('');
   const navigate = useNavigate();
-
-  useEffect(() => {
-    // Supabase détecte automatiquement le token dans le hash de l'URL
-    // et déclenche PASSWORD_RECOVERY via onAuthStateChange
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log('[RESET_PASSWORD] Événement auth:', event);
-      if (event === 'PASSWORD_RECOVERY') {
-        // Session de récupération établie, afficher le formulaire
-        setStatus('idle');
-      } else if (event === 'SIGNED_IN' && session) {
-        // Parfois c'est SIGNED_IN au lieu de PASSWORD_RECOVERY
-        setStatus('idle');
-      }
-    });
-
-    // Timeout : si pas d'événement après 5s, lien invalide
-    const timeout = setTimeout(() => {
-      setStatus(prev => {
-        if (prev === 'waiting') {
-          setErrorMessage('Lien de réinitialisation invalide ou expiré.');
-          return 'error';
-        }
-        return prev;
-      });
-    }, 5000);
-
-    return () => {
-      subscription.unsubscribe();
-      clearTimeout(timeout);
-    };
-  }, []);
 
   const validatePassword = (password) => {
     if (password.length < 6) {
@@ -107,17 +76,6 @@ const ResetPassword = () => {
       setErrorMessage('Une erreur est survenue. Veuillez réessayer.');
     }
   };
-
-  if (status === 'waiting') {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-blue-50 via-indigo-100 to-blue-50 flex items-center justify-center p-4">
-        <div className="text-center">
-          <Loader2 className="w-12 h-12 text-blue-600 animate-spin mx-auto mb-4" />
-          <p className="text-gray-600">Vérification du lien...</p>
-        </div>
-      </div>
-    );
-  }
 
   if (status === 'success') {
     return (
