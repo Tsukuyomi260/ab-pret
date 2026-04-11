@@ -40,12 +40,13 @@ setInterval(() => {
 
 messaging.onBackgroundMessage(async (payload) => {
   console.log('[SW] Message reçu en arrière-plan:', payload);
-  
-  // ⚠️ PROTECTION CONTRE LES DOUBLONS : Créer un ID unique et stable basé sur les données
+
+  // Tous les champs sont dans payload.data (message data-only)
   const data = payload.data || {};
-  // Pour les remboursements : utiliser payment_id (unique et stable)
-  // Pour les autres : utiliser loanId + type, ou type + userId
-  const notificationId = data.payment_id 
+  const title = data.title || 'AB Campus Finance';
+  const body = data.body || '';
+
+  const notificationId = data.payment_id
     ? `payment-${data.payment_id}`
     : (data.loanId || data.loan_id)
       ? `loan-${data.loanId || data.loan_id}-${data.type || 'default'}`
@@ -98,9 +99,9 @@ messaging.onBackgroundMessage(async (payload) => {
   // ⚠️ PROTECTION 3 : Ajouter au cache AVANT d'afficher (pour éviter les doublons simultanés)
   notificationCache.set(notificationId, now);
   
-  const notificationTitle = payload.notification?.title || 'AB Campus Finance';
+  const notificationTitle = title;
   const notificationOptions = {
-    body: payload.notification?.body || '',
+    body,
     icon: '/logo192.png',
     badge: '/logo192.png',
     image: '/logo512.png',

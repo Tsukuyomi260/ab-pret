@@ -241,39 +241,33 @@ async function sendFCMNotification(userId, title, body, data = {}) {
     }
 
     const admin = getFirebaseAdmin();
+    // Message data-only : le service worker contrôle l'affichage (plus fiable)
+    // Si on met un champ 'notification', le navigateur affiche un contenu générique en bypassant le SW
+    const stringData = {};
+    for (const [k, v] of Object.entries({ title, body, ...data })) {
+      stringData[k] = String(v ?? '');
+    }
+    stringData.url = data.url || '/dashboard';
+
     const message = {
-      notification: { title, body },
+      data: stringData,
       webpush: {
-        notification: {
-          title,
-          body,
-          icon: '/logo192.png',
-          badge: '/logo192.png'
-        },
-        fcmOptions: {
-          link: data.url || '/dashboard'
-        }
+        headers: { Urgency: 'high' },
+        fcmOptions: { link: data.url || '/dashboard' }
       },
       android: {
-        notification: {
-          title,
-          body,
-          sound: 'default',
-          icon: 'logo192',
-          channelId: 'ab-campus-finance'
-        }
+        priority: 'high',
+        data: stringData
       },
       apns: {
+        headers: { 'apns-priority': '10' },
         payload: {
           aps: {
+            'content-available': 1,
             alert: { title, body },
             sound: 'default'
           }
         }
-      },
-      data: {
-        ...data,
-        click_action: data.url || '/dashboard'
       },
       token: user.fcm_token
     };
@@ -437,34 +431,18 @@ app.post('/api/notifications/test-fcm-all-users', async (req, res) => {
     for (const user of users) {
       try {
         const userName = user.first_name || 'Utilisateur';
+        const testTitle = 'AB Campus Finance';
+        const testBody = `Bonjour ${userName} ! Ceci est un test, tout est OK.`;
         const message = {
-          notification: {
-            title: 'AB Campus Finance',
-            body: `Bonjour ${userName}, ceci est un test ne vous en faites pas, tout est OK!!!`
+          data: {
+            title: testTitle,
+            body: testBody,
+            type: 'test',
+            url: '/dashboard'
           },
           webpush: {
-            notification: {
-              icon: '/logo192.png',
-              badge: '/logo192.png',
-              sound: 'default'
-            },
-            fcmOptions: {
-              link: '/dashboard'
-            }
-          },
-          android: {
-            notification: {
-              sound: 'default',
-              icon: 'logo192',
-              channelId: 'ab-campus-finance'
-            }
-          },
-          apns: {
-            payload: {
-              aps: {
-                sound: 'default'
-              }
-            }
+            headers: { Urgency: 'high' },
+            fcmOptions: { link: '/dashboard' }
           },
           token: user.fcm_token
         };
