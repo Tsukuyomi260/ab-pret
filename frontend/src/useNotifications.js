@@ -110,16 +110,19 @@ export const useNotifications = () => {
           return;
         }
 
-        // Enregistrer / récupérer le service worker Firebase avant d'appeler getToken()
-        // Sans ça, getToken() échoue avec "no active Service Worker"
-        let swRegistration;
+        // Enregistrer le service worker Firebase et attendre qu'il soit actif
+        let swRegistration = null;
         try {
-          swRegistration = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
-          await navigator.serviceWorker.ready;
-          console.log('[FCM] Service worker prêt');
+          const reg = await navigator.serviceWorker.register('/firebase-messaging-sw.js');
+          // Attendre que le SW soit actif (skipWaiting dans le SW accélère ça)
+          if (reg.active) {
+            swRegistration = reg;
+          } else {
+            swRegistration = await navigator.serviceWorker.ready;
+          }
+          console.log('[FCM] Service worker actif');
         } catch (swError) {
-          console.warn('[FCM] Erreur enregistrement service worker:', swError);
-          // Tenter quand même avec le service worker existant
+          console.warn('[FCM] Erreur service worker:', swError);
           swRegistration = await navigator.serviceWorker.ready.catch(() => null);
         }
 

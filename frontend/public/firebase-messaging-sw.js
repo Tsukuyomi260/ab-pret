@@ -15,6 +15,14 @@ firebase.initializeApp({
 
 const messaging = firebase.messaging();
 
+// S'activer immédiatement sans attendre que les autres onglets ferment
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+});
+self.addEventListener('activate', (event) => {
+  event.waitUntil(clients.claim());
+});
+
 // Cache pour éviter les doublons (stocké en mémoire du service worker)
 // Structure: { notificationId: timestamp }
 const notificationCache = new Map();
