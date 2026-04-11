@@ -76,13 +76,21 @@ function getFirebaseAdmin() {
   }
 
   if (!admin.apps.length) {
-    const path = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || './firebase-service-account.json';
-    const fs = require('fs');
-    if (!fs.existsSync(path)) {
-      throw new Error(`Fichier compte de service introuvable: ${path}. Téléchargez-le depuis Firebase Console > Paramètres > Comptes de service.`);
+    // Priorité 1 : variable d'environnement base64 (Render / production)
+    const base64 = process.env.FIREBASE_SERVICE_ACCOUNT_BASE64;
+    if (base64) {
+      const serviceAccount = JSON.parse(Buffer.from(base64, 'base64').toString('utf8'));
+      admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
+    } else {
+      // Priorité 2 : fichier local (développement)
+      const path = process.env.FIREBASE_SERVICE_ACCOUNT_PATH || './firebase-service-account.json';
+      const fs = require('fs');
+      if (!fs.existsSync(path)) {
+        throw new Error(`Service account Firebase introuvable. Configurez FIREBASE_SERVICE_ACCOUNT_BASE64 sur Render ou placez le fichier JSON à ${path}.`);
+      }
+      const serviceAccount = JSON.parse(fs.readFileSync(path, 'utf8'));
+      admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
     }
-    const serviceAccount = JSON.parse(fs.readFileSync(path, 'utf8'));
-    admin.initializeApp({ credential: admin.credential.cert(serviceAccount) });
   }
 
   return admin;

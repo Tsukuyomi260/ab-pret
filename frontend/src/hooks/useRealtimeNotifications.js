@@ -1,49 +1,49 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { supabase } from '../utils/supabaseClient';
 import { useNotifications } from '../context/NotificationContext';
 import { useAuth } from '../context/AuthContext';
 
 export const useRealtimeNotifications = () => {
   const { addNotification } = useNotifications();
-  const { user } = useAuth(); // Récupérer l'utilisateur connecté
+  const { user } = useAuth();
   const [isConnected, setIsConnected] = useState(false);
-  const [processedIds] = useState(new Set()); // Pour éviter les doublons
+
+  // useRef pour que processedIds survive aux re-renders sans déclencher de re-souscription
+  const processedIds = useRef(new Set());
+  // useRef pour addNotification — évite de le mettre dans les deps de useEffect
+  const addNotificationRef = useRef(addNotification);
+  useEffect(() => { addNotificationRef.current = addNotification; }, [addNotification]);
 
   useEffect(() => {
     if (!user) return;
 
     const isAdmin = user?.role === 'admin';
     const userId = user?.id;
+    // Timestamp de démarrage : on ignore tous les événements Supabase antérieurs à maintenant
+    const subscriptionStart = new Date();
 
     console.log(`[REALTIME] ${isAdmin ? 'Admin' : 'Utilisateur'} connecté, ID: ${userId}`);
 
-    // Écouter les nouvelles demandes de prêts
     const loansSubscription = supabase
-      .channel('loans_changes')
+      .channel(`loans_changes_${userId}`)
       .on(
         'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'loans'
-        },
+        { event: 'INSERT', schema: 'public', table: 'loans' },
         (payload) => {
-          console.log('[REALTIME] Nouvelle demande de prêt:', payload.new);
-          
-          // Éviter les doublons
-          if (processedIds.has(payload.new.id)) {
-            return;
-          }
-          processedIds.add(payload.new.id);
-          
-          // Seulement l'admin voit les nouvelles demandes
+          // Ignorer les événements antérieurs à l'abonnement (replay Supabase)
+          const eventDate = new Date(payload.new.created_at);
+          if (eventDate < subscriptionStart) return;
+
+          if (processedIds.current.has(`insert_${payload.new.id}`)) return;
+          processedIds.current.add(`insert_${payload.new.id}`);
+
           if (isAdmin) {
-            addNotification({
+            addNotificationRef.current({
               title: '🚨 Nouvelle demande de prêt',
               message: `Demande de ${new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(payload.new.amount)} - ${payload.new.purpose || 'Objectif non spécifié'}`,
               type: 'info',
               priority: 'high',
-              forAdmin: true, // Marquer comme notification admin
+              forAdmin: true,
               data: {
                 loan_id: payload.new.id,
                 amount: payload.new.amount,
@@ -58,100 +58,89 @@ export const useRealtimeNotifications = () => {
       )
       .on(
         'postgres_changes',
-        {
-          event: 'UPDATE',
-          schema: 'public',
-          table: 'loans'
-        },
+        { event: 'UPDATE', schema: 'public', table: 'loans' },
         (payload) => {
-          console.log('[REALTIME] Mise à jour de prêt:', payload.new);
-          
-          // Notifier les changements de statut
-          if (payload.old.status !== payload.new.status) {
-            let message = '';
-            let type = 'info';
-            let title = '';
-            
-            switch (payload.new.status) {
-              case 'approved':
-                message = `Prêt approuvé pour ${new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(payload.new.amount)} FCFA`;
-                type = 'success';
-                title = '✅ Prêt approuvé';
-                break;
-              case 'rejected':
-                message = `Prêt rejeté pour ${new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(payload.new.amount)} FCFA`;
-                type = 'error';
-                title = '❌ Prêt rejeté';
-                break;
-              case 'active':
-                message = `Prêt activé pour ${new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(payload.new.amount)} FCFA`;
-                type = 'success';
-                title = '🚀 Prêt activé';
-                break;
-              default:
-                return;
-            }
-            
-            // Admin voit toutes les notifications de statut
-            if (isAdmin) {
-              addNotification({
-                title: `Statut de prêt mis à jour`,
-                message: `${message} - Utilisateur: ${payload.new.user_id}`,
-                type,
-                priority: 'medium',
-                forAdmin: true, // Marquer comme notification admin
-                data: payload.new
-              });
-            }
-            
-            // Utilisateur voit seulement ses propres notifications de statut
-            if (!isAdmin && payload.new.user_id === userId) {
-              addNotification({
-                title,
-                message,
-                type,
-                priority: 'high',
-                forUser: true, // Marquer comme notification utilisateur
-                userId: userId, // Spécifier l'utilisateur destinataire
-                data: payload.new,
-                action: 'Voir les détails'
-              });
-            }
+          if (payload.old.status === payload.new.status) return;
+
+          // Clé unique : loanId + nouveau statut — évite le doublon si l'event est rejoué
+          const eventKey = `update_${payload.new.id}_${payload.new.status}`;
+          if (processedIds.current.has(eventKey)) return;
+          processedIds.current.add(eventKey);
+
+          let message = '';
+          let type = 'info';
+          let title = '';
+
+          switch (payload.new.status) {
+            case 'approved':
+              message = `Prêt approuvé pour ${new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(payload.new.amount)}`;
+              type = 'success';
+              title = '✅ Prêt approuvé';
+              break;
+            case 'rejected':
+              message = `Prêt rejeté pour ${new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(payload.new.amount)}`;
+              type = 'error';
+              title = '❌ Prêt rejeté';
+              break;
+            case 'active':
+              message = `Prêt activé pour ${new Intl.NumberFormat('fr-FR', { style: 'currency', currency: 'XOF' }).format(payload.new.amount)}`;
+              type = 'success';
+              title = '🚀 Prêt activé';
+              break;
+            default:
+              return;
+          }
+
+          if (isAdmin) {
+            addNotificationRef.current({
+              title: `Statut de prêt mis à jour`,
+              message: `${message} - Utilisateur: ${payload.new.user_id}`,
+              type,
+              priority: 'medium',
+              forAdmin: true,
+              data: payload.new
+            });
+          }
+
+          if (!isAdmin && payload.new.user_id === userId) {
+            addNotificationRef.current({
+              title,
+              message,
+              type,
+              priority: 'high',
+              forUser: true,
+              userId,
+              data: payload.new,
+              action: 'Voir les détails'
+            });
           }
         }
       )
       .subscribe((status) => {
-        console.log('[REALTIME] Statut de la connexion loans:', status);
+        console.log('[REALTIME] Statut connexion loans:', status);
         setIsConnected(status === 'SUBSCRIBED');
       });
 
-    // Écouter les nouvelles inscriptions d'utilisateurs (seulement pour les admins)
+    let usersSubscription = null;
     if (isAdmin) {
-      const usersSubscription = supabase
-        .channel('users_changes')
+      usersSubscription = supabase
+        .channel(`users_changes_${userId}`)
         .on(
           'postgres_changes',
-          {
-            event: 'INSERT',
-            schema: 'public',
-            table: 'users'
-          },
+          { event: 'INSERT', schema: 'public', table: 'users' },
           (payload) => {
-            console.log('[REALTIME] Nouvel utilisateur (admin):', payload.new);
-            
-            // Éviter les doublons
-            if (processedIds.has(payload.new.id)) {
-              return;
-            }
-            processedIds.add(payload.new.id);
-            
-            // Ajouter une notification pour l'admin
-            addNotification({
+            const eventDate = new Date(payload.new.created_at);
+            if (eventDate < subscriptionStart) return;
+
+            if (processedIds.current.has(`user_${payload.new.id}`)) return;
+            processedIds.current.add(`user_${payload.new.id}`);
+
+            addNotificationRef.current({
               title: '👤 Nouvel utilisateur inscrit',
               message: `${payload.new.first_name} ${payload.new.last_name} - ${payload.new.phone_number}`,
               type: 'info',
               priority: 'medium',
-              forAdmin: true, // Marquer comme notification admin
+              forAdmin: true,
               data: {
                 user_id: payload.new.id,
                 first_name: payload.new.first_name,
@@ -165,25 +154,18 @@ export const useRealtimeNotifications = () => {
           }
         )
         .subscribe((status) => {
-          console.log('[REALTIME] Statut de la connexion users (admin):', status);
+          console.log('[REALTIME] Statut connexion users (admin):', status);
         });
-
-      // Cleanup function pour admin
-      return () => {
-        console.log('[REALTIME] Nettoyage des abonnements (admin)');
-        loansSubscription.unsubscribe();
-        usersSubscription.unsubscribe();
-      };
-    } else {
-      // Cleanup function pour utilisateur
-      return () => {
-        console.log('[REALTIME] Nettoyage des abonnements (utilisateur)');
-        loansSubscription.unsubscribe();
-      };
     }
-  // processedIds (Set stable) et user (usage via user?.id / user?.role) volontairement stables pour éviter ré-abonnements
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [addNotification, user?.role, user?.id]);
+
+    return () => {
+      console.log('[REALTIME] Nettoyage des abonnements');
+      loansSubscription.unsubscribe();
+      if (usersSubscription) usersSubscription.unsubscribe();
+    };
+  // Dépendances stables uniquement : user.id et user.role
+  // addNotification est accédé via ref pour éviter les re-souscriptions
+  }, [user?.id, user?.role]);
 
   return { isConnected };
 };

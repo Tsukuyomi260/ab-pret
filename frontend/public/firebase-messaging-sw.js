@@ -5,12 +5,12 @@ importScripts('https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compa
 // Ne pas modifier directement - les valeurs sont injectées depuis .env au build
 
 firebase.initializeApp({
-  apiKey: "AIzaSyBDWP7wZ1vx_2VjgHjNJ7AxaoRvs9Obf3Y",
-  authDomain: "ab-campus-notif.firebaseapp.com",
-  projectId: "ab-campus-notif",
-  storageBucket: "ab-campus-notif.firebasestorage.app",
-  messagingSenderId: "436866264113",
-  appId: "1:436866264113:web:46f56ed7745a8c770df910"
+  apiKey: "AIzaSyAjWyJUc0T0Dkkx6D0hzxTUkrtxxUAZHc0",
+  authDomain: "ab-campus.firebaseapp.com",
+  projectId: "ab-campus",
+  storageBucket: "ab-campus.firebasestorage.app",
+  messagingSenderId: "389442696100",
+  appId: "1:389442696100:web:948cd6fd203b55a20a0731"
 });
 
 const messaging = firebase.messaging();
