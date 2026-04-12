@@ -44,6 +44,8 @@ function computeOverduePenalty(loan) {
   return { daysOverdue, penaltyAmount: Math.round(penaltyAmount * 100) / 100 };
 }
 
+const BACKEND_URL = process.env.REACT_APP_BACKEND_URL;
+
 const LoanRequests = () => {
   const { showSuccess, showError } = useNotifications();
   const [loanRequests, setLoanRequests] = useState([]);
@@ -52,6 +54,7 @@ const LoanRequests = () => {
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
   const [selectedUser, setSelectedUser] = useState(null);
+  const [syncingLoanId, setSyncingLoanId] = useState(null);
   const [stats, setStats] = useState({
     totalRequests: 0,
     pending: 0,
@@ -65,6 +68,32 @@ const LoanRequests = () => {
   useEffect(() => {
     loadRequests();
   }, []);
+
+  const handleMarkAsRepaid = async (loanId) => {
+    setSyncingLoanId(loanId);
+    try {
+      const token = (await import('../../utils/supabaseClient')).supabase.auth.getSession
+        ? (await (await import('../../utils/supabaseClient')).supabase.auth.getSession()).data?.session?.access_token
+        : null;
+      const res = await fetch(`${BACKEND_URL}/api/sync-loan-status`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', ...(token ? { Authorization: `Bearer ${token}` } : {}) },
+        body: JSON.stringify({ loanId })
+      });
+      const data = await res.json();
+      if (data.updated) {
+        showSuccess('Prêt marqué comme remboursé');
+        await loadRequests();
+        setSelectedUser(null);
+      } else {
+        showError('Le prêt n\'est pas encore entièrement remboursé selon les paiements enregistrés');
+      }
+    } catch (err) {
+      showError('Erreur lors de la synchronisation');
+    } finally {
+      setSyncingLoanId(null);
+    }
+  };
 
   const loadRequests = async () => {
     try {
@@ -890,6 +919,9 @@ const LoanRequests = () => {
                       {/* Header de la demande */}
                       <div className="flex items-start justify-between mb-6">
                         <div className="flex-1">
+                          <div className="flex items-center gap-2 mb-2">
+                            <span className="text-xs font-mono bg-gray-200 text-gray-600 px-2 py-0.5 rounded select-all">ID : {loan.id}</span>
+                          </div>
                           <div className="flex items-center gap-4 mb-3">
                             <div className="text-3xl font-bold text-gray-900">{formatCurrency(loan.amount)}</div>
                             <span className={`inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-semibold ${
@@ -1043,6 +1075,28 @@ const LoanRequests = () => {
                             <UserX size={20} />
                             Rejeter la demande
                           </button>
+                        </div>
+                      )}
+
+                      {/* Action pour les prêts overdue : marquer comme remboursé */}
+                      {(loan.status === 'overdue' || loan.status === 'active' || loan.status === 'approved') && (
+                        <div className="pt-4 border-t border-gray-200">
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleMarkAsRepaid(loan.id);
+                            }}
+                            disabled={syncingLoanId === loan.id}
+                            className="flex items-center justify-center gap-2 px-5 py-3 bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 disabled:opacity-50 disabled:cursor-not-allowed text-white rounded-xl transition-all duration-200 font-semibold text-sm shadow-md hover:shadow-lg"
+                          >
+                            {syncingLoanId === loan.id ? (
+                              <RefreshCw size={16} className="animate-spin" />
+                            ) : (
+                              <CheckCircle size={16} />
+                            )}
+                            {syncingLoanId === loan.id ? 'Vérification...' : 'Vérifier & marquer remboursé'}
+                          </button>
+                          <p className="text-xs text-gray-500 mt-1">Vérifie les paiements en DB et marque comme remboursé si le total est atteint.</p>
                         </div>
                       )}
                     </div>
