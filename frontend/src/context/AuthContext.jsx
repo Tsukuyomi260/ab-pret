@@ -48,10 +48,11 @@ export const AuthProvider = ({ children }) => {
     }
     
     // Sécurité: timeout anti-blocage du loader
+    // 8s pour laisser le temps à Supabase de restaurer la session après un redirect externe (FedaPay)
     const safetyTimeout = setTimeout(() => {
       console.log('[AUTH] ⚠️ Timeout de sécurité - arrêt du loader');
       setLoading(false);
-    }, 3000);
+    }, 8000);
 
     // Si Supabase n'est pas initialisé, ne pas bloquer l'app
     if (!supabase) {
